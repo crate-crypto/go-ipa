@@ -2,6 +2,9 @@ package common
 
 import "github.com/crate-crypto/go-ipa/bls"
 
+// TODO since we know that it will be 256 points, should we use [256]bls.G1Point?
+const POLY_DEGREE = 256
+
 // Returns powers of x from 0 to degree-1
 // <1, x, x^2, x^3, x^4,...,x^(degree-1)>
 // TODO This method is used in two places; one is to evaluate a polynomial (test), and the other is to

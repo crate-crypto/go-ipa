@@ -8,10 +8,6 @@ import (
 	"github.com/crate-crypto/go-ipa/common"
 )
 
-// TODO since we know that it will be 256 points, should we use [256]bls.G1Point?
-// TODO
-const POLY_DEGREE = 256
-
 type IPAConfig struct {
 	// Points to commit to the two input vectors
 	SRS []bls.G1Point
@@ -28,8 +24,8 @@ type IPAConfig struct {
 // TODO an agreed way to do this, and this is the easiest way to have interoperability
 func NewIPASettingsUnsecure() *IPAConfig {
 
-	srs := make([]bls.G1Point, POLY_DEGREE)
-	for i := uint64(0); i < POLY_DEGREE; i++ {
+	srs := make([]bls.G1Point, common.POLY_DEGREE)
+	for i := uint64(0); i < common.POLY_DEGREE; i++ {
 		tmp := bls.Fr{}
 		bls.AsFr(&tmp, i)
 
