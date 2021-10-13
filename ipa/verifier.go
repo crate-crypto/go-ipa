@@ -5,11 +5,9 @@ import (
 	"github.com/crate-crypto/go-ipa/common"
 )
 
-func CheckIPAProof(ic *IPAConfig, commitment bls.G1Point, proof IPAProof, eval_point bls.Fr, inner_prod bls.Fr) bool {
+func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment bls.G1Point, proof IPAProof, eval_point bls.Fr, inner_prod bls.Fr) bool {
 
 	b := ic.PrecomputedWeights.ComputeBarycentricCoefficients(eval_point)
-
-	transcript := common.NewTranscript("prover")
 
 	transcript.AppendPoint(&commitment)
 	transcript.AppendScalars(&eval_point, &inner_prod)
@@ -79,12 +77,12 @@ func CheckIPAProof(ic *IPAConfig, commitment bls.G1Point, proof IPAProof, eval_p
 }
 
 func generate_b0(points []bls.Fr, challenges_inv []bls.Fr) bls.Fr {
-	if len(points) != POLY_DEGREE {
+	if len(points) != common.POLY_DEGREE {
 		// TODO we can remove this check, if we use [256]bls.Fr
 		panic("The IPA parameters have been fixed for a degree 256 polynomial")
 	}
 
-	n := POLY_DEGREE
+	n := common.POLY_DEGREE
 	for i := 0; i < len(challenges_inv); i++ {
 		n = n / 2
 		b_L := points[:n]

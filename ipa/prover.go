@@ -15,9 +15,7 @@ type IPAProof struct {
 }
 
 // TODO: currently we assume `a` is in monomial basis
-func CreateIPAProof(ic *IPAConfig, commitment bls.G1Point, a []bls.Fr, eval_point bls.Fr) IPAProof {
-
-	transcript := common.NewTranscript("prover")
+func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment bls.G1Point, a []bls.Fr, eval_point bls.Fr) IPAProof {
 
 	b := ic.PrecomputedWeights.ComputeBarycentricCoefficients(eval_point)
 	inner_prod := InnerProd(a, b)
@@ -29,7 +27,7 @@ func CreateIPAProof(ic *IPAConfig, commitment bls.G1Point, a []bls.Fr, eval_poin
 	q := bls.G1Point{}
 	bls.MulG1(&q, &ic.Q, &z)
 
-	num_rounds := math.Log2(POLY_DEGREE)
+	num_rounds := math.Log2(common.POLY_DEGREE)
 
 	current_basis := ic.SRS
 

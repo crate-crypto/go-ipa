@@ -4,12 +4,13 @@ import (
 	"fmt"
 
 	"github.com/crate-crypto/go-ipa/bls"
+	"github.com/crate-crypto/go-ipa/common"
 )
 
 // The domain size will always equal 256, which is the same
 // as the degree of the polynomial, we are committing to.
 // This constant is defined here for semantic reasons.
-const DOMAIN_SIZE = POLY_DEGREE
+const DOMAIN_SIZE = common.POLY_DEGREE
 
 type PrecomputedWeights struct {
 	// This stores A'(x_i) and 1/A'(x_i)
