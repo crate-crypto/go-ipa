@@ -1,7 +1,6 @@
 package ipa
 
 import (
-	"crypto/sha256"
 	"fmt"
 
 	"github.com/crate-crypto/go-ipa/bls"
@@ -68,19 +67,6 @@ func InnerProd(a []bls.Fr, b []bls.Fr) bls.Fr {
 	}
 
 	return result
-}
-
-func Hash_to_field(elements ...[]byte) bls.Fr {
-	sha256 := sha256.New()
-	for _, el := range elements {
-		sha256.Write(el)
-	}
-	h := sha256.Sum(nil)
-
-	result_reduced := bls.Fr{}
-	common.HashToFr(&result_reduced, h)
-
-	return result_reduced
 }
 
 // Computes c[i] =a[i] + b[i] * x
