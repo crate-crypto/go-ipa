@@ -41,7 +41,7 @@ func TestFrToDomain(testing *testing.T) {
 	a := bls.Fr{}
 	bls.AsFr(&a, uint64(expected))
 
-	got := FrToDomain(&a)
+	got := frToDomain(&a)
 	if expected != got {
 		panic(fmt.Sprintf("got %d, expected %d", got, expected))
 	}

@@ -33,7 +33,7 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 		transcript.AppendScalar(zs[i])
 
 		// get the `y` value
-		z_as_u8 := FrToDomain(zs[i])
+		z_as_u8 := frToDomain(zs[i])
 		f := fs[i]
 		y := f[z_as_u8]
 		transcript.AppendScalar(&y)
@@ -46,7 +46,7 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 
 	for i := 0; i < num_queries; i++ {
 		f := fs[i]
-		index := FrToDomain(zs[i])
+		index := frToDomain(zs[i])
 		r := powers_of_r[i]
 
 		quotient := ipaConf.PrecomputedWeights.DivideOnDomain(index, f)
@@ -172,7 +172,7 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 
 // Converts a field element to u8
 // panics if field element is > 255
-func FrToDomain(in *bls.Fr) uint8 {
+func frToDomain(in *bls.Fr) uint8 {
 	arr := bls.FrTo32(in)
 
 	// Since we know the domain is [0,255]
