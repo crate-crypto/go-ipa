@@ -2,6 +2,7 @@ package common
 
 import (
 	"crypto/sha256"
+	"hash"
 
 	"github.com/crate-crypto/go-ipa/bls"
 )
@@ -12,14 +13,17 @@ import (
 // and we first want this different API to pass without modifying the tests.
 // TODO Feedback from gballet remove the buffer and store the SHa256 object
 type Transcript struct {
-	state []byte
+	state hash.Hash
 }
 
 func NewTranscript(label string) *Transcript {
+	digest := sha256.New()
+	digest.Write([]byte(label))
+
 	transcript := &Transcript{
-		state: []byte{},
+		state: digest,
 	}
-	transcript.state = append(transcript.state, label...)
+
 	return transcript
 }
 
@@ -60,7 +64,7 @@ func (t *Transcript) AppendPoints(points ...*bls.G1Point) {
 
 // Appends Bytes to the transcript
 func (t *Transcript) appendBytes(b []byte) {
-	t.state = append(t.state, b...)
+	t.state.Write(b)
 }
 
 // Computes a challenge based off of the state of the transcript
@@ -71,14 +75,7 @@ func (t *Transcript) appendBytes(b []byte) {
 // XXX: Reduction to a field element, should probably be in the bls library and not here
 // with an api that just takes a slice and reduces it to an Fr
 func (t *Transcript) ChallengeScalar() bls.Fr {
-	digest := sha256.New()
-	digest.Write(t.state)
-
-	// XXX: Clear the state in order to be consistent with tests
-	// Although I believe we should not clear
-	t.state = []byte{}
-
 	var tmp bls.Fr
-	HashToFr(&tmp, digest.Sum(nil))
+	bls.ReduceBytesToFr(&tmp, t.state.Sum(nil))
 	return tmp
 }
