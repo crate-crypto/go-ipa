@@ -2,6 +2,8 @@ package bls
 
 import (
 	"encoding/binary"
+	"fmt"
+	"math/big"
 )
 
 func (fr *Fr) String() string {
@@ -32,4 +34,41 @@ func ValidFr(val [32]byte) bool {
 		return true
 	}
 	return binary.LittleEndian.Uint64(val[0:8]) <= 0xffffffff00000000
+}
+
+// Code below -  Taken from Go-verkle
+var modulus *big.Int
+
+func init() {
+	var ok bool
+	modulus, ok = big.NewInt(0).SetString("52435875175126190479447740508185965837690552500527637822603658699938581184513", 10)
+	if !ok {
+		panic("could not get modulus")
+	}
+
+}
+
+func ReduceBytesToFr(out *Fr, h []byte) {
+
+	// Apply modulus
+	x := big.NewInt(0).SetBytes(h)
+	x.Mod(x, modulus)
+
+	// FrFrom32 requires an array in little endian order
+	// where the array represents a number reduced modulo the modulus
+	//
+	// BigInt returns a byte slice in big endian order
+	// Where the slice represent a number reduced modulo the modulus
+	//
+	// The following lines, switch the endian and copy the byte slice into
+	// an array
+	var processed [32]byte
+	converted := x.Bytes()
+	for i := 0; i < len(converted); i++ {
+		processed[i] = converted[len(converted)-i-1]
+	}
+
+	if !FrFrom32(out, processed) {
+		panic(fmt.Sprintf("invalid Fr number %x", processed))
+	}
 }
