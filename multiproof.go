@@ -13,7 +13,7 @@ type MultiProof struct {
 	D   bls.G1Point
 }
 
-func CreateMultiProof(ipaConf *ipa.IPAConfig, Cs []bls.G1Point, fs [][]bls.Fr, zs []bls.Fr) MultiProof {
+func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs []*bls.G1Point, fs [][]bls.Fr, zs []*bls.Fr) MultiProof {
 
 	if len(Cs) != len(fs) {
 		panic(fmt.Sprintf("number of commitments = %d, while number of functions = %d", len(Cs), len(fs)))
@@ -28,23 +28,30 @@ func CreateMultiProof(ipaConf *ipa.IPAConfig, Cs []bls.G1Point, fs [][]bls.Fr, z
 		panic(fmt.Sprintf("cannot create a multiproof with 0 queries"))
 	}
 
-	// TODO add Cs, fs and zs into ipa.Hash_to_field and then generate `r`
-	// TODO API does not support this in a nice way yet
+	for i := 0; i < num_queries; i++ {
+		transcript.AppendPoint(Cs[i])
+		transcript.AppendScalar(zs[i])
 
-	r := ipa.Hash_to_field([]byte("todo"))
+		// get the `y` value
+		z_as_u8 := FrToDomain(zs[i])
+		f := fs[i]
+		y := f[z_as_u8]
+		transcript.AppendScalar(&y)
+	}
+	r := transcript.ChallengeScalar()
+	powers_of_r := common.PowersOf(r, num_queries)
 
 	// Compute g
-	g_x := make([]bls.Fr, ipa.POLY_DEGREE)
-	powers_of_r := common.PowersOf(r, num_queries)
+	g_x := make([]bls.Fr, common.POLY_DEGREE)
 
 	for i := 0; i < num_queries; i++ {
 		f := fs[i]
-		index := FrToDomain(&zs[i])
+		index := FrToDomain(zs[i])
 		r := powers_of_r[i]
 
 		quotient := ipaConf.PrecomputedWeights.DivideOnDomain(index, f)
 
-		for j := 0; j < ipa.POLY_DEGREE; j++ {
+		for j := 0; j < common.POLY_DEGREE; j++ {
 			tmp := bls.Fr{}
 			bls.MulModFr(&tmp, &r, &quotient[j])
 			bls.AddModFr(&g_x[j], &g_x[j], &tmp)
@@ -53,21 +60,22 @@ func CreateMultiProof(ipaConf *ipa.IPAConfig, Cs []bls.G1Point, fs [][]bls.Fr, z
 
 	D := ipa.Commit(ipaConf.SRS, g_x)
 
-	r_bytes := bls.FrTo32(&r)
-	t := ipa.Hash_to_field(r_bytes[:], bls.ToCompressedG1(&D))
+	transcript.AppendScalar(&r)
+	transcript.AppendPoint(&D)
+	t := transcript.ChallengeScalar()
 
 	// Compute h
-	h_x := make([]bls.Fr, ipa.POLY_DEGREE)
+	h_x := make([]bls.Fr, common.POLY_DEGREE)
 
 	for i := 0; i < num_queries; i++ {
 		r := powers_of_r[i]
 		f := fs[i]
 
 		den_inv := bls.Fr{}
-		bls.SubModFr(&den_inv, &t, &zs[i])
+		bls.SubModFr(&den_inv, &t, zs[i])
 		bls.InvModFr(&den_inv, &den_inv)
 
-		for k := 0; k < ipa.POLY_DEGREE; k++ {
+		for k := 0; k < common.POLY_DEGREE; k++ {
 			f_k := f[k]
 
 			tmp := bls.Fr{}
@@ -78,8 +86,8 @@ func CreateMultiProof(ipaConf *ipa.IPAConfig, Cs []bls.G1Point, fs [][]bls.Fr, z
 		}
 	}
 
-	h_minus_g := make([]bls.Fr, ipa.POLY_DEGREE)
-	for i := 0; i < ipa.POLY_DEGREE; i++ {
+	h_minus_g := make([]bls.Fr, common.POLY_DEGREE)
+	for i := 0; i < common.POLY_DEGREE; i++ {
 		bls.SubModFr(&h_minus_g[i], &h_x[i], &g_x[i])
 	}
 
@@ -88,7 +96,7 @@ func CreateMultiProof(ipaConf *ipa.IPAConfig, Cs []bls.G1Point, fs [][]bls.Fr, z
 	E_minus_D := bls.ZERO_G1
 	bls.SubG1(&E_minus_D, &E, &D)
 
-	ipa_proof := ipa.CreateIPAProof(ipaConf, E_minus_D, h_minus_g, t)
+	ipa_proof := ipa.CreateIPAProof(transcript, ipaConf, E_minus_D, h_minus_g, t)
 
 	return MultiProof{
 		ipa: ipa_proof,
@@ -96,7 +104,7 @@ func CreateMultiProof(ipaConf *ipa.IPAConfig, Cs []bls.G1Point, fs [][]bls.Fr, z
 	}
 }
 
-func CheckMultiProof(ipaConf *ipa.IPAConfig, proof MultiProof, Cs []bls.G1Point, ys []bls.Fr, zs []bls.Fr) bool {
+func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proof MultiProof, Cs []*bls.G1Point, ys []*bls.Fr, zs []*bls.Fr) bool {
 
 	if len(Cs) != len(ys) {
 		panic(fmt.Sprintf("number of commitments = %d, while number of output points = %d", len(Cs), len(ys)))
@@ -109,15 +117,20 @@ func CheckMultiProof(ipaConf *ipa.IPAConfig, proof MultiProof, Cs []bls.G1Point,
 	if num_queries == 0 {
 		// XXX does this need to be a panic?
 		// XXX: this comment is also in CreateMultiProof
-		panic(fmt.Sprintf("cannot create a multiproof with 0 queries"))
+		panic(fmt.Sprintf("cannot create a multiproof with no data"))
 	}
 
-	r := ipa.Hash_to_field([]byte("todo"))
-
-	r_bytes := bls.FrTo32(&r)
-	t := ipa.Hash_to_field(r_bytes[:], bls.ToCompressedG1(&proof.D))
-
+	for i := 0; i < num_queries; i++ {
+		transcript.AppendPoint(Cs[i])
+		transcript.AppendScalar(zs[i])
+		transcript.AppendScalar(ys[i])
+	}
+	r := transcript.ChallengeScalar()
 	powers_of_r := common.PowersOf(r, num_queries)
+
+	transcript.AppendScalar(&r)
+	transcript.AppendPoint(&proof.D)
+	t := transcript.ChallengeScalar()
 
 	// Compute helper_scalars. This is r^i / t - z_i
 	//
@@ -128,7 +141,7 @@ func CheckMultiProof(ipaConf *ipa.IPAConfig, proof MultiProof, Cs []bls.G1Point,
 		r := powers_of_r[i]
 
 		// r^i / (t - z_i)
-		bls.SubModFr(&helper_scalars[i], &t, &zs[i])
+		bls.SubModFr(&helper_scalars[i], &t, zs[i])
 		bls.InvModFr(&helper_scalars[i], &helper_scalars[i])
 		bls.MulModFr(&helper_scalars[i], &helper_scalars[i], &r)
 	}
@@ -137,7 +150,7 @@ func CheckMultiProof(ipaConf *ipa.IPAConfig, proof MultiProof, Cs []bls.G1Point,
 	g_2_t := bls.ZERO
 	for i := 0; i < num_queries; i++ {
 		tmp := bls.Fr{}
-		bls.MulModFr(&tmp, &ys[i], &helper_scalars[i])
+		bls.MulModFr(&tmp, ys[i], &helper_scalars[i])
 
 		bls.AddModFr(&g_2_t, &g_2_t, &tmp)
 	}
@@ -146,7 +159,7 @@ func CheckMultiProof(ipaConf *ipa.IPAConfig, proof MultiProof, Cs []bls.G1Point,
 	E := bls.ZERO_G1
 	for i := 0; i < num_queries; i++ {
 		tmp := bls.G1Point{}
-		bls.MulG1(&tmp, &Cs[i], &helper_scalars[i])
+		bls.MulG1(&tmp, Cs[i], &helper_scalars[i])
 
 		bls.AddG1(&E, &E, &tmp)
 	}
@@ -154,7 +167,7 @@ func CheckMultiProof(ipaConf *ipa.IPAConfig, proof MultiProof, Cs []bls.G1Point,
 	E_minus_D := bls.ZERO_G1
 	bls.SubG1(&E_minus_D, &E, &proof.D)
 
-	return ipa.CheckIPAProof(ipaConf, E_minus_D, proof.ipa, t, g_2_t)
+	return ipa.CheckIPAProof(transcript, ipaConf, E_minus_D, proof.ipa, t, g_2_t)
 }
 
 // Converts a field element to u8
