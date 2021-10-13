@@ -1,0 +1,1 @@
+This code will be replaced later on. It is a copy-paste from go-kzg
