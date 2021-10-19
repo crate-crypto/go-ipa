@@ -1,3 +1,5 @@
+// +build !bignum_kilic
+
 package bls
 
 import (
