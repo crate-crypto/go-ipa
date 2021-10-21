@@ -3,19 +3,18 @@ package ipa
 import (
 	"math"
 
-	"github.com/crate-crypto/go-ipa/bls"
+	"github.com/crate-crypto/go-ipa/bandersnatch"
+	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
 	"github.com/crate-crypto/go-ipa/common"
 )
 
 type IPAProof struct {
-	L []bls.G1Point
-	R []bls.G1Point
-	a bls.Fr
-	b bls.Fr
+	L []bandersnatch.PointAffine
+	R []bandersnatch.PointAffine
+	a fr.Element
 }
 
-// TODO: currently we assume `a` is in monomial basis
-func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment bls.G1Point, a []bls.Fr, eval_point bls.Fr) IPAProof {
+func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment bandersnatch.PointAffine, a []fr.Element, eval_point fr.Element) IPAProof {
 
 	b := ic.PrecomputedWeights.ComputeBarycentricCoefficients(eval_point)
 	inner_prod := InnerProd(a, b)
@@ -24,15 +23,15 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment bls
 	transcript.AppendScalars(&eval_point, &inner_prod)
 	z := transcript.ChallengeScalar()
 
-	q := bls.G1Point{}
-	bls.MulG1(&q, &ic.Q, &z)
+	var q bandersnatch.PointAffine
+	q.ScalarMul(&ic.Q, &z)
 
 	num_rounds := math.Log2(common.POLY_DEGREE)
 
 	current_basis := ic.SRS
 
-	var L []bls.G1Point
-	var R []bls.G1Point
+	var L []bandersnatch.PointAffine
+	var R []bandersnatch.PointAffine
 
 	for _i := 0; _i < int(num_rounds); _i++ {
 
@@ -46,10 +45,10 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment bls
 		z_R := InnerProd(a_L, b_R)
 
 		C_L_1 := Commit(G_L, a_R)
-		C_L := Commit([]bls.G1Point{C_L_1, q}, []bls.Fr{bls.ONE, z_L})
+		C_L := Commit([]bandersnatch.PointAffine{C_L_1, q}, []fr.Element{fr.One(), z_L})
 
 		C_R_1 := Commit(G_R, a_L)
-		C_R := Commit([]bls.G1Point{C_R_1, q}, []bls.Fr{bls.ONE, z_R})
+		C_R := Commit([]bandersnatch.PointAffine{C_R_1, q}, []fr.Element{fr.One(), z_R})
 
 		L = append(L, C_L)
 		R = append(R, C_R)
@@ -57,8 +56,8 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment bls
 		transcript.AppendPoints(&C_L, &C_R)
 		x := transcript.ChallengeScalar()
 
-		xInv := bls.Fr{}
-		bls.InvModFr(&xInv, &x)
+		var xInv fr.Element
+		xInv.Inverse(&x)
 
 		a = fold_scalars(a_L, a_R, x)
 		b = fold_scalars(b_L, b_R, xInv)
@@ -78,11 +77,11 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment bls
 	}
 }
 
-func splitFrHalf(x []bls.Fr) ([]bls.Fr, []bls.Fr) {
+func splitFrHalf(x []fr.Element) ([]fr.Element, []fr.Element) {
 	mid := len(x) / 2
 	return x[:mid], x[mid:]
 }
-func splitG1Half(x []bls.G1Point) ([]bls.G1Point, []bls.G1Point) {
+func splitG1Half(x []bandersnatch.PointAffine) ([]bandersnatch.PointAffine, []bandersnatch.PointAffine) {
 	mid := len(x) / 2
 	return x[:mid], x[mid:]
 }

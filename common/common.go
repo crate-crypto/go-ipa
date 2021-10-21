@@ -1,6 +1,6 @@
 package common
 
-import "github.com/crate-crypto/go-ipa/bls"
+import "github.com/crate-crypto/go-ipa/bandersnatch/fr"
 
 // TODO since we know that it will be 256 points, should we use [256]bls.G1Point?
 const POLY_DEGREE = 256
@@ -11,12 +11,12 @@ const POLY_DEGREE = 256
 // TODO compute powers of challenges.
 // TODO the first one we can use the bls package for
 // TODO The second we _could_ just multiply on each iteration, (depends on how readable it is)
-func PowersOf(x bls.Fr, degree int) []bls.Fr {
-	result := make([]bls.Fr, degree)
-	result[0] = bls.ONE
+func PowersOf(x fr.Element, degree int) []fr.Element {
+	result := make([]fr.Element, degree)
+	result[0] = fr.One()
 
 	for i := 1; i < degree; i++ {
-		bls.MulModFr(&result[i], &result[i-1], &x)
+		result[i].Mul(&result[i-1], &x)
 	}
 
 	return result

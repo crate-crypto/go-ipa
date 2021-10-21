@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/crate-crypto/go-ipa/bls"
+	"github.com/crate-crypto/go-ipa/bandersnatch"
+	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
 	"github.com/crate-crypto/go-ipa/common"
 	"github.com/crate-crypto/go-ipa/ipa"
 	"github.com/crate-crypto/go-ipa/test_helper"
@@ -20,15 +21,19 @@ func TestMultiProofCreateVerify(t *testing.T) {
 	prover_transcript := common.NewTranscript("multiproof")
 	prover_comm_1 := ipa.Commit(ipaConf.SRS, poly_1)
 
-	Cs := []*bls.G1Point{&prover_comm_1}
-	fs := [][]bls.Fr{poly_1}
-	zs := []*bls.Fr{&bls.ZERO}
-	ys := []*bls.Fr{&bls.ONE}
+	zero := fr.Zero()
+	one := fr.One()
+
+	Cs := []*bandersnatch.PointAffine{&prover_comm_1}
+	fs := [][]fr.Element{poly_1}
+	zs := []*fr.Element{&zero}
+	ys := []*fr.Element{&one}
 	proof := CreateMultiProof(prover_transcript, ipaConf, Cs, fs, zs)
 
 	// Verifier view
 	verifier_transcript := common.NewTranscript("multiproof")
 	ok := CheckMultiProof(verifier_transcript, ipaConf, proof, Cs, ys, zs)
+
 	if !ok {
 		panic("multi product proof failed")
 	}
@@ -38,8 +43,8 @@ func TestMultiProofCreateVerify(t *testing.T) {
 func TestFrToDomain(testing *testing.T) {
 	expected := uint8(200)
 
-	a := bls.Fr{}
-	bls.AsFr(&a, uint64(expected))
+	var a fr.Element
+	a.SetUint64(uint64(expected))
 
 	got := frToDomain(&a)
 	if expected != got {

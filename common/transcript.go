@@ -4,7 +4,8 @@ import (
 	"crypto/sha256"
 	"hash"
 
-	"github.com/crate-crypto/go-ipa/bls"
+	"github.com/crate-crypto/go-ipa/bandersnatch"
+	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
 )
 
 /// The transcript is used to create challenge scalars.
@@ -26,30 +27,31 @@ func NewTranscript(label string) *Transcript {
 	return transcript
 }
 
-// Appends a Bls Scalar to the transcript
+// Appends a Scalar to the transcript
 //
 // Converts the scalar to 32 bytes, then appends it to
 // the state
-func (t *Transcript) AppendScalar(scalar *bls.Fr) {
-	tmpBytes := bls.FrTo32(scalar)
+func (t *Transcript) AppendScalar(scalar *fr.Element) {
+	tmpBytes := scalar.Bytes()
 	t.state.Write(tmpBytes[:])
 }
 
-func (t *Transcript) AppendScalars(scalars ...*bls.Fr) {
+func (t *Transcript) AppendScalars(scalars ...*fr.Element) {
 	for _, idx := range scalars {
 		t.AppendScalar(idx)
 	}
 }
 
-// Appends a G1 Point to the transcript
+// Appends a Point to the transcript
 //
-// Compresses the G1 Point into a 32 byte slice, then appends it to
+// Compresses the Point into a 32 byte slice, then appends it to
 // the state
-func (t *Transcript) AppendPoint(point *bls.G1Point) {
-	t.state.Write(bls.ToCompressedG1(point))
+func (t *Transcript) AppendPoint(point *bandersnatch.PointAffine) {
+	tmp_bytes := point.Bytes()
+	t.state.Write(tmp_bytes[:])
 }
 
-func (t *Transcript) AppendPoints(points ...*bls.G1Point) {
+func (t *Transcript) AppendPoints(points ...*bandersnatch.PointAffine) {
 	for _, point := range points {
 		t.AppendPoint(point)
 	}
@@ -61,9 +63,9 @@ func (t *Transcript) AppendPoints(points ...*bls.G1Point) {
 // scalar field
 //
 // Note that calling the transcript twice, will yield two different challenges
-func (t *Transcript) ChallengeScalar() bls.Fr {
-	var tmp bls.Fr
-	bls.ReduceBytesToFr(&tmp, t.state.Sum(nil))
+func (t *Transcript) ChallengeScalar() fr.Element {
+	var tmp fr.Element
+	tmp.SetBytes(t.state.Sum(nil))
 
 	// Clear the state
 	t.state.Reset()
