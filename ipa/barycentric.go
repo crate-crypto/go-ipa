@@ -3,7 +3,7 @@ package ipa
 import (
 	"fmt"
 
-	"github.com/crate-crypto/go-ipa/bls"
+	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
 	"github.com/crate-crypto/go-ipa/common"
 )
 
@@ -14,9 +14,9 @@ const DOMAIN_SIZE = common.POLY_DEGREE
 
 type PrecomputedWeights struct {
 	// This stores A'(x_i) and 1/A'(x_i)
-	barycentricWeights []bls.Fr
+	barycentricWeights []fr.Element
 	// This stores 1/k and -1/k for k \in [0, 255]
-	invertedDomain []bls.Fr
+	invertedDomain []fr.Element
 }
 
 func NewPrecomputedWeights() *PrecomputedWeights {
@@ -28,12 +28,12 @@ func NewPrecomputedWeights() *PrecomputedWeights {
 
 	// Note there are DOMAIN_SIZE number of weights, but we are also storing their inverses
 	// so we need double the amount of space
-	barycentricWeights := make([]bls.Fr, midpoint*2)
+	barycentricWeights := make([]fr.Element, midpoint*2)
 	for i := uint64(0); i < midpoint; i++ {
 		weight := computeBarycentricWeightForElement(i)
 
-		invWeight := bls.Fr{}
-		bls.InvModFr(&invWeight, &weight)
+		var invWeight fr.Element
+		invWeight.Inverse(&weight)
 
 		barycentricWeights[i] = weight
 		barycentricWeights[i+midpoint] = invWeight
@@ -42,14 +42,15 @@ func NewPrecomputedWeights() *PrecomputedWeights {
 	// Computing 1/k and -1/k for k \in [0, 255]
 	// Note that since we cannot do 1/0, we have one less element
 	midpoint = DOMAIN_SIZE - 1
-	invertedDomain := make([]bls.Fr, midpoint*2)
+	invertedDomain := make([]fr.Element, midpoint*2)
 	for i := uint64(1); i < DOMAIN_SIZE; i++ {
-		k := bls.Fr{}
-		bls.AsFr(&k, i)
-		bls.InvModFr(&k, &k)
+		var k fr.Element
+		k.SetUint64(i)
+		k.Inverse(&k)
 
-		negative_k := bls.Fr{}
-		bls.SubModFr(&negative_k, &bls.ZERO, &k)
+		var negative_k fr.Element
+		zero := fr.Zero()
+		negative_k.Sub(&zero, &k)
 
 		invertedDomain[i-1] = k
 		invertedDomain[(i-1)+midpoint] = negative_k
@@ -65,29 +66,29 @@ func NewPrecomputedWeights() *PrecomputedWeights {
 // computes A'(x_j) where x_j must be an element in the domain
 // This is computed as the product of x_j - x_i where x_i is an element in the domain
 // and x_i is not equal to x_j
-func computeBarycentricWeightForElement(element uint64) bls.Fr {
+func computeBarycentricWeightForElement(element uint64) fr.Element {
 	// let domain_element_fr = Fr::from(domain_element as u128);
 	if element > DOMAIN_SIZE {
 		panic(fmt.Sprintf("the domain is [0,255], %d is not in the domain", element))
 	}
 
-	domain_element_fr := bls.Fr{}
-	bls.AsFr(&domain_element_fr, element)
+	var domain_element_fr fr.Element
+	domain_element_fr.SetUint64(element)
 
-	total := bls.ONE
+	total := fr.One()
 
 	for i := uint64(0); i < DOMAIN_SIZE; i++ {
 		if i == element {
 			continue
 		}
 
-		i_fr := bls.Fr{}
-		bls.AsFr(&i_fr, i)
+		var i_fr fr.Element
+		i_fr.SetUint64(i)
 
-		tmp := bls.Fr{}
-		bls.SubModFr(&tmp, &domain_element_fr, &i_fr)
+		var tmp fr.Element
+		tmp.Sub(&domain_element_fr, &i_fr)
 
-		bls.MulModFr(&total, &total, &tmp)
+		total.Mul(&total, &tmp)
 	}
 
 	return total
@@ -98,34 +99,36 @@ func computeBarycentricWeightForElement(element uint64) bls.Fr {
 // is equal to p(z)
 // Note that `z` should not be in the domain
 // This can also be seen as the lagrange coefficients L_i(point)
-func (preComp *PrecomputedWeights) ComputeBarycentricCoefficients(point bls.Fr) []bls.Fr {
+func (preComp *PrecomputedWeights) ComputeBarycentricCoefficients(point fr.Element) []fr.Element {
 
 	// Compute A(x_i) * point - x_i
-	lagrangeEvals := make([]bls.Fr, DOMAIN_SIZE)
+	lagrangeEvals := make([]fr.Element, DOMAIN_SIZE)
 	for i := uint64(0); i < DOMAIN_SIZE; i++ {
 		weight := preComp.barycentricWeights[i]
 
-		i_fr := bls.Fr{}
-		bls.AsFr(&i_fr, i)
-		bls.SubModFr(&lagrangeEvals[i], &point, &i_fr)
-
-		bls.MulModFr(&lagrangeEvals[i], &lagrangeEvals[i], &weight)
+		var i_fr fr.Element
+		i_fr.SetUint64(i)
+		lagrangeEvals[i].Sub(&point, &i_fr)
+		lagrangeEvals[i].Mul(&lagrangeEvals[i], &weight)
 	}
 
-	totalProd := bls.ONE
+	totalProd := fr.One()
 	for i := uint64(0); i < DOMAIN_SIZE; i++ {
-		i_fr := bls.Fr{}
-		bls.AsFr(&i_fr, i)
+		var i_fr fr.Element
+		i_fr.SetUint64(i)
 
-		tmp := bls.Fr{}
-		bls.SubModFr(&tmp, &point, &i_fr)
-		bls.MulModFr(&totalProd, &totalProd, &tmp)
+		var tmp fr.Element
+		tmp.Sub(&point, &i_fr)
+		totalProd.Mul(&totalProd, &tmp)
 	}
 
 	for i := uint64(0); i < DOMAIN_SIZE; i++ {
-		// XXX: there is no batch inversion API
-		bls.InvModFr(&lagrangeEvals[i], &lagrangeEvals[i])
-		bls.MulModFr(&lagrangeEvals[i], &lagrangeEvals[i], &totalProd)
+		// TODO: there was no batch inversion API.
+		// TODO once we fully switch over to bandersnatch
+		// TODO we can switch to batch invert API
+
+		lagrangeEvals[i].Inverse(&lagrangeEvals[i])
+		lagrangeEvals[i].Mul(&lagrangeEvals[i], &totalProd)
 	}
 
 	return lagrangeEvals
@@ -134,8 +137,8 @@ func (preComp *PrecomputedWeights) ComputeBarycentricCoefficients(point bls.Fr) 
 // XXX: we allocate each time we call, I think the golang thing to do would be to pass a
 // pointer and clear the buffer each time
 // computes f(x) - f(x_i) / x - x_i where x_i is an element in the domain
-func (preComp *PrecomputedWeights) DivideOnDomain(index uint8, f []bls.Fr) []bls.Fr {
-	quotient := make([]bls.Fr, DOMAIN_SIZE)
+func (preComp *PrecomputedWeights) DivideOnDomain(index uint8, f []fr.Element) []fr.Element {
+	quotient := make([]fr.Element, DOMAIN_SIZE)
 
 	y := f[index]
 
@@ -147,21 +150,20 @@ func (preComp *PrecomputedWeights) DivideOnDomain(index uint8, f []bls.Fr) []bls
 			denInv := preComp.getInvertedElement(absDen, is_neg)
 
 			// compute q_i
-			bls.SubModFr(&quotient[i], &f[i], &y)
-			bls.MulModFr(&quotient[i], &quotient[i], &denInv)
+			quotient[i].Sub(&f[i], &y)
+			quotient[i].Mul(&quotient[i], &denInv)
 
 			weightRatio := preComp.getRatioOfWeights(int(index), i)
-			tmp := bls.Fr{}
-			bls.MulModFr(&tmp, &weightRatio, &quotient[i])
-			bls.SubModFr(&quotient[index], &quotient[index], &tmp)
-
+			var tmp fr.Element
+			tmp.Mul(&weightRatio, &quotient[i])
+			quotient[index].Sub(&quotient[index], &tmp)
 		}
 	}
 
 	return quotient
 }
 
-func (preComp *PrecomputedWeights) getInvertedElement(element int, is_neg bool) bls.Fr {
+func (preComp *PrecomputedWeights) getInvertedElement(element int, is_neg bool) fr.Element {
 	index := element - 1
 
 	if is_neg {
@@ -172,18 +174,18 @@ func (preComp *PrecomputedWeights) getInvertedElement(element int, is_neg bool) 
 	return preComp.invertedDomain[index]
 }
 
-func (preComp *PrecomputedWeights) getRatioOfWeights(numerator int, denominator int) bls.Fr {
+func (preComp *PrecomputedWeights) getRatioOfWeights(numerator int, denominator int) fr.Element {
 
 	a := preComp.barycentricWeights[numerator]
 	midpoint := len(preComp.barycentricWeights) / 2
 	b := preComp.barycentricWeights[denominator+midpoint]
 
-	result := bls.Fr{}
-	bls.MulModFr(&result, &a, &b)
+	var result fr.Element
+	result.Mul(&a, &b)
 	return result
 }
 
-func (preComp *PrecomputedWeights) getInverseBarycentricWeight(i int) bls.Fr {
+func (preComp *PrecomputedWeights) getInverseBarycentricWeight(i int) fr.Element {
 
 	midpoint := len(preComp.barycentricWeights) / 2
 	return preComp.barycentricWeights[i+midpoint]

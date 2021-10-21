@@ -1,11 +1,12 @@
 package ipa
 
 import (
-	"github.com/crate-crypto/go-ipa/bls"
+	"github.com/crate-crypto/go-ipa/bandersnatch"
+	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
 	"github.com/crate-crypto/go-ipa/common"
 )
 
-func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment bls.G1Point, proof IPAProof, eval_point bls.Fr, inner_prod bls.Fr) bool {
+func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment bandersnatch.PointAffine, proof IPAProof, eval_point fr.Element, inner_prod fr.Element) bool {
 
 	b := ic.PrecomputedWeights.ComputeBarycentricCoefficients(eval_point)
 
@@ -13,15 +14,15 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment bls.
 	transcript.AppendScalars(&eval_point, &inner_prod)
 	z := transcript.ChallengeScalar()
 
-	q := bls.G1Point{}
-	bls.MulG1(&q, &ic.Q, &z)
+	var q bandersnatch.PointAffine
+	q.ScalarMul(&ic.Q, &z)
 
-	qy := bls.G1Point{}
-	bls.MulG1(&qy, &q, &inner_prod)
-	bls.AddG1(&commitment, &commitment, &qy)
+	var qy bandersnatch.PointAffine
+	qy.ScalarMul(&q, &inner_prod)
+	commitment.Add(&commitment, &qy)
 
 	challenges := generateChallenges(transcript, &proof)
-	challenges_inv := make([]bls.Fr, len(challenges))
+	challenges_inv := make([]fr.Element, len(challenges))
 
 	// Compute expected commitment
 	for i := 0; i < len(challenges); i++ {
@@ -29,12 +30,12 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment bls.
 		L := proof.L[i]
 		R := proof.R[i]
 
-		xInv := bls.Fr{}
-		bls.InvModFr(&xInv, &x)
+		var xInv fr.Element
+		xInv.Inverse(&x)
 
 		challenges_inv[i] = xInv
 
-		commitment = Commit([]bls.G1Point{commitment, L, R}, []bls.Fr{bls.ONE, x, xInv})
+		commitment = Commit([]bandersnatch.PointAffine{commitment, L, R}, []fr.Element{fr.One(), x, xInv})
 	}
 
 	current_basis := ic.SRS
@@ -61,50 +62,27 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment bls.
 
 	b0 := b[0]
 
-	got := bls.G1Point{}
+	var got bandersnatch.PointAffine
 	//  G[0] * a + (a * b) * Q;
-	part_1 := bls.G1Point{}
-	bls.MulG1(&part_1, &current_basis[0], &proof.a)
+	var part_1 bandersnatch.PointAffine
+	part_1.ScalarMul(&current_basis[0], &proof.a)
 
-	part_2 := bls.G1Point{}
-	part_2a := bls.Fr{}
-	bls.MulModFr(&part_2a, &b0, &proof.a)
-	bls.MulG1(&part_2, &q, &part_2a)
+	var part_2 bandersnatch.PointAffine
+	var part_2a fr.Element
 
-	bls.AddG1(&got, &part_1, &part_2)
+	part_2a.Mul(&b0, &proof.a)
+	part_2.ScalarMul(&q, &part_2a)
 
-	return bls.EqualG1(&got, &commitment)
+	got.Add(&part_1, &part_2)
+
+	return got.Equal(&commitment)
 }
 
-func generate_b0(points []bls.Fr, challenges_inv []bls.Fr) bls.Fr {
-	if len(points) != common.POLY_DEGREE {
-		// TODO we can remove this check, if we use [256]bls.Fr
-		panic("The IPA parameters have been fixed for a degree 256 polynomial")
-	}
-
-	n := common.POLY_DEGREE
-	for i := 0; i < len(challenges_inv); i++ {
-		n = n / 2
-		b_L := points[:n]
-		b_R := points[n:]
-		xInv := challenges_inv[i]
-
-		points = fold_scalars(b_L, b_R, xInv)
-
-	}
-
-	if len(points) != 1 {
-		panic("points should only have one point")
-	}
-
-	return points[0]
-}
-
-func generateChallenges(transcript *common.Transcript, proof *IPAProof) []bls.Fr {
+func generateChallenges(transcript *common.Transcript, proof *IPAProof) []fr.Element {
 	if len(proof.L) != len(proof.R) {
 		panic("L and R should be the same size")
 	}
-	challenges := make([]bls.Fr, len(proof.L))
+	challenges := make([]fr.Element, len(proof.L))
 	for i := 0; i < len(proof.L); i++ {
 		transcript.AppendPoints(&proof.L[i], &proof.R[i])
 		challenges[i] = transcript.ChallengeScalar()

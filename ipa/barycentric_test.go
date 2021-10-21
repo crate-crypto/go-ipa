@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/crate-crypto/go-ipa/bls"
+	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
 	"github.com/crate-crypto/go-ipa/common"
 	"github.com/crate-crypto/go-ipa/test_helper"
 )
@@ -39,63 +39,77 @@ func TestBasicInterpolate(testing *testing.T) {
 	// Once we interpolate the polynomial, any point
 	// we evalate the polynomial at, should return the point
 	point_a := Point{
-		x: bls.ZERO,
-		y: bls.ZERO,
+		x: fr.Zero(),
+		y: fr.Zero(),
 	}
 	point_b := Point{
-		x: bls.ONE,
-		y: bls.ONE,
+		x: fr.One(),
+		y: fr.One(),
 	}
 	points := Points{point_a, point_b}
 	poly := points.interpolate()
 
-	rand_fr := bls.RandomFr()
-	result := poly.evaluate(*rand_fr)
-	if !bls.EqualFr(&result, rand_fr) {
+	var rand_fr fr.Element
+	_, err := rand_fr.SetRandom()
+	if err != nil {
+		panic("could not generate a random element")
+	}
+	result := poly.evaluate(rand_fr)
+
+	if !result.Equal(&rand_fr) {
 		panic("result should be rand_fr, because the polynomial should be the identity polynomial")
 	}
 }
 
 func TestPolyDiv(testing *testing.T) {
+	one := fr.One()
+	minus_one := fr.MinusOne()
 
-	minus_one := bls.MODULUS_MINUS1
+	var minus_two fr.Element
+	minus_two.Sub(&minus_one, &one)
 
-	minus_two := bls.Fr{}
-	bls.SubModFr(&minus_two, &minus_one, &bls.ONE)
+	var minus_three fr.Element
+	minus_three.Sub(&minus_two, &one)
 
-	minus_three := bls.Fr{}
-	bls.SubModFr(&minus_three, &minus_two, &bls.ONE)
+	var two fr.Element
+	two.SetUint64(2)
 
 	// (X-1)(X-2) =  2 - 3X + X^2
-	poly_coeff_numerator := []bls.Fr{bls.TWO, minus_three, bls.ONE}
+	poly_coeff_numerator := []fr.Element{two, minus_three, one}
 
 	// - 1 + X
-	poly_coeff_denominator := []bls.Fr{minus_one, bls.ONE}
+	poly_coeff_denominator := []fr.Element{minus_one, one}
 	quotient, rem, ok := pld(poly_coeff_numerator, poly_coeff_denominator)
 	if !ok {
 		panic("poly div failed")
 	}
 
 	for _, x := range rem {
-		if !bls.EqualZero(&x) {
+		if !x.IsZero() {
+			fmt.Printf("%v", x)
 			panic("remainder should be zero")
 		}
 	}
 
 	// The quotient should be X - 2, lets evaluate it and check this is correct
-	rand_fr := bls.RandomFr()
-	got := Poly(quotient).evaluate(*rand_fr)
+	var rand_fr fr.Element
+	_, err := rand_fr.SetRandom()
+	if err != nil {
+		panic("could not get randomness")
+	}
+	got := Poly(quotient).evaluate(rand_fr)
 
-	expected := bls.Fr{}
-	bls.AddModFr(&expected, rand_fr, &minus_two)
-	if !bls.EqualFr(&expected, &got) {
+	var expected fr.Element
+	expected.Add(&rand_fr, &minus_two)
+
+	if !expected.Equal(&got) {
 		panic("quotient is not correct")
 	}
 }
 
 func TestComputeBarycentricCoefficients(testing *testing.T) {
-	point_outside_domain := bls.Fr{}
-	bls.AsFr(&point_outside_domain, 3400)
+	var point_outside_domain fr.Element
+	point_outside_domain.SetUint64(3400)
 
 	lagrange_values := test_helper.TestPoly256(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 
@@ -106,8 +120,9 @@ func TestComputeBarycentricCoefficients(testing *testing.T) {
 
 	points := Points{}
 	for k := 0; k < 256; k++ {
-		x := bls.Fr{}
-		bls.AsFr(&x, uint64(k))
+		var x fr.Element
+		x.SetUint64(uint64(k))
+
 		point := Point{
 			x: x,
 			y: lagrange_values[k],
@@ -117,78 +132,80 @@ func TestComputeBarycentricCoefficients(testing *testing.T) {
 	poly_coeff := points.interpolate()
 	expected2 := poly_coeff.evaluate(point_outside_domain)
 
-	if !bls.EqualFr(&expected2, &expected) {
+	if !expected2.Equal(&expected) {
 		panic("problem with barycentric weights")
 	}
-	if !bls.EqualFr(&expected2, &got) {
-		panic("problem with barycentric weights22")
+
+	if !expected2.Equal(&got) {
+		panic("problem with inner product")
 	}
 }
 
 // another way to evaluate a point outside of the domain
 // TODO, we can probably remove this and just interpolate and evaluate in tests
-func evalOutsideDomain(preComp *PrecomputedWeights, f []bls.Fr, point bls.Fr) bls.Fr {
+func evalOutsideDomain(preComp *PrecomputedWeights, f []fr.Element, point fr.Element) fr.Element {
 
-	pointMinusDomain := make([]bls.Fr, DOMAIN_SIZE)
+	pointMinusDomain := make([]fr.Element, DOMAIN_SIZE)
 	for i := 0; i < DOMAIN_SIZE; i++ {
 
-		i_fr := bls.Fr{}
-		bls.AsFr(&i_fr, uint64(i))
-
-		bls.SubModFr(&pointMinusDomain[i], &point, &i_fr)
-		bls.InvModFr(&pointMinusDomain[i], &pointMinusDomain[i])
+		var i_fr fr.Element
+		i_fr.SetUint64(uint64(i))
+		pointMinusDomain[i].Sub(&point, &i_fr)
+		pointMinusDomain[i].Inverse(&pointMinusDomain[i])
 	}
 
-	summand := bls.ZERO
+	summand := fr.Zero()
 	for x_i := 0; x_i < len(pointMinusDomain); x_i++ {
 		weight := preComp.getInverseBarycentricWeight(x_i)
-		term := bls.Fr{}
-		bls.MulModFr(&term, &weight, &f[x_i])
-		bls.MulModFr(&term, &term, &pointMinusDomain[x_i])
-
-		bls.AddModFr(&summand, &summand, &term)
+		var term fr.Element
+		term.Mul(&weight, &f[x_i])
+		term.Mul(&term, &pointMinusDomain[x_i])
+		summand.Add(&summand, &term)
 	}
 
-	a_z := bls.ONE
+	a_z := fr.One()
 	for i := 0; i < DOMAIN_SIZE; i++ {
 
-		i_fr := bls.Fr{}
-		bls.AsFr(&i_fr, uint64(i))
+		var i_fr fr.Element
+		i_fr.SetUint64(uint64(i))
 
-		tmp := bls.Fr{}
-		bls.SubModFr(&tmp, &point, &i_fr)
-
-		bls.MulModFr(&a_z, &a_z, &tmp)
+		var tmp fr.Element
+		tmp.Sub(&point, &i_fr)
+		a_z.Mul(&a_z, &tmp)
 	}
-	bls.MulModFr(&a_z, &a_z, &summand)
+	a_z.Mul(&a_z, &summand)
 
 	return a_z
 }
 
 func TestDivideOnDomain(testing *testing.T) {
 	// First lets define the polynomial (X-1)(X+1)(X)^253
-	eval_f := func(x bls.Fr) bls.Fr {
+	eval_f := func(x fr.Element) fr.Element {
 		// f is (X-1)(X+1)(X^253)
-		tmp_a := bls.Fr{}
-		bls.SubModFr(&tmp_a, &x, &bls.ONE)
-		tmp_b := bls.Fr{}
-		bls.AddModFr(&tmp_b, &x, &bls.ONE)
+		var tmp_a fr.Element
+		one := fr.One()
+		tmp_a.Sub(&x, &one)
 
-		tmp_c := bls.ONE
+		var tmp_b fr.Element
+		tmp_b.Add(&x, &one)
+
+		tmp_c := one
 		for i := 0; i < 253; i++ {
-			bls.MulModFr(&tmp_c, &tmp_c, &x)
+			tmp_c.Mul(&tmp_c, &x)
 		}
 
-		res := bls.Fr{}
-		bls.MulModFr(&res, &tmp_a, &tmp_b)
-		bls.MulModFr(&res, &res, &tmp_c)
+		var res fr.Element
+		res.Mul(&tmp_a, &tmp_b)
+		res.Mul(&res, &tmp_c)
+
 		return res
 	}
 
 	points := Points{}
 	for k := 0; k < 256; k++ {
-		x := bls.Fr{}
-		bls.AsFr(&x, uint64(k))
+		var x fr.Element
+		x.SetUint64(uint64(k))
+
 		point := Point{
 			x: x,
 			y: eval_f(x),
@@ -199,17 +216,17 @@ func TestDivideOnDomain(testing *testing.T) {
 	numerator_poly_coeff := points.interpolate()
 
 	// X - 1 (This is chosen because we know it divides perfectly into the numerator)
-	denom_poly_coeff := Poly{bls.MODULUS_MINUS1, bls.ONE}
+	denom_poly_coeff := Poly{fr.MinusOne(), fr.One()}
 
 	preComp := NewPrecomputedWeights()
 	index := uint8(1) // One, because this is the same as dividing by X - 1, note that at x=1, we have a root
 
 	// We need just the `y` values from points (ie just the evaluations)
-	evaluations := make([]bls.Fr, 256)
+	evaluations := make([]fr.Element, 256)
 	for i, p := range points {
 		evaluations[i] = p.y
 	}
-	if !bls.EqualZero(&evaluations[index]) {
+	if !evaluations[index].IsZero() {
 		panic("dividing on the domain with `index` will not have a remainder of zero")
 	}
 	quotientLag := preComp.DivideOnDomain(index, evaluations)
@@ -224,7 +241,7 @@ func TestDivideOnDomain(testing *testing.T) {
 
 	// Remainder should be zero
 	for _, r := range rem {
-		if !bls.EqualZero(&r) {
+		if !r.IsZero() {
 			panic("remainder should be zero")
 		}
 	}
@@ -232,24 +249,24 @@ func TestDivideOnDomain(testing *testing.T) {
 	// Lets check that the expected value is correct for good measure, we can do this by
 	// checking it's roots, since we divided by X - 1, the new polynomial should be:
 	// (X+1)(X^253)
-	should_be_zero := Poly(expected_quotient_coeff).evaluate(bls.MODULUS_MINUS1)
-	if !bls.EqualZero(&should_be_zero) {
+	should_be_zero := Poly(expected_quotient_coeff).evaluate(fr.MinusOne())
+	if !should_be_zero.IsZero() {
 		panic("-1 is not a root, but it should be")
 	}
-	should_be_zero = Poly(expected_quotient_coeff).evaluate(bls.ONE)
-	if bls.EqualZero(&should_be_zero) {
+	should_be_zero = Poly(expected_quotient_coeff).evaluate(fr.One())
+	if should_be_zero.IsZero() {
 		panic("1 is a root, but it should not be, because we just divided by X - 1")
 	}
-	should_be_zero = Poly(expected_quotient_coeff).evaluate(bls.ZERO)
-	if !bls.EqualZero(&should_be_zero) {
+	should_be_zero = Poly(expected_quotient_coeff).evaluate(fr.Zero())
+	if !should_be_zero.IsZero() {
 		panic("0 is not a root, but it should be")
 	}
 
 	// Lets convert quotientLag to coefficient form
 	var quotientLagEvaluations Points
 	for x, y := range quotientLag {
-		x_fr := bls.Fr{}
-		bls.AsFr(&x_fr, uint64(x))
+		var x_fr fr.Element
+		x_fr.SetUint64(uint64(x))
 
 		point := Point{
 			x: x_fr,
@@ -259,16 +276,20 @@ func TestDivideOnDomain(testing *testing.T) {
 	}
 	got_quotient_coeff := quotientLagEvaluations.interpolate()
 
-	rand_fr := bls.RandomFr()
-	got_res := got_quotient_coeff.evaluate(*rand_fr)
-	expected_res := Poly(expected_quotient_coeff).evaluate(*rand_fr)
+	var rand_fr fr.Element
+	_, err := rand_fr.SetRandom()
+	if err != nil {
+		panic("could not get randomness")
+	}
+	got_res := got_quotient_coeff.evaluate(rand_fr)
+	expected_res := Poly(expected_quotient_coeff).evaluate(rand_fr)
 
-	if !bls.EqualFr(&got_res, &expected_res) {
+	if !expected_res.Equal(&got_res) {
 		panic("polynomials are different")
 	}
 
 	top_term := got_quotient_coeff[len(got_quotient_coeff)-1]
-	if !bls.EqualZero(&top_term) {
+	if !top_term.IsZero() {
 		panic("top term is not zero, degree is incorrect")
 	}
 	got_quotient_coeff = got_quotient_coeff[:len(got_quotient_coeff)-1]
@@ -278,45 +299,49 @@ func TestDivideOnDomain(testing *testing.T) {
 	}
 
 	for i := 0; i < len(expected_quotient_coeff); i++ {
-		if !bls.EqualFr(&expected_quotient_coeff[i], &got_quotient_coeff[i]) {
+
+		if !got_quotient_coeff[i].Equal(&expected_quotient_coeff[i]) {
 			panic("polynomials are not the same")
 		}
 	}
 }
 
 type Point struct {
-	x bls.Fr
-	y bls.Fr
+	x fr.Element
+	y fr.Element
 }
 
 type Points []Point
 
-type Poly []bls.Fr
+type Poly []fr.Element
 
-func (poly Poly) evaluate(point bls.Fr) bls.Fr {
+func (poly Poly) evaluate(point fr.Element) fr.Element {
 	powers := common.PowersOf(point, len(poly))
-	total := bls.ZERO
+	total := fr.Zero()
 	for i := 0; i < len(poly); i++ {
-		tmp := bls.Fr{}
-		bls.MulModFr(&tmp, &powers[i], &poly[i])
-		bls.AddModFr(&total, &total, &tmp)
+		var tmp fr.Element
+		tmp.Mul(&powers[i], &poly[i])
+		total.Add(&total, &tmp)
 	}
 	return total
 }
 func (points Points) interpolate() Poly {
+	one := fr.One()
+	zero := fr.Zero()
+
 	max_degree_plus_one := len(points)
 	if max_degree_plus_one < 2 {
 		panic("should interpolate for degree >= 1")
 	}
-	coeffs := make([]bls.Fr, max_degree_plus_one)
+	coeffs := make([]fr.Element, max_degree_plus_one)
 
 	for k := 0; k < len(points); k++ {
 		point := points[k]
 		x_k := point.x
 		y_k := point.y
 
-		contribution := make([]bls.Fr, max_degree_plus_one)
-		denominator := bls.ONE
+		contribution := make([]fr.Element, max_degree_plus_one)
+		denominator := fr.One()
 		max_contribution_degree := 0
 		for j := 0; j < len(points); j++ {
 			point := points[j]
@@ -326,58 +351,58 @@ func (points Points) interpolate() Poly {
 			}
 
 			diff := x_k
-			bls.SubModFr(&diff, &diff, &x_j)
-			bls.MulModFr(&denominator, &denominator, &diff)
+			diff.Sub(&diff, &x_j)
+			denominator.Mul(&denominator, &diff)
 			if max_contribution_degree == 0 {
 
 				max_contribution_degree = 1
-				bls.SubModFr(&contribution[0], &contribution[0], &x_j)
-				bls.AddModFr(&contribution[1], &contribution[1], &bls.ONE)
+				contribution[0].Sub(&contribution[0], &x_j)
+				contribution[1].Add(&contribution[1], &one)
 
 			} else {
-				var mul_by_minus_x_j []bls.Fr
+				var mul_by_minus_x_j []fr.Element
 				for _, el := range contribution {
 					tmp := el
-					bls.MulModFr(&tmp, &tmp, &x_j)
-					bls.SubModFr(&tmp, &bls.ZERO, &tmp)
+					tmp.Mul(&tmp, &x_j)
+					tmp.Sub(&zero, &tmp)
 					mul_by_minus_x_j = append(mul_by_minus_x_j, tmp)
 				}
-				contribution = append([]bls.Fr{bls.ZERO}, contribution...)
+				contribution = append([]fr.Element{zero}, contribution...)
 				contribution = truncate(contribution, max_degree_plus_one)
 				if max_degree_plus_one != len(mul_by_minus_x_j) {
 					panic("malformed mul_by_minus_x_j")
 				}
 				for i := 0; i < len(contribution); i++ {
 					other := mul_by_minus_x_j[i]
-					bls.AddModFr(&contribution[i], &contribution[i], &other)
+					contribution[i].Add(&contribution[i], &other)
 				}
 
 			}
 
 		}
-		bls.InvModFr(&denominator, &denominator)
-		if bls.EqualZero(&denominator) {
+		denominator.Inverse(&denominator)
+		if denominator.IsZero() {
 			panic("denominator should not be zero")
 		}
 		for i := 0; i < len(contribution); i++ {
 			tmp := contribution[i]
-			bls.MulModFr(&tmp, &tmp, &denominator)
-			bls.MulModFr(&tmp, &tmp, &y_k)
-			bls.AddModFr(&coeffs[i], &coeffs[i], &tmp)
-
+			tmp.Mul(&tmp, &denominator)
+			tmp.Mul(&tmp, &y_k)
+			coeffs[i].Add(&coeffs[i], &tmp)
 		}
 
 	}
 	return coeffs
 }
 
-func truncate(s []bls.Fr, to int) []bls.Fr {
+func truncate(s []fr.Element, to int) []fr.Element {
 	return s[:to]
 }
 
-func degree(p []bls.Fr) int {
+func degree(p []fr.Element) int {
 	for d := len(p) - 1; d >= 0; d-- {
-		if !bls.EqualZero(&p[d]) {
+
+		if !p[d].IsZero() {
 			return d
 		}
 	}
@@ -385,22 +410,22 @@ func degree(p []bls.Fr) int {
 }
 
 // Taken from https://rosettacode.org/wiki/Polynomial_long_division#Go
-func pld(nn, dd []bls.Fr) (q, r []bls.Fr, ok bool) {
+func pld(nn, dd []fr.Element) (q, r []fr.Element, ok bool) {
 	if degree(dd) < 0 {
 		return
 	}
 	nn = append(r, nn...)
 	if degree(nn) >= degree(dd) {
-		q = make([]bls.Fr, degree(nn)-degree(dd)+1)
+		q = make([]fr.Element, degree(nn)-degree(dd)+1)
 		for degree(nn) >= degree(dd) {
-			d := make([]bls.Fr, degree(nn)+1)
+			d := make([]fr.Element, degree(nn)+1)
 			copy(d[degree(nn)-degree(dd):], dd)
-			tmp := bls.Fr{}
-			bls.DivModFr(&tmp, &nn[degree(nn)], &d[degree(d)])
+			var tmp fr.Element
+			tmp.Div(&nn[degree(nn)], &d[degree(d)])
 			q[degree(nn)-degree(dd)] = tmp
 			for i := range d {
-				bls.MulModFr(&d[i], &d[i], &q[degree(nn)-degree(dd)])
-				bls.SubModFr(&nn[i], &nn[i], &d[i])
+				d[i].Mul(&d[i], &q[degree(nn)-degree(dd)])
+				nn[i].Sub(&nn[i], &d[i])
 			}
 		}
 	}
