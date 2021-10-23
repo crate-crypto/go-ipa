@@ -2,6 +2,7 @@ package ipa
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
@@ -9,19 +10,25 @@ import (
 )
 
 type IPAConfig struct {
-	// Points to commit to the two input vectors
+	// Points to commit to the input vector
 	SRS []bandersnatch.PointAffine
 
-	// Point to commit to the inner product in the inner product argument
+	// Point to commit to the inner product of the two vectors in the inner product argument
 	Q bandersnatch.PointAffine
 
 	PrecomputedWeights *PrecomputedWeights
+
+	// The number of rounds the prover and verifier must complete
+	// in the IPA argument, this will be log2 of the size of the input vectors
+	// since the vector is halved on each round
+	num_ipa_rounds uint32
 }
 
 // This function creates 256 random generator points where the relative discrete log is
 // not known between each generator
 // TODO This is not the case at the moment because we currently do not have
 // TODO an agreed way to do this, and this is the easiest way to have interoperability
+// TODO NOT SECURE
 func NewIPASettingsUnsecure() *IPAConfig {
 
 	gen := bandersnatch.GetEdwardsCurve().Base
@@ -36,6 +43,7 @@ func NewIPASettingsUnsecure() *IPAConfig {
 	var tmp fr.Element
 	// 1010 is irrelevant here, we just need a random group element
 	// in the end, see the comments at the top of this function
+	// about security
 	tmp.SetUint64(1010)
 
 	var Q bandersnatch.PointAffine
@@ -45,6 +53,7 @@ func NewIPASettingsUnsecure() *IPAConfig {
 		SRS:                srs,
 		Q:                  Q,
 		PrecomputedWeights: NewPrecomputedWeights(),
+		num_ipa_rounds:     compute_num_rounds(common.POLY_DEGREE),
 	}
 }
 
@@ -58,9 +67,10 @@ func slowMultiScalar(points []bandersnatch.PointAffine, scalars []fr.Element) ba
 	}
 
 	return result
-
 }
 
+// Commits to a polynomial using the input group elements
+// panics if the number of group elements does not equal the number of polynomial coefficients
 func Commit(group_elements []bandersnatch.PointAffine, polynomial []fr.Element) bandersnatch.PointAffine {
 	if len(group_elements) != len(polynomial) {
 		panic(fmt.Sprintf("diff sizes, %d != %d", len(group_elements), len(polynomial)))
@@ -68,7 +78,8 @@ func Commit(group_elements []bandersnatch.PointAffine, polynomial []fr.Element) 
 	return slowMultiScalar(group_elements, polynomial)
 }
 
-// compute the inner product of a and b
+// Computes the inner product of a and b
+// panics if len(a) != len(b)
 func InnerProd(a []fr.Element, b []fr.Element) fr.Element {
 	if len(a) != len(b) {
 		panic("two vectors must have the same lengths")
@@ -87,7 +98,8 @@ func InnerProd(a []fr.Element, b []fr.Element) fr.Element {
 
 // Computes c[i] =a[i] + b[i] * x
 // returns c
-func fold_scalars(a []fr.Element, b []fr.Element, x fr.Element) []fr.Element {
+// panics if len(a) != len(b)
+func foldScalars(a []fr.Element, b []fr.Element, x fr.Element) []fr.Element {
 
 	if len(a) != len(b) {
 		panic("slices not equal length")
@@ -104,7 +116,8 @@ func fold_scalars(a []fr.Element, b []fr.Element, x fr.Element) []fr.Element {
 
 // Computes c[i] =a[i] + b[i] * x
 // returns c
-func fold_points(a []bandersnatch.PointAffine, b []bandersnatch.PointAffine, x fr.Element) []bandersnatch.PointAffine {
+// panics if len(a) != len(b)
+func foldPoints(a []bandersnatch.PointAffine, b []bandersnatch.PointAffine, x fr.Element) []bandersnatch.PointAffine {
 
 	if len(a) != len(b) {
 		panic("slices not equal length")
@@ -117,4 +130,54 @@ func fold_points(a []bandersnatch.PointAffine, b []bandersnatch.PointAffine, x f
 		result[i].Add(&bx, &a[i])
 	}
 	return result
+}
+
+// Splits a slice of scalars into two slices of equal length
+// Eg [S1,S2,S3,S4] becomes [S1,S2] , [S3,S4]
+// panics if the number of scalars is not even
+func splitScalars(x []fr.Element) ([]fr.Element, []fr.Element) {
+	if len(x)%2 != 0 {
+		panic("slice should have an even length")
+	}
+
+	mid := len(x) / 2
+	return x[:mid], x[mid:]
+}
+
+// Splits a slice of points into two slices of equal length
+// Eg [P1,P2,P3,P4,P5,P6] becomes [P1,P2,P3] , [P4,P5,P6]
+// panics if the number of points is not even
+func splitPoints(x []bandersnatch.PointAffine) ([]bandersnatch.PointAffine, []bandersnatch.PointAffine) {
+	if len(x)%2 != 0 {
+		panic("slice should have an even length")
+	}
+
+	mid := len(x) / 2
+	return x[:mid], x[mid:]
+}
+
+// This function does log2(vector_size)
+//
+// Since we do not allow for 0 size vectors, this is checked
+// since we also do not allow for vectors which are not powers of 2, this is also checked
+//
+// It is okay to panic here, because the input is a constant, so it will panic before
+// any proofs are made.
+func compute_num_rounds(vector_size uint32) uint32 {
+	// Check if this number is 0
+	// zero is not a valid input to this function for our usecase
+	if vector_size == 0 {
+		panic("zero is not a valid input")
+	}
+
+	// See: https://stackoverflow.com/a/600306
+	isPow2 := (vector_size & (vector_size - 1)) == 0
+
+	if !isPow2 {
+		panic("non power of 2 numbers are not valid inputs")
+	}
+
+	res := math.Log2(float64(vector_size))
+
+	return uint32(res)
 }

@@ -2,7 +2,8 @@ package common
 
 import "github.com/crate-crypto/go-ipa/bandersnatch/fr"
 
-// TODO since we know that it will be 256 points, should we use [256]bls.G1Point?
+// TODO: This is not entirely correct, the degree is 255. We can change this to VECTOR_LENGTH or NUM_EVAL_POINTS?
+// note: degree 255, means 256 evaluation points
 const POLY_DEGREE = 256
 
 // Returns powers of x from 0 to degree-1
