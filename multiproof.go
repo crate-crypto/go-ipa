@@ -60,7 +60,7 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 		}
 	}
 
-	D := ipa.Commit(ipaConf.SRS, g_x)
+	D := ipaConf.Commit(g_x)
 
 	transcript.AppendScalar(&r)
 	transcript.AppendPoint(&D)
@@ -92,7 +92,7 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 		h_minus_g[i].Sub(&h_x[i], &g_x[i])
 	}
 
-	E := ipa.Commit(ipaConf.SRS, h_x)
+	E := ipaConf.Commit(h_x)
 
 	var E_minus_D bandersnatch.PointAffine
 

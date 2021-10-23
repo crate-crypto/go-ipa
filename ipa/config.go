@@ -69,9 +69,15 @@ func slowMultiScalar(points []bandersnatch.PointAffine, scalars []fr.Element) ba
 	return result
 }
 
+// Commits to a polynomial using the SRS
+// panics if the length of the SRS does not equal the number of polynomial coefficients
+func (ic *IPAConfig) Commit(polynomial []fr.Element) bandersnatch.PointAffine {
+	return commit(ic.SRS, polynomial)
+}
+
 // Commits to a polynomial using the input group elements
 // panics if the number of group elements does not equal the number of polynomial coefficients
-func Commit(group_elements []bandersnatch.PointAffine, polynomial []fr.Element) bandersnatch.PointAffine {
+func commit(group_elements []bandersnatch.PointAffine, polynomial []fr.Element) bandersnatch.PointAffine {
 	if len(group_elements) != len(polynomial) {
 		panic(fmt.Sprintf("diff sizes, %d != %d", len(group_elements), len(polynomial)))
 	}

@@ -42,11 +42,11 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 		z_L := InnerProd(a_R, b_L)
 		z_R := InnerProd(a_L, b_R)
 
-		C_L_1 := Commit(G_L, a_R)
-		C_L := Commit([]bandersnatch.PointAffine{C_L_1, q}, []fr.Element{fr.One(), z_L})
+		C_L_1 := commit(G_L, a_R)
+		C_L := commit([]bandersnatch.PointAffine{C_L_1, q}, []fr.Element{fr.One(), z_L})
 
-		C_R_1 := Commit(G_R, a_L)
-		C_R := Commit([]bandersnatch.PointAffine{C_R_1, q}, []fr.Element{fr.One(), z_R})
+		C_R_1 := commit(G_R, a_L)
+		C_R := commit([]bandersnatch.PointAffine{C_R_1, q}, []fr.Element{fr.One(), z_R})
 
 		L[i] = C_L
 		R[i] = C_R
