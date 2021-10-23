@@ -42,7 +42,7 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 
 		challenges_inv[i] = xInv
 
-		commitment = Commit([]bandersnatch.PointAffine{commitment, L, R}, []fr.Element{fr.One(), x, xInv})
+		commitment = commit([]bandersnatch.PointAffine{commitment, L, R}, []fr.Element{fr.One(), x, xInv})
 	}
 
 	current_basis := ic.SRS

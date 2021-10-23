@@ -18,7 +18,7 @@ func TestIPAProofCreateVerify(t *testing.T) {
 
 	// Prover view
 	poly := test_helper.TestPoly256(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)
-	prover_comm := Commit(ipaConf.SRS, poly)
+	prover_comm := ipaConf.Commit(poly)
 
 	prover_transcript := common.NewTranscript("ipa")
 
@@ -81,7 +81,7 @@ func TestBasicCommit(t *testing.T) {
 		}
 		a = append(a, tmp)
 	}
-	got := Commit(generators, a)
+	got := commit(generators, a)
 
 	total := fr.Zero()
 	for i := 0; i < 5; i++ {
