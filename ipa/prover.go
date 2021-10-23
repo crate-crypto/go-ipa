@@ -35,11 +35,11 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 
 	for _i := 0; _i < int(num_rounds); _i++ {
 
-		a_L, a_R := splitFrHalf(a)
+		a_L, a_R := splitScalars(a)
 
-		b_L, b_R := splitFrHalf(b)
+		b_L, b_R := splitScalars(b)
 
-		G_L, G_R := splitG1Half(current_basis)
+		G_L, G_R := splitPoints(current_basis)
 
 		z_L := InnerProd(a_R, b_L)
 		z_R := InnerProd(a_L, b_R)
@@ -59,10 +59,10 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 		var xInv fr.Element
 		xInv.Inverse(&x)
 
-		a = fold_scalars(a_L, a_R, x)
-		b = fold_scalars(b_L, b_R, xInv)
+		a = foldScalars(a_L, a_R, x)
+		b = foldScalars(b_L, b_R, xInv)
 
-		current_basis = fold_points(G_L, G_R, xInv)
+		current_basis = foldPoints(G_L, G_R, xInv)
 
 	}
 
@@ -75,13 +75,4 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 		R: R,
 		a: a[0],
 	}
-}
-
-func splitFrHalf(x []fr.Element) ([]fr.Element, []fr.Element) {
-	mid := len(x) / 2
-	return x[:mid], x[mid:]
-}
-func splitG1Half(x []bandersnatch.PointAffine) ([]bandersnatch.PointAffine, []bandersnatch.PointAffine) {
-	mid := len(x) / 2
-	return x[:mid], x[mid:]
 }

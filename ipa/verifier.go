@@ -42,14 +42,14 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 
 	for i := 0; i < len(challenges); i++ {
 
-		G_L, G_R := splitG1Half(current_basis)
+		G_L, G_R := splitPoints(current_basis)
 
-		b_L, b_R := splitFrHalf(b)
+		b_L, b_R := splitScalars(b)
 
 		xInv := challenges_inv[i]
 
-		b = fold_scalars(b_L, b_R, xInv)
-		current_basis = fold_points(G_L, G_R, xInv)
+		b = foldScalars(b_L, b_R, xInv)
+		current_basis = foldPoints(G_L, G_R, xInv)
 	}
 
 	if len(b) != len(current_basis) {
