@@ -1,8 +1,6 @@
 package ipa
 
 import (
-	"math"
-
 	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
 	"github.com/crate-crypto/go-ipa/common"
@@ -26,14 +24,14 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 	var q bandersnatch.PointAffine
 	q.ScalarMul(&ic.Q, &z)
 
-	num_rounds := math.Log2(common.POLY_DEGREE)
+	num_rounds := ic.num_ipa_rounds
 
 	current_basis := ic.SRS
 
-	var L []bandersnatch.PointAffine
-	var R []bandersnatch.PointAffine
+	L := make([]bandersnatch.PointAffine, num_rounds)
+	R := make([]bandersnatch.PointAffine, num_rounds)
 
-	for _i := 0; _i < int(num_rounds); _i++ {
+	for i := 0; i < int(num_rounds); i++ {
 
 		a_L, a_R := splitScalars(a)
 
@@ -50,8 +48,8 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 		C_R_1 := Commit(G_R, a_L)
 		C_R := Commit([]bandersnatch.PointAffine{C_R_1, q}, []fr.Element{fr.One(), z_R})
 
-		L = append(L, C_L)
-		R = append(R, C_R)
+		L[i] = C_L
+		R[i] = C_R
 
 		transcript.AppendPoints(&C_L, &C_R)
 		x := transcript.ChallengeScalar()

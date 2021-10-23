@@ -2,6 +2,7 @@ package ipa
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
@@ -16,6 +17,11 @@ type IPAConfig struct {
 	Q bandersnatch.PointAffine
 
 	PrecomputedWeights *PrecomputedWeights
+
+	// The number of rounds the prover and verifier must complete
+	// in the IPA argument, this will be log2 of the size of the input vectors
+	// since the vector is halved on each round
+	num_ipa_rounds uint32
 }
 
 // This function creates 256 random generator points where the relative discrete log is
@@ -47,6 +53,7 @@ func NewIPASettingsUnsecure() *IPAConfig {
 		SRS:                srs,
 		Q:                  Q,
 		PrecomputedWeights: NewPrecomputedWeights(),
+		num_ipa_rounds:     compute_num_rounds(common.POLY_DEGREE),
 	}
 }
 
@@ -147,4 +154,30 @@ func splitPoints(x []bandersnatch.PointAffine) ([]bandersnatch.PointAffine, []ba
 
 	mid := len(x) / 2
 	return x[:mid], x[mid:]
+}
+
+// This function does log2(vector_size)
+//
+// Since we do not allow for 0 size vectors, this is checked
+// since we also do not allow for vectors which are not powers of 2, this is also checked
+//
+// It is okay to panic here, because the input is a constant, so it will panic before
+// any proofs are made.
+func compute_num_rounds(vector_size uint32) uint32 {
+	// Check if this number is 0
+	// zero is not a valid input to this function for our usecase
+	if vector_size == 0 {
+		panic("zero is not a valid input")
+	}
+
+	// See: https://stackoverflow.com/a/600306
+	isPow2 := (vector_size & (vector_size - 1)) == 0
+
+	if !isPow2 {
+		panic("non power of 2 numbers are not valid inputs")
+	}
+
+	res := math.Log2(float64(vector_size))
+
+	return uint32(res)
 }

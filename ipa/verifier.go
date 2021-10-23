@@ -8,6 +8,13 @@ import (
 
 func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment bandersnatch.PointAffine, proof IPAProof, eval_point fr.Element, inner_prod fr.Element) bool {
 
+	if len(proof.L) != len(proof.R) {
+		panic("L and R should be the same size")
+	}
+	if len(proof.L) != int(ic.num_ipa_rounds) {
+		panic("The number of points for L or R should be equal to the number of rounds")
+	}
+
 	b := ic.PrecomputedWeights.ComputeBarycentricCoefficients(eval_point)
 
 	transcript.AppendPoint(&commitment)
@@ -79,9 +86,7 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 }
 
 func generateChallenges(transcript *common.Transcript, proof *IPAProof) []fr.Element {
-	if len(proof.L) != len(proof.R) {
-		panic("L and R should be the same size")
-	}
+
 	challenges := make([]fr.Element, len(proof.L))
 	for i := 0; i < len(proof.L); i++ {
 		transcript.AppendPoints(&proof.L[i], &proof.R[i])
