@@ -72,12 +72,12 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 	var got bandersnatch.PointAffine
 	//  G[0] * a + (a * b) * Q;
 	var part_1 bandersnatch.PointAffine
-	part_1.ScalarMul(&current_basis[0], &proof.a)
+	part_1.ScalarMul(&current_basis[0], &proof.A_scalar)
 
 	var part_2 bandersnatch.PointAffine
 	var part_2a fr.Element
 
-	part_2a.Mul(&b0, &proof.a)
+	part_2a.Mul(&b0, &proof.A_scalar)
 	part_2.ScalarMul(&q, &part_2a)
 
 	got.Add(&part_1, &part_2)

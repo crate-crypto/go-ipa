@@ -1,7 +1,6 @@
 package multiproof
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch"
@@ -21,33 +20,20 @@ func TestMultiProofCreateVerify(t *testing.T) {
 	prover_transcript := common.NewTranscript("multiproof")
 	prover_comm_1 := ipaConf.Commit(poly_1)
 
-	zero := fr.Zero()
 	one := fr.One()
 
 	Cs := []*bandersnatch.PointAffine{&prover_comm_1}
 	fs := [][]fr.Element{poly_1}
-	zs := []*fr.Element{&zero}
+	zs := []uint8{0}
 	ys := []*fr.Element{&one}
 	proof := CreateMultiProof(prover_transcript, ipaConf, Cs, fs, zs)
 
 	// Verifier view
 	verifier_transcript := common.NewTranscript("multiproof")
-	ok := CheckMultiProof(verifier_transcript, ipaConf, proof, Cs, ys, zs)
+	ok := CheckMultiProof(verifier_transcript, ipaConf, &proof, Cs, ys, zs)
 
 	if !ok {
 		panic("multi product proof failed")
 	}
 
-}
-
-func TestFrToDomain(testing *testing.T) {
-	expected := uint8(200)
-
-	var a fr.Element
-	a.SetUint64(uint64(expected))
-
-	got := frToDomain(&a)
-	if expected != got {
-		panic(fmt.Sprintf("got %d, expected %d", got, expected))
-	}
 }

@@ -7,9 +7,9 @@ import (
 )
 
 type IPAProof struct {
-	L []bandersnatch.PointAffine
-	R []bandersnatch.PointAffine
-	a fr.Element
+	L        []bandersnatch.PointAffine
+	R        []bandersnatch.PointAffine
+	A_scalar fr.Element
 }
 
 func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment bandersnatch.PointAffine, a []fr.Element, eval_point fr.Element) IPAProof {
@@ -69,8 +69,8 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 	}
 
 	return IPAProof{
-		L: L,
-		R: R,
-		a: a[0],
+		L:        L,
+		R:        R,
+		A_scalar: a[0],
 	}
 }

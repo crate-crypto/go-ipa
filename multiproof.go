@@ -10,11 +10,11 @@ import (
 )
 
 type MultiProof struct {
-	ipa ipa.IPAProof
+	IPA ipa.IPAProof
 	D   bandersnatch.PointAffine
 }
 
-func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs []*bandersnatch.PointAffine, fs [][]fr.Element, zs []*fr.Element) MultiProof {
+func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs []*bandersnatch.PointAffine, fs [][]fr.Element, zs []uint8) MultiProof {
 
 	if len(Cs) != len(fs) {
 		panic(fmt.Sprintf("number of commitments = %d, while number of functions = %d", len(Cs), len(fs)))
@@ -31,12 +31,13 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 
 	for i := 0; i < num_queries; i++ {
 		transcript.AppendPoint(Cs[i])
-		transcript.AppendScalar(zs[i])
+		var z = domainToFr(zs[i])
+		transcript.AppendScalar(&z)
 
 		// get the `y` value
-		z_as_u8 := frToDomain(zs[i])
+
 		f := fs[i]
-		y := f[z_as_u8]
+		y := f[zs[i]]
 		transcript.AppendScalar(&y)
 	}
 	r := transcript.ChallengeScalar()
@@ -47,7 +48,7 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 
 	for i := 0; i < num_queries; i++ {
 		f := fs[i]
-		index := frToDomain(zs[i])
+		index := zs[i]
 		r := powers_of_r[i]
 
 		quotient := ipaConf.PrecomputedWeights.DivideOnDomain(index, f)
@@ -74,7 +75,8 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 		f := fs[i]
 
 		var den_inv fr.Element
-		den_inv.Sub(&t, zs[i])
+		var z = domainToFr(zs[i])
+		den_inv.Sub(&t, &z)
 		den_inv.Inverse(&den_inv)
 
 		for k := 0; k < common.POLY_DEGREE; k++ {
@@ -101,12 +103,12 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 	ipa_proof := ipa.CreateIPAProof(transcript, ipaConf, E_minus_D, h_minus_g, t)
 
 	return MultiProof{
-		ipa: ipa_proof,
+		IPA: ipa_proof,
 		D:   D,
 	}
 }
 
-func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proof MultiProof, Cs []*bandersnatch.PointAffine, ys []*fr.Element, zs []*fr.Element) bool {
+func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proof *MultiProof, Cs []*bandersnatch.PointAffine, ys []*fr.Element, zs []uint8) bool {
 
 	if len(Cs) != len(ys) {
 		panic(fmt.Sprintf("number of commitments = %d, while number of output points = %d", len(Cs), len(ys)))
@@ -124,7 +126,8 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 
 	for i := 0; i < num_queries; i++ {
 		transcript.AppendPoint(Cs[i])
-		transcript.AppendScalar(zs[i])
+		var z = domainToFr(zs[i])
+		transcript.AppendScalar(&z)
 		transcript.AppendScalar(ys[i])
 	}
 	r := transcript.ChallengeScalar()
@@ -143,7 +146,8 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 		r := powers_of_r[i]
 
 		// r^i / (t - z_i)
-		helper_scalars[i].Sub(&t, zs[i])
+		var z = domainToFr(zs[i])
+		helper_scalars[i].Sub(&t, &z)
 		helper_scalars[i].Inverse(&helper_scalars[i])
 		helper_scalars[i].Mul(&helper_scalars[i], &r)
 	}
@@ -168,21 +172,11 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 	var E_minus_D bandersnatch.PointAffine
 	E_minus_D.Sub(&E, &proof.D)
 
-	return ipa.CheckIPAProof(transcript, ipaConf, E_minus_D, proof.ipa, t, g_2_t)
+	return ipa.CheckIPAProof(transcript, ipaConf, E_minus_D, proof.IPA, t, g_2_t)
 }
 
-// Converts a field element to u8
-// panics if field element is > 255
-func frToDomain(in *fr.Element) uint8 {
-	arr := in.Bytes()
-
-	// The last element should have the byte set
-	for i := len(arr) - 2; i >= 0; i-- {
-		if arr[i] != 0 {
-			panic(fmt.Sprintf("expected an array with the lowest byte set, got %v", arr))
-		}
-	}
-	result := arr[len(arr)-1]
-
-	return result
+func domainToFr(in uint8) fr.Element {
+	var x fr.Element
+	x.SetUint64(uint64(in))
+	return x
 }
