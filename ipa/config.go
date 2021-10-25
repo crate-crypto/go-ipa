@@ -35,7 +35,7 @@ func NewIPASettingsUnsecure() *IPAConfig {
 	srs := make([]bandersnatch.PointAffine, common.POLY_DEGREE)
 	for i := uint64(0); i < common.POLY_DEGREE; i++ {
 		var tmp fr.Element
-		tmp.SetUint64(i)
+		tmp.SetUint64(i + 1)
 
 		srs[i].ScalarMul(&gen, &tmp)
 	}
