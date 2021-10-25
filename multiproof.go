@@ -14,7 +14,7 @@ type MultiProof struct {
 	D   bandersnatch.PointAffine
 }
 
-func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs []*bandersnatch.PointAffine, fs [][]fr.Element, zs []uint8) MultiProof {
+func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs []*bandersnatch.PointAffine, fs [][]fr.Element, zs []uint8) *MultiProof {
 
 	if len(Cs) != len(fs) {
 		panic(fmt.Sprintf("number of commitments = %d, while number of functions = %d", len(Cs), len(fs)))
@@ -102,7 +102,7 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 
 	ipa_proof := ipa.CreateIPAProof(transcript, ipaConf, E_minus_D, h_minus_g, t)
 
-	return MultiProof{
+	return &MultiProof{
 		IPA: ipa_proof,
 		D:   D,
 	}

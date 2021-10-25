@@ -30,7 +30,7 @@ func TestMultiProofCreateVerify(t *testing.T) {
 
 	// Verifier view
 	verifier_transcript := common.NewTranscript("multiproof")
-	ok := CheckMultiProof(verifier_transcript, ipaConf, &proof, Cs, ys, zs)
+	ok := CheckMultiProof(verifier_transcript, ipaConf, proof, Cs, ys, zs)
 
 	if !ok {
 		panic("multi product proof failed")
