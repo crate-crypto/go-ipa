@@ -336,13 +336,13 @@ func (p *PointProj) Neg(p1 *PointProj) *PointProj {
 	return p
 }
 
-func (p *PointAffine) ScalarMul(p1 *PointAffine, _scalar *fr.Element) *PointAffine {
+func (p *PointAffine) ScalarMul(p1 *PointAffine, scalar_mont *fr.Element) *PointAffine {
 
 	var resProj, p1Proj PointProj
 	resProj.Identity()
 	p1Proj.FromAffine(p1)
 
-	scalar := _scalar.ToRegular()
+	scalar := scalar_mont.ToRegular()
 	bit_len := scalar.BitLen()
 
 	for i := bit_len; i >= 0; i-- {
