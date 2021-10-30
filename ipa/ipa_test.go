@@ -1,6 +1,8 @@
 package ipa
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"testing"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch"
@@ -94,4 +96,41 @@ func TestBasicCommit(t *testing.T) {
 	if !got.Equal(&expected) {
 		panic("commit function; incorrect results")
 	}
+}
+func TestCRSGeneration(t *testing.T) {
+
+	points := GenerateRandomPoints(256)
+	for _, point := range points {
+		if !point.IsOnCurve() {
+			panic("generated a point that was not on the curve")
+		}
+		if !point.IsInPrimeSubgroup() {
+			panic("point is not in the prime sub group")
+		}
+	}
+	bytes := points[0].Bytes()
+	got := hex.EncodeToString(bytes[:])
+	expected := "22ac968a98ab6c50379fc8b039abc8fd9aca259f4746a05bfbdf12c86463c208"
+	if got != expected {
+		panic("the first point is not correct")
+	}
+	bytes = points[255].Bytes()
+	got = hex.EncodeToString(bytes[:])
+	expected = "c8b4968a98ab6c50379fc8b039abc8fd9aca259f4746a05bfbdf12c86463c208"
+	if got != expected {
+		panic("the 256th (last) point is not correct")
+	}
+
+	digest := sha256.New()
+	for _, point := range points {
+		bytes := point.Bytes()
+		digest.Write(bytes[:])
+	}
+	hash := digest.Sum(nil)
+	got = hex.EncodeToString(hash[:])
+	expected = "c390cbb4bc42019685d5a01b2fb8a536d4332ea4e128934d0ae7644163089e76"
+	if got != expected {
+		panic("unexpected point encountered")
+	}
+
 }
