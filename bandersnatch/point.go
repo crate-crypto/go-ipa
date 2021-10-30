@@ -357,3 +357,77 @@ func (p *PointAffine) ScalarMul(p1 *PointAffine, scalar_mont *fr.Element) *Point
 	return p
 
 }
+
+// All points in the prime subgroup have prime order
+// so we can check for prime order by multiplying by the order
+func (p PointAffine) IsInPrimeSubgroup() bool {
+
+	var order = GetEdwardsCurve().Order
+
+	var resProj, p1Proj PointProj
+	resProj.Identity()
+	p1Proj.FromAffine(&p)
+
+	bit_len := order.BitLen()
+
+	for i := bit_len; i >= 0; i-- {
+		resProj.Double(&resProj)
+		if order.Bit(i) == 1 {
+			resProj.Add(&resProj, &p1Proj)
+		}
+	}
+
+	var tmp PointAffine
+	tmp.FromProj(&resProj)
+
+	var identity PointAffine
+	identity.Identity()
+
+	return identity.Equal(&tmp)
+}
+
+func GetPointFromX(x *fp.Element, choose_largest bool) *PointAffine {
+
+	y := computeY(x, choose_largest)
+	if y == nil { // not a square
+		return nil
+	}
+	return &PointAffine{X: *x, Y: *y}
+}
+
+// ax^2 + y^2 = 1 + dx^2y^2
+// ax^2 -1 = dx^2y^2 - y^2
+// ax^2 -1 = y^2(dx^2 -1)
+// ax^2 - 1 / (dx^2 - 1) = y^2
+func computeY(x *fp.Element, choose_largest bool) *fp.Element {
+
+	var D = GetEdwardsCurve().D
+	var A = GetEdwardsCurve().A
+
+	var one, num, den, y fp.Element
+	one.SetOne()
+	num.Square(x)       // x^2
+	den.Mul(&num, &D)   //dx^2
+	den.Sub(&den, &one) //dx^2 - 1
+
+	num.Mul(&num, &A)   // ax^2
+	num.Sub(&num, &one) // ax^2 - 1
+	y.Div(&num, &den)
+	is_nil := y.Sqrt(&y)
+
+	// If the square root does not exist, then the Sqrt method returns nil
+	// and leaves the receiver unchanged.
+	// Note the fact that it leaves the receiver unchanged, means we do not return &y
+	if is_nil == nil {
+		return nil
+	}
+
+	// Choose between `y` and it's negation
+	is_largest := y.LexicographicallyLargest()
+	if choose_largest == is_largest {
+		return &y
+	} else {
+		return y.Neg(&y)
+	}
+
+}
