@@ -1,10 +1,12 @@
 package ipa
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"math"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch"
+	"github.com/crate-crypto/go-ipa/bandersnatch/fp"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
 	"github.com/crate-crypto/go-ipa/common"
 )
@@ -186,4 +188,48 @@ func compute_num_rounds(vector_size uint32) uint32 {
 	res := math.Log2(float64(vector_size))
 
 	return uint32(res)
+}
+
+func GenerateRandomPoints(numPoints uint64) []*bandersnatch.PointAffine {
+
+	digest := sha256.New()
+	digest.Write([]byte("eth_verkle_oct_2021")) // incase it changes or needs updating, we can use eth_verkle_oct_year
+	hash := digest.Sum(nil)
+
+	var u fp.Element
+	u.SetBytes(hash)
+
+	// flag to indicate whether we choose the lexographically larger
+	// element of `y` out of it and it's negative
+	choose_largest := false
+
+	points := []*bandersnatch.PointAffine{}
+
+	var increment uint64 = 0
+
+	for uint64(len(points)) != numPoints {
+
+		var x = incrementBy(u, increment)
+		increment++
+
+		point_found := bandersnatch.GetPointFromX(x, choose_largest)
+		if point_found == nil {
+			continue
+		}
+		if point_found.IsInPrimeSubgroup() {
+			points = append(points, point_found)
+		}
+
+	}
+
+	return points
+}
+
+// returns u + i
+func incrementBy(u fp.Element, i uint64) *fp.Element {
+	var increment fp.Element
+	increment.SetUint64(i)
+
+	var result fp.Element
+	return result.Add(&u, &increment)
 }
