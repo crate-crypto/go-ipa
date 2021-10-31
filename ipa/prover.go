@@ -57,6 +57,7 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 		var xInv fr.Element
 		xInv.Inverse(&x)
 
+		// TODO: We could use a for loop here like in the Rust code
 		a = foldScalars(a_L, a_R, x)
 		b = foldScalars(b_L, b_R, xInv)
 
