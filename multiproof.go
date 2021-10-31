@@ -25,7 +25,7 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 
 	num_queries := len(Cs)
 	if num_queries == 0 {
-		// XXX does this need to be a panic?
+		// TODO does this need to be a panic? no
 		panic("cannot create a multiproof with 0 queries")
 	}
 
@@ -43,7 +43,7 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 	r := transcript.ChallengeScalar()
 	powers_of_r := common.PowersOf(r, num_queries)
 
-	// Compute g
+	// Compute g(X)
 	g_x := make([]fr.Element, common.POLY_DEGREE)
 
 	for i := 0; i < num_queries; i++ {
@@ -67,7 +67,7 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 	transcript.AppendPoint(&D)
 	t := transcript.ChallengeScalar()
 
-	// Compute h
+	// Compute h(X) = g_1(X)
 	h_x := make([]fr.Element, common.POLY_DEGREE)
 
 	for i := 0; i < num_queries; i++ {
@@ -95,6 +95,7 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 	}
 
 	E := ipaConf.Commit(h_x)
+	transcript.AppendPoint(&E)
 
 	var E_minus_D bandersnatch.PointAffine
 
@@ -168,6 +169,7 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 		tmp.ScalarMul(Cs[i], &helper_scalars[i])
 		E.Add(&E, &tmp)
 	}
+	transcript.AppendPoint(&E)
 
 	var E_minus_D bandersnatch.PointAffine
 	E_minus_D.Sub(&E, &proof.D)
