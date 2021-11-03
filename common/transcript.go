@@ -35,7 +35,7 @@ func (t *Transcript) AppendMessage(message []byte, label string) {
 // Converts the scalar to 32 bytes, then appends it to
 // the state
 func (t *Transcript) AppendScalar(scalar *fr.Element, label string) {
-	tmpBytes := scalar.Bytes()
+	tmpBytes := scalar.BytesLE()
 	t.AppendMessage(tmpBytes[:], label)
 
 }
@@ -61,8 +61,15 @@ func (t *Transcript) DomainSep(label string) {
 //
 // Note that calling the transcript twice, will yield two different challenges
 func (t *Transcript) ChallengeScalar(label string) fr.Element {
+	t.DomainSep(label)
+
+	// Reverse the endian so we are using little-endian
+	// SetBytes interprets the bytes in Big Endian
+	bytes := t.state.Sum(nil)
+	ReverseByteSlice(bytes)
+
 	var tmp fr.Element
-	tmp.SetBytes(t.state.Sum(nil))
+	tmp.SetBytes(bytes)
 
 	// Clear the state
 	t.state.Reset()

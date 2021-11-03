@@ -1,6 +1,8 @@
 package common
 
-import "github.com/crate-crypto/go-ipa/bandersnatch/fr"
+import (
+	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
+)
 
 // TODO: This is not entirely correct, the degree is 255. We can change this to VECTOR_LENGTH or NUM_EVAL_POINTS?
 // note: degree 255, means 256 evaluation points
@@ -21,4 +23,10 @@ func PowersOf(x fr.Element, degree int) []fr.Element {
 	}
 
 	return result
+}
+
+func ReverseByteSlice(s []byte) {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
 }
