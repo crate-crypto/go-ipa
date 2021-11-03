@@ -30,17 +30,17 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 	}
 
 	for i := 0; i < num_queries; i++ {
-		transcript.AppendPoint(Cs[i])
+		transcript.AppendPoint(Cs[i], "C")
 		var z = domainToFr(zs[i])
-		transcript.AppendScalar(&z)
+		transcript.AppendScalar(&z, "z")
 
 		// get the `y` value
 
 		f := fs[i]
 		y := f[zs[i]]
-		transcript.AppendScalar(&y)
+		transcript.AppendScalar(&y, "y")
 	}
-	r := transcript.ChallengeScalar()
+	r := transcript.ChallengeScalar("r")
 	powers_of_r := common.PowersOf(r, num_queries)
 
 	// Compute g(X)
@@ -63,9 +63,9 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 
 	D := ipaConf.Commit(g_x)
 
-	transcript.AppendScalar(&r)
-	transcript.AppendPoint(&D)
-	t := transcript.ChallengeScalar()
+	transcript.AppendScalar(&r, "r")
+	transcript.AppendPoint(&D, "D")
+	t := transcript.ChallengeScalar("t")
 
 	// Compute h(X) = g_1(X)
 	h_x := make([]fr.Element, common.POLY_DEGREE)
@@ -95,7 +95,7 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 	}
 
 	E := ipaConf.Commit(h_x)
-	transcript.AppendPoint(&E)
+	transcript.AppendPoint(&E, "E")
 
 	var E_minus_D bandersnatch.PointAffine
 
@@ -126,17 +126,17 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 	}
 
 	for i := 0; i < num_queries; i++ {
-		transcript.AppendPoint(Cs[i])
+		transcript.AppendPoint(Cs[i], "C")
 		var z = domainToFr(zs[i])
-		transcript.AppendScalar(&z)
-		transcript.AppendScalar(ys[i])
+		transcript.AppendScalar(&z, "z")
+		transcript.AppendScalar(ys[i], "y")
 	}
-	r := transcript.ChallengeScalar()
+	r := transcript.ChallengeScalar("r")
 	powers_of_r := common.PowersOf(r, num_queries)
 
-	transcript.AppendScalar(&r)
-	transcript.AppendPoint(&proof.D)
-	t := transcript.ChallengeScalar()
+	transcript.AppendScalar(&r, "r")
+	transcript.AppendPoint(&proof.D, "D")
+	t := transcript.ChallengeScalar("t")
 
 	// Compute helper_scalars. This is r^i / t - z_i
 	//
@@ -169,7 +169,7 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 		tmp.ScalarMul(Cs[i], &helper_scalars[i])
 		E.Add(&E, &tmp)
 	}
-	transcript.AppendPoint(&E)
+	transcript.AppendPoint(&E, "E")
 
 	var E_minus_D bandersnatch.PointAffine
 	E_minus_D.Sub(&E, &proof.D)

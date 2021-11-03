@@ -17,9 +17,11 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 
 	b := ic.PrecomputedWeights.ComputeBarycentricCoefficients(eval_point)
 
-	transcript.AppendPoint(&commitment)
-	transcript.AppendScalars(&eval_point, &inner_prod)
-	z := transcript.ChallengeScalar()
+	transcript.AppendPoint(&commitment, "C")
+	transcript.AppendScalar(&eval_point, "input point")
+	transcript.AppendScalar(&inner_prod, "output point")
+
+	z := transcript.ChallengeScalar("z")
 
 	var q bandersnatch.PointAffine
 	q.ScalarMul(&ic.Q, &z)
@@ -89,8 +91,9 @@ func generateChallenges(transcript *common.Transcript, proof *IPAProof) []fr.Ele
 
 	challenges := make([]fr.Element, len(proof.L))
 	for i := 0; i < len(proof.L); i++ {
-		transcript.AppendPoints(&proof.L[i], &proof.R[i])
-		challenges[i] = transcript.ChallengeScalar()
+		transcript.AppendPoint(&proof.L[i], "L")
+		transcript.AppendPoint(&proof.R[i], "R")
+		challenges[i] = transcript.ChallengeScalar("x")
 	}
 	return challenges
 }

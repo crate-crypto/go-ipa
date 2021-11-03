@@ -17,9 +17,10 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 	b := ic.PrecomputedWeights.ComputeBarycentricCoefficients(eval_point)
 	inner_prod := InnerProd(a, b)
 
-	transcript.AppendPoint(&commitment)
-	transcript.AppendScalars(&eval_point, &inner_prod)
-	z := transcript.ChallengeScalar()
+	transcript.AppendPoint(&commitment, "C")
+	transcript.AppendScalar(&eval_point, "input point")
+	transcript.AppendScalar(&inner_prod, "output point")
+	z := transcript.ChallengeScalar("z")
 
 	var q bandersnatch.PointAffine
 	q.ScalarMul(&ic.Q, &z)
@@ -51,8 +52,9 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 		L[i] = C_L
 		R[i] = C_R
 
-		transcript.AppendPoints(&C_L, &C_R)
-		x := transcript.ChallengeScalar()
+		transcript.AppendPoint(&C_L, "L")
+		transcript.AppendPoint(&C_R, "R")
+		x := transcript.ChallengeScalar("x")
 
 		var xInv fr.Element
 		xInv.Inverse(&x)
