@@ -10,8 +10,6 @@ import (
 
 /// The transcript is used to create challenge scalars.
 /// See: Fiat-Shamir
-/// XXX: ideally, this should also contain labels, however this is not included in the python implementation
-// and we first want this different API to pass without modifying the tests.
 type Transcript struct {
 	state hash.Hash
 }
@@ -27,34 +25,33 @@ func NewTranscript(label string) *Transcript {
 	return transcript
 }
 
+func (t *Transcript) AppendMessage(message []byte, label string) {
+	t.state.Write([]byte(label))
+	t.state.Write(message)
+}
+
 // Appends a Scalar to the transcript
 //
 // Converts the scalar to 32 bytes, then appends it to
 // the state
-func (t *Transcript) AppendScalar(scalar *fr.Element) {
+func (t *Transcript) AppendScalar(scalar *fr.Element, label string) {
 	tmpBytes := scalar.Bytes()
-	t.state.Write(tmpBytes[:])
-}
+	t.AppendMessage(tmpBytes[:], label)
 
-func (t *Transcript) AppendScalars(scalars ...*fr.Element) {
-	for _, idx := range scalars {
-		t.AppendScalar(idx)
-	}
 }
 
 // Appends a Point to the transcript
 //
 // Compresses the Point into a 32 byte slice, then appends it to
 // the state
-func (t *Transcript) AppendPoint(point *bandersnatch.PointAffine) {
+func (t *Transcript) AppendPoint(point *bandersnatch.PointAffine, label string) {
 	tmp_bytes := point.Bytes()
-	t.state.Write(tmp_bytes[:])
+	t.AppendMessage(tmp_bytes[:], label)
+
 }
 
-func (t *Transcript) AppendPoints(points ...*bandersnatch.PointAffine) {
-	for _, point := range points {
-		t.AppendPoint(point)
-	}
+func (t *Transcript) DomainSep(label string) {
+	t.state.Write([]byte(label))
 }
 
 // Computes a challenge based off of the state of the transcript
@@ -63,7 +60,7 @@ func (t *Transcript) AppendPoints(points ...*bandersnatch.PointAffine) {
 // scalar field
 //
 // Note that calling the transcript twice, will yield two different challenges
-func (t *Transcript) ChallengeScalar() fr.Element {
+func (t *Transcript) ChallengeScalar(label string) fr.Element {
 	var tmp fr.Element
 	tmp.SetBytes(t.state.Sum(nil))
 
@@ -72,7 +69,7 @@ func (t *Transcript) ChallengeScalar() fr.Element {
 
 	// Add the new challenge to the state
 	// Which "summarises" the previous state before we cleared it
-	t.AppendScalar(&tmp)
+	t.AppendScalar(&tmp, label)
 
 	// Return the new challenge
 	return tmp
