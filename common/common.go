@@ -1,6 +1,9 @@
 package common
 
 import (
+	"io"
+
+	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
 )
 
@@ -25,8 +28,35 @@ func PowersOf(x fr.Element, degree int) []fr.Element {
 	return result
 }
 
-func ReverseByteSlice(s []byte) {
-	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
-		s[i], s[j] = s[j], s[i]
+func ReadPoint(r io.Reader) *bandersnatch.PointAffine {
+	var x = make([]byte, 32)
+	n, err := r.Read(x)
+	if err != nil {
+		panic("error reading bytes")
 	}
+	if n != 32 {
+		panic("did not read enough bytes")
+	}
+	var p = &bandersnatch.PointAffine{}
+	_, err = p.SetBytes(x)
+	if err != nil {
+		panic("could not deserialize point")
+	}
+	return p
+}
+func ReadScalar(r io.Reader) *fr.Element {
+	var x = make([]byte, 32)
+	n, err := r.Read(x)
+	if err != nil {
+		panic("error reading bytes")
+	}
+	if n != 32 {
+		panic("did not read enough bytes")
+	}
+	var scalar = &fr.Element{}
+	scalar.SetBytesLE(x)
+	if err != nil {
+		panic("could not deserialize point")
+	}
+	return scalar
 }
