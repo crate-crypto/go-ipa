@@ -1,6 +1,9 @@
 package ipa
 
 import (
+	"encoding/binary"
+	"io"
+
 	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
 	"github.com/crate-crypto/go-ipa/common"
@@ -76,4 +79,32 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 		R:        R,
 		A_scalar: a[0],
 	}
+}
+
+func (ip *IPAProof) Write(w io.Writer) {
+	for _, el := range ip.L {
+		binary.Write(w, binary.BigEndian, el.Bytes())
+	}
+	for _, ar := range ip.R {
+		binary.Write(w, binary.BigEndian, ar.Bytes())
+	}
+	binary.Write(w, binary.BigEndian, ip.A_scalar.BytesLE())
+}
+
+func (ip *IPAProof) Read(r io.Reader) {
+	var L []bandersnatch.PointAffine
+	for i := 0; i < 8; i++ {
+		L_i := common.ReadPoint(r)
+		L = append(L, *L_i)
+	}
+	ip.L = L
+	var R []bandersnatch.PointAffine
+	for i := 0; i < 8; i++ {
+		R_i := common.ReadPoint(r)
+		R = append(R, *R_i)
+	}
+	ip.R = R
+
+	A_Scalar := common.ReadScalar(r)
+	ip.A_scalar = *A_Scalar
 }
