@@ -108,3 +108,35 @@ func (ip *IPAProof) Read(r io.Reader) {
 	A_Scalar := common.ReadScalar(r)
 	ip.A_scalar = *A_Scalar
 }
+
+func (ip IPAProof) Equal(other IPAProof) bool {
+	num_rounds := 8
+	if len(ip.L) != len(other.L) {
+		return false
+	}
+	if len(ip.R) != len(other.R) {
+		return false
+	}
+	if len(ip.L) != len(ip.R) {
+		return false
+	}
+	if len(ip.L) != num_rounds {
+		return false
+	}
+
+	for i := 0; i < num_rounds; i++ {
+		expect_L_i := ip.L[i]
+		expect_R_i := ip.R[i]
+
+		got_L_i := other.L[i]
+		got_R_i := other.R[i]
+
+		if !expect_L_i.Equal(&got_L_i) {
+			return false
+		}
+		if !expect_R_i.Equal(&got_R_i) {
+			return false
+		}
+	}
+	return ip.A_scalar.Equal(&other.A_scalar)
+}

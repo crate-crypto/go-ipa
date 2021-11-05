@@ -29,7 +29,7 @@ func TestIPAProofCreateVerify(t *testing.T) {
 	lagrange_coeffs := ipaConf.PrecomputedWeights.ComputeBarycentricCoefficients(point)
 	inner_product := InnerProd(poly, lagrange_coeffs)
 
-	test_serialize_deserialize_proof(&proof)
+	test_serialize_deserialize_proof(proof)
 
 	// Verifier view
 	verifier_comm := prover_comm // In reality, the verifier will rebuild this themselves
@@ -138,28 +138,14 @@ func TestCRSGeneration(t *testing.T) {
 
 }
 
-func test_serialize_deserialize_proof(proof *IPAProof) {
+func test_serialize_deserialize_proof(proof IPAProof) {
 	var buf = new(bytes.Buffer)
 	proof.Write(buf)
 
 	var got_proof IPAProof
 	got_proof.Read(buf)
 
-	for i := 0; i < 8; i++ {
-		expect_L_i := proof.L[i]
-		expect_R_i := proof.R[i]
-
-		got_L_i := got_proof.L[i]
-		got_R_i := got_proof.R[i]
-
-		if !expect_L_i.Equal(&got_L_i) {
-			panic("proof serialization does not match deserialization L_i")
-		}
-		if !expect_R_i.Equal(&got_R_i) {
-			panic("proof serialization does not match deserialization R_i")
-		}
-	}
-	if !proof.A_scalar.Equal(&got_proof.A_scalar) {
-		panic("proof serialization does not match deserialization A")
+	if !got_proof.Equal(proof) {
+		panic("proof serialization does not match deserialization for IPA")
 	}
 }
