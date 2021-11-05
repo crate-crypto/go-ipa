@@ -79,21 +79,9 @@ func (p *PointAffine) Marshal() []byte {
 	return b[:]
 }
 
-func computeX(y *fp.Element) (x fp.Element) {
-	var one, num, den fp.Element
-	one.SetOne()
-	num.Square(y)
-	den.Mul(&num, &edwards.D)
-	num.Sub(&one, &num)
-	den.Sub(&edwards.A, &den)
-	x.Div(&num, &den)
-	x.Sqrt(&x)
-	return
-}
-
 // SetBytes sets p from buf
 // len(buf) >= sizePointCompressed
-// buf contains the Y coordinate masked with a parity bit to recompute the X coordinate
+// buf contains the X coordinate masked with a parity bit to recompute the Y coordinate
 // from the curve equation. See Bytes() and https://tools.ietf.org/html/rfc8032#section-3.1
 // Returns the number of read bytes and an error if the buffer is too short.
 func (p *PointAffine) SetBytes(buf []byte) (int, error) {
@@ -108,17 +96,8 @@ func (p *PointAffine) SetBytes(buf []byte) (int, error) {
 	}
 	isLexicographicallyLargest := (mCompressedNegative&bufCopy[0])>>7 == 1
 	bufCopy[0] &= mUnmask
-	p.Y.SetBytes(bufCopy)
-	p.X = computeX(&p.Y)
-	if isLexicographicallyLargest {
-		if !p.X.LexicographicallyLargest() {
-			p.X.Neg(&p.X)
-		}
-	} else {
-		if p.X.LexicographicallyLargest() {
-			p.X.Neg(&p.X)
-		}
-	}
+	p.X.SetBytes(bufCopy)
+	p.Y = *computeY(&p.X, isLexicographicallyLargest)
 
 	return sizePointCompressed, nil
 }
