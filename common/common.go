@@ -42,8 +42,12 @@ func ReadPoint(r io.Reader) *bandersnatch.PointAffine {
 	if err != nil {
 		panic("could not deserialize point")
 	}
+	if !p.IsInPrimeSubgroup() {
+		panic("point not in the prime subgroup")
+	}
 	return p
 }
+
 func ReadScalar(r io.Reader) *fr.Element {
 	var x = make([]byte, 32)
 	n, err := r.Read(x)
