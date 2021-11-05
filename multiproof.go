@@ -1,7 +1,9 @@
 package multiproof
 
 import (
+	"encoding/binary"
 	"fmt"
+	"io"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
@@ -181,4 +183,21 @@ func domainToFr(in uint8) fr.Element {
 	var x fr.Element
 	x.SetUint64(uint64(in))
 	return x
+}
+
+func (mp *MultiProof) Write(w io.Writer) {
+	binary.Write(w, binary.BigEndian, mp.D.Bytes())
+	mp.IPA.Write(w)
+}
+
+func (mp *MultiProof) Read(r io.Reader) {
+	D := common.ReadPoint(r)
+	mp.D = *D
+	mp.IPA.Read(r)
+}
+func (mp MultiProof) Equal(other MultiProof) bool {
+	if !mp.IPA.Equal(other.IPA) {
+		return false
+	}
+	return mp.D.Equal(&other.D)
 }

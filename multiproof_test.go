@@ -1,6 +1,7 @@
 package multiproof
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch"
@@ -28,12 +29,28 @@ func TestMultiProofCreateVerify(t *testing.T) {
 	ys := []*fr.Element{&one}
 	proof := CreateMultiProof(prover_transcript, ipaConf, Cs, fs, zs)
 
+	test_serialize_deserialize_proof(*proof)
+
 	// Verifier view
 	verifier_transcript := common.NewTranscript("multiproof")
 	ok := CheckMultiProof(verifier_transcript, ipaConf, proof, Cs, ys, zs)
 
 	if !ok {
 		panic("multi product proof failed")
+	}
+
+}
+
+func test_serialize_deserialize_proof(proof MultiProof) {
+	var buf = new(bytes.Buffer)
+	proof.Write(buf)
+
+	var got_proof MultiProof
+	got_proof.Read(buf)
+
+	if !got_proof.Equal(proof) {
+		panic("proof serialization does not match deserialization for Multiproof")
+
 	}
 
 }
