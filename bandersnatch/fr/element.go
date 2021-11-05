@@ -716,6 +716,25 @@ func (z *Element) SetBytes(e []byte) *Element {
 	return z
 }
 
+// SetBytes interprets e as the bytes of a little-endian unsigned integer,
+// sets z to that value (in Montgomery form), and returns z.
+func (z *Element) SetBytesLE(e []byte) *Element {
+	for i, j := 0, len(e)-1; i < j; i, j = i+1, j-1 {
+		e[i], e[j] = e[j], e[i]
+	}
+	// get a big int from our pool
+	vv := bigIntPool.Get().(*big.Int)
+	vv.SetBytes(e)
+
+	// set big int
+	z.SetBigInt(vv)
+
+	// put temporary object back in pool
+	bigIntPool.Put(vv)
+
+	return z
+}
+
 // SetBigInt sets z to v (regular form) and returns z in Montgomery form
 func (z *Element) SetBigInt(v *big.Int) *Element {
 	z.SetZero()

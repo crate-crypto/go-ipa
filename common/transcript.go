@@ -66,10 +66,9 @@ func (t *Transcript) ChallengeScalar(label string) fr.Element {
 	// Reverse the endian so we are using little-endian
 	// SetBytes interprets the bytes in Big Endian
 	bytes := t.state.Sum(nil)
-	ReverseByteSlice(bytes)
 
 	var tmp fr.Element
-	tmp.SetBytes(bytes)
+	tmp.SetBytesLE(bytes)
 
 	// Clear the state
 	t.state.Reset()
