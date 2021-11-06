@@ -17,7 +17,7 @@ func TestIPAProofCreateVerify(t *testing.T) {
 	// Shared View
 	var point fr.Element
 	point.SetUint64(123456789)
-	ipaConf := NewIPASettingsUnsecure()
+	ipaConf := NewIPASettings()
 
 	// Prover view
 	poly := test_helper.TestPoly256(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)
@@ -101,7 +101,7 @@ func TestBasicCommit(t *testing.T) {
 	}
 }
 func TestCRSGeneration(t *testing.T) {
-
+	generator := bandersnatch.GetEdwardsCurve().Base
 	points := GenerateRandomPoints(256)
 	for _, point := range points {
 		if !point.IsOnCurve() {
@@ -110,7 +110,19 @@ func TestCRSGeneration(t *testing.T) {
 		if !point.IsInPrimeSubgroup() {
 			panic("point is not in the prime sub group")
 		}
+
+		if point.Equal(&generator) {
+			panic("one of the generated points was the generator. The inner product point is being used as the generator.")
+		}
 	}
+
+	// Check that the points are all unique
+	points = removeDuplicatePoints(points)
+	if len(points) != 256 {
+		panic("points contained duplicates")
+	}
+
+	// Now check against the test vectors here: https://hackmd.io/1RcGSMQgT4uREaq1CCx_cg#Methodology
 	bytes := points[0].Bytes()
 	got := hex.EncodeToString(bytes[:])
 	expected := "22ac968a98ab6c50379fc8b039abc8fd9aca259f4746a05bfbdf12c86463c208"
@@ -148,4 +160,16 @@ func test_serialize_deserialize_proof(proof IPAProof) {
 	if !got_proof.Equal(proof) {
 		panic("proof serialization does not match deserialization for IPA")
 	}
+}
+
+func removeDuplicatePoints(intSlice []bandersnatch.PointAffine) []bandersnatch.PointAffine {
+	allKeys := make(map[bandersnatch.PointAffine]bool)
+	list := []bandersnatch.PointAffine{}
+	for _, item := range intSlice {
+		if _, value := allKeys[item]; !value {
+			allKeys[item] = true
+			list = append(list, item)
+		}
+	}
+	return list
 }
