@@ -14,7 +14,7 @@ import (
 func TestMultiProofCreateVerify(t *testing.T) {
 
 	// Shared View
-	ipaConf := ipa.NewIPASettingsUnsecure()
+	ipaConf := ipa.NewIPASettings()
 
 	// Prover view
 	poly_1 := test_helper.TestPoly256(1, 1, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)
