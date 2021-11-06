@@ -41,6 +41,58 @@ func TestIPAProofCreateVerify(t *testing.T) {
 	}
 
 }
+func TestIPAConsistencySimpleProof(t *testing.T) {
+
+	// Shared View
+	var input_point fr.Element
+	input_point.SetUint64(2101)
+	ipaConf := NewIPASettings()
+
+	// Prover view
+	//
+	poly := test_helper.TestPoly256(
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+	)
+	prover_comm := ipaConf.Commit(poly)
+	test_helper.PointEqualHex(t, prover_comm, "637bf70491d8a87a5a15a004cfbed28ae94f01bdaa801af034a81e63e0fa7db9")
+
+	prover_transcript := common.NewTranscript("test")
+
+	proof := CreateIPAProof(prover_transcript, ipaConf, prover_comm, poly, input_point)
+
+	lagrange_coeffs := ipaConf.PrecomputedWeights.ComputeBarycentricCoefficients(input_point)
+	output_point := InnerProd(poly, lagrange_coeffs)
+	test_helper.ScalarEqualHex(t, output_point, "4a353e70b03c89f161de002e8713beec0d740a5e20722fd5bd68b30540a33208")
+
+	// Lets check the state of the transcript, by squeezing out a challenge
+	p_challenge := prover_transcript.ChallengeScalar("state")
+	test_helper.ScalarEqualHex(t, p_challenge, "50d7f61175ffcfefc0dd603943ec8da7568608564d509cd0d1fa71cc48dc3515")
+
+	// Note, that we can be confident that any implementation which passes the above conditions
+	// will have a proof object that is consistent, as the transcript adds everything into the proof
+
+	// Verifier view
+	//
+	verifier_comm := prover_comm // In reality, the verifier will rebuild this themselves
+	verifier_transcript := common.NewTranscript("test")
+
+	ok := CheckIPAProof(verifier_transcript, ipaConf, verifier_comm, proof, input_point, output_point)
+	if !ok {
+		panic("inner product proof failed")
+	}
+	//
+	v_challenge := verifier_transcript.ChallengeScalar("state")
+	if !v_challenge.Equal(&p_challenge) {
+		panic("prover and verifier state are not the same. The proof should not have passed!")
+	}
+}
 func TestBasicInnerProduct(t *testing.T) {
 
 	var a []fr.Element
