@@ -7,6 +7,7 @@ import (
 )
 
 func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment bandersnatch.PointAffine, proof IPAProof, eval_point fr.Element, inner_prod fr.Element) bool {
+	transcript.DomainSep("ipa")
 
 	if len(proof.L) != len(proof.R) {
 		panic("L and R should be the same size")
@@ -21,10 +22,10 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 	transcript.AppendScalar(&eval_point, "input point")
 	transcript.AppendScalar(&inner_prod, "output point")
 
-	z := transcript.ChallengeScalar("z")
+	w := transcript.ChallengeScalar("w")
 
 	var q bandersnatch.PointAffine
-	q.ScalarMul(&ic.Q, &z)
+	q.ScalarMul(&ic.Q, &w)
 
 	var qy bandersnatch.PointAffine
 	qy.ScalarMul(&q, &inner_prod)

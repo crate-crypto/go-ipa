@@ -16,6 +16,7 @@ type IPAProof struct {
 }
 
 func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment bandersnatch.PointAffine, a []fr.Element, eval_point fr.Element) IPAProof {
+	transcript.DomainSep("ipa")
 
 	b := ic.PrecomputedWeights.ComputeBarycentricCoefficients(eval_point)
 	inner_prod := InnerProd(a, b)
@@ -23,10 +24,10 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 	transcript.AppendPoint(&commitment, "C")
 	transcript.AppendScalar(&eval_point, "input point")
 	transcript.AppendScalar(&inner_prod, "output point")
-	z := transcript.ChallengeScalar("z")
+	w := transcript.ChallengeScalar("w")
 
 	var q bandersnatch.PointAffine
-	q.ScalarMul(&ic.Q, &z)
+	q.ScalarMul(&ic.Q, &w)
 
 	num_rounds := ic.num_ipa_rounds
 
