@@ -1,6 +1,12 @@
 package test_helper
 
-import "github.com/crate-crypto/go-ipa/bandersnatch/fr"
+import (
+	"encoding/hex"
+	"testing"
+
+	"github.com/crate-crypto/go-ipa/bandersnatch"
+	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
+)
 
 func TestPoly256(polynomial ...uint64) []fr.Element {
 	n := len(polynomial)
@@ -18,4 +24,19 @@ func TestPoly256(polynomial ...uint64) []fr.Element {
 	}
 
 	return polynomialFr
+}
+
+func PointEqualHex(t *testing.T, point bandersnatch.PointAffine, expected string) {
+	point_bytes := point.Bytes()
+	got := hex.EncodeToString(point_bytes[:])
+	if got != expected {
+		t.Fatal("point does not equal expected hex value")
+	}
+}
+func ScalarEqualHex(t *testing.T, scalar fr.Element, expected string) {
+	scalar_bytes := scalar.BytesLE()
+	got := hex.EncodeToString(scalar_bytes[:])
+	if got != expected {
+		t.Fatal("scalar does not equal expected hex value")
+	}
 }
