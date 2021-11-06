@@ -28,28 +28,10 @@ type IPAConfig struct {
 
 // This function creates 256 random generator points where the relative discrete log is
 // not known between each generator
-// TODO This is not the case at the moment because we currently do not have
-// TODO an agreed way to do this, and this is the easiest way to have interoperability
-// TODO NOT SECURE
-func NewIPASettingsUnsecure() *IPAConfig {
+func NewIPASettings() *IPAConfig {
 
-	gen := bandersnatch.GetEdwardsCurve().Base
-	srs := make([]bandersnatch.PointAffine, common.POLY_DEGREE)
-	for i := uint64(0); i < common.POLY_DEGREE; i++ {
-		var tmp fr.Element
-		tmp.SetUint64(i + 1)
-
-		srs[i].ScalarMul(&gen, &tmp)
-	}
-
-	var tmp fr.Element
-	// 1010 is irrelevant here, we just need a random group element
-	// in the end, see the comments at the top of this function
-	// about security
-	tmp.SetUint64(1010)
-
-	var Q bandersnatch.PointAffine
-	Q.ScalarMul(&gen, &tmp)
+	srs := GenerateRandomPoints(common.POLY_DEGREE)
+	var Q bandersnatch.PointAffine = bandersnatch.GetEdwardsCurve().Base
 
 	return &IPAConfig{
 		SRS:                srs,
@@ -190,10 +172,10 @@ func compute_num_rounds(vector_size uint32) uint32 {
 	return uint32(res)
 }
 
-func GenerateRandomPoints(numPoints uint64) []*bandersnatch.PointAffine {
+func GenerateRandomPoints(numPoints uint64) []bandersnatch.PointAffine {
 
 	digest := sha256.New()
-	digest.Write([]byte("eth_verkle_oct_2021")) // incase it changes or needs updating, we can use eth_verkle_oct_year
+	digest.Write([]byte("eth_verkle_oct_2021")) // incase it changes or needs updating, we can use eth_verkle_month_year
 	hash := digest.Sum(nil)
 
 	var u fp.Element
@@ -203,7 +185,7 @@ func GenerateRandomPoints(numPoints uint64) []*bandersnatch.PointAffine {
 	// element of `y` out of it and it's negative
 	choose_largest := false
 
-	points := []*bandersnatch.PointAffine{}
+	points := []bandersnatch.PointAffine{}
 
 	var increment uint64 = 0
 
@@ -217,7 +199,7 @@ func GenerateRandomPoints(numPoints uint64) []*bandersnatch.PointAffine {
 			continue
 		}
 		if point_found.IsInPrimeSubgroup() {
-			points = append(points, point_found)
+			points = append(points, *point_found)
 		}
 
 	}
