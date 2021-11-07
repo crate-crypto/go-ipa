@@ -17,6 +17,7 @@ type MultiProof struct {
 }
 
 func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs []*bandersnatch.PointAffine, fs [][]fr.Element, zs []uint8) *MultiProof {
+	transcript.DomainSep("multiproof")
 
 	if len(Cs) != len(fs) {
 		panic(fmt.Sprintf("number of commitments = %d, while number of functions = %d", len(Cs), len(fs)))
@@ -65,7 +66,6 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 
 	D := ipaConf.Commit(g_x)
 
-	transcript.AppendScalar(&r, "r")
 	transcript.AppendPoint(&D, "D")
 	t := transcript.ChallengeScalar("t")
 
@@ -112,6 +112,7 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 }
 
 func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proof *MultiProof, Cs []*bandersnatch.PointAffine, ys []*fr.Element, zs []uint8) bool {
+	transcript.DomainSep("multiproof")
 
 	if len(Cs) != len(ys) {
 		panic(fmt.Sprintf("number of commitments = %d, while number of output points = %d", len(Cs), len(ys)))
@@ -136,7 +137,6 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 	r := transcript.ChallengeScalar("r")
 	powers_of_r := common.PowersOf(r, num_queries)
 
-	transcript.AppendScalar(&r, "r")
 	transcript.AppendPoint(&proof.D, "D")
 	t := transcript.ChallengeScalar("t")
 
