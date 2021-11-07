@@ -30,13 +30,13 @@ func PointEqualHex(t *testing.T, point bandersnatch.PointAffine, expected string
 	point_bytes := point.Bytes()
 	got := hex.EncodeToString(point_bytes[:])
 	if got != expected {
-		t.Fatal("point does not equal expected hex value")
+		t.Fatalf("point does not equal expected hex value, expected %s got %s", expected, got)
 	}
 }
 func ScalarEqualHex(t *testing.T, scalar fr.Element, expected string) {
 	scalar_bytes := scalar.BytesLE()
 	got := hex.EncodeToString(scalar_bytes[:])
 	if got != expected {
-		t.Fatal("scalar does not equal expected hex value")
+		t.Fatalf("scalar does not equal expected hex value, expected %s got %s", expected, got)
 	}
 }
