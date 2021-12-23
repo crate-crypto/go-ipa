@@ -336,6 +336,26 @@ func (p *PointAffine) ScalarMul(p1 *PointAffine, scalar_mont *fr.Element) *Point
 	return p
 
 }
+func (p *PointProj) ScalarMul(p1 *PointProj, scalar_mont *fr.Element) *PointProj {
+
+	var resProj, p1Proj PointProj
+	resProj.Identity()
+	p1Proj.Set(p1)
+
+	scalar := scalar_mont.ToRegular()
+	bit_len := scalar.BitLen()
+
+	for i := bit_len; i >= 0; i-- {
+		resProj.Double(&resProj)
+		if scalar.Bit(uint64(i)) == 1 {
+			resProj.Add(&resProj, &p1Proj)
+		}
+	}
+
+	p.Set(&resProj)
+
+	return p
+}
 
 // All points in the prime subgroup have prime order
 // so we can check for prime order by multiplying by the order
