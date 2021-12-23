@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"math"
+	"runtime"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fp"
@@ -41,16 +42,18 @@ func NewIPASettings() *IPAConfig {
 	}
 }
 
-func slowMultiScalar(points []bandersnatch.PointAffine, scalars []fr.Element) bandersnatch.PointAffine {
-	var result bandersnatch.PointAffine
+func multiScalar(points []bandersnatch.PointAffine, scalars []fr.Element) bandersnatch.PointAffine {
+	var result bandersnatch.PointProj
 	result.Identity()
-	for i := 0; i < len(points); i++ {
-		var tmp bandersnatch.PointAffine
-		tmp.ScalarMul(&points[i], &scalars[i])
-		result.Add(&result, &tmp)
+
+	var res, err = result.MultiExp(points, scalars, bandersnatch.MultiExpConfig{NbTasks: runtime.NumCPU(), ScalarsMont: true})
+	if err != nil {
+		panic("mult exponentiation was not successful. TODO: replace panics by bubbling up error")
 	}
 
-	return result
+	var resAffine bandersnatch.PointAffine
+	resAffine.FromProj(res)
+	return resAffine
 }
 
 // Commits to a polynomial using the SRS
@@ -65,7 +68,7 @@ func commit(group_elements []bandersnatch.PointAffine, polynomial []fr.Element) 
 	if len(group_elements) != len(polynomial) {
 		panic(fmt.Sprintf("diff sizes, %d != %d", len(group_elements), len(polynomial)))
 	}
-	return slowMultiScalar(group_elements, polynomial)
+	return multiScalar(group_elements, polynomial)
 }
 
 // Computes the inner product of a and b
