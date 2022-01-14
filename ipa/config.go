@@ -14,6 +14,8 @@ import (
 
 type IPAConfig struct {
 	// Points to commit to the input vector
+	// TODO: if we use the precomputed SRS, we can probably remove this
+	// TODO slice from memory
 	SRS []bandersnatch.PointAffine
 
 	// Point to commit to the inner product of the two vectors in the inner product argument
@@ -63,11 +65,11 @@ func multiScalar(points []bandersnatch.PointAffine, scalars []fr.Element) bander
 // panics if the length of the SRS does not equal the number of polynomial coefficients
 func (ic *IPAConfig) Commit(polynomial []fr.Element) bandersnatch.PointAffine {
 	return *ic.precomp_lag.Commit(polynomial)
-	// return commit(ic.SRS, polynomial)
 }
 
 // Commits to a polynomial using the input group elements
 // panics if the number of group elements does not equal the number of polynomial coefficients
+// This is used when the generators are not fixed
 func commit(group_elements []bandersnatch.PointAffine, polynomial []fr.Element) bandersnatch.PointAffine {
 	if len(group_elements) != len(polynomial) {
 		panic(fmt.Sprintf("diff sizes, %d != %d", len(group_elements), len(polynomial)))
