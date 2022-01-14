@@ -25,16 +25,16 @@ func NewPrecomputeLagrange(points []PointAffine) *PrecomputeLagrange {
 	}
 }
 
-func (p *PrecomputeLagrange) Commit(evaluations []fr.Element) PointAffine {
+func (p *PrecomputeLagrange) Commit(evaluations []fr.Element) *PointAffine {
 
 	nbTasks := runtime.NumCPU()
-	chPartialResults := make(chan PointAffine, nbTasks)
+	chPartialResults := make(chan PointProj, nbTasks)
 	parallel.Execute(len(evaluations), func(start, end int) {
-		var partial_result PointAffine
+		var partial_result PointProj
 		partial_result.Identity()
 
 		for i := start; i < end; i++ {
-			scalar := evaluations[i]
+			scalar := &evaluations[i]
 
 			if scalar.IsZero() {
 				continue
@@ -45,7 +45,9 @@ func (p *PrecomputeLagrange) Commit(evaluations []fr.Element) PointAffine {
 
 			for row, byte := range scalar_bytes_le {
 				var tp = table.point(row, byte)
-				partial_result.Add(&partial_result, &tp)
+				var tp_proj PointProj
+				tp_proj.FromAffine(tp)
+				partial_result.Add(&partial_result, &tp_proj)
 			}
 		}
 
@@ -56,13 +58,15 @@ func (p *PrecomputeLagrange) Commit(evaluations []fr.Element) PointAffine {
 	// Aggregate Parallel Results
 
 	close(chPartialResults)
-	var result PointAffine
+	var result PointProj
 	result.Identity()
 	for partial := range chPartialResults {
 		result.Add(&result, &partial)
 	}
 
-	return result
+	var res_affine PointAffine
+	res_affine.FromProj(&result)
+	return &res_affine
 }
 
 type LagrangeTablePoints struct {
@@ -100,11 +104,11 @@ func newLagrangeTablePoints(point PointAffine) *LagrangeTablePoints {
 }
 
 // TODO: double check if index is needed
-func (ltp *LagrangeTablePoints) point(index int, value uint8) PointAffine {
+func (ltp *LagrangeTablePoints) point(index int, value uint8) *PointAffine {
 	if value == 0 {
-		return ltp.identity
+		return &ltp.identity
 	}
-	return ltp.matrix[uint(index*255)+uint(value-1)]
+	return &ltp.matrix[uint(index*255)+uint(value-1)]
 }
 
 func compute_base_row(point PointAffine, num_points int) []PointAffine {
