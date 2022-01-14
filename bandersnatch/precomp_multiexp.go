@@ -1,6 +1,11 @@
 package bandersnatch
 
-import "github.com/crate-crypto/go-ipa/bandersnatch/fr"
+import (
+	"runtime"
+
+	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
+	"github.com/crate-crypto/go-ipa/bandersnatch/parallel"
+)
 
 type PrecomputeLagrange struct {
 	inner      []*LagrangeTablePoints
@@ -22,23 +27,39 @@ func NewPrecomputeLagrange(points []PointAffine) *PrecomputeLagrange {
 
 func (p *PrecomputeLagrange) Commit(evaluations []fr.Element) PointAffine {
 
+	nbTasks := runtime.NumCPU()
+	chPartialResults := make(chan PointAffine, nbTasks)
+	parallel.Execute(len(evaluations), func(start, end int) {
+		var partial_result PointAffine
+		partial_result.Identity()
+
+		for i := start; i < end; i++ {
+			scalar := evaluations[i]
+
+			if scalar.IsZero() {
+				continue
+			}
+
+			table := p.inner[i]
+			scalar_bytes_le := scalar.BytesLE()
+
+			for row, byte := range scalar_bytes_le {
+				var tp = table.point(row, byte)
+				partial_result.Add(&partial_result, &tp)
+			}
+		}
+
+		chPartialResults <- partial_result
+
+	}, nbTasks)
+
+	// Aggregate Parallel Results
+
+	close(chPartialResults)
 	var result PointAffine
 	result.Identity()
-
-	for i := 0; i < len(evaluations); i++ {
-		scalar := evaluations[i]
-		if scalar.IsZero() {
-			continue
-		}
-
-		table := p.inner[i]
-		scalar_bytes_le := scalar.BytesLE()
-
-		for row, byte := range scalar_bytes_le {
-			var tp = table.point(row, byte)
-			result.Add(&result, &tp)
-		}
-
+	for partial := range chPartialResults {
+		result.Add(&result, &partial)
 	}
 
 	return result
