@@ -125,3 +125,20 @@ func TestPointAtInfinityComponent(t *testing.T) {
 	}
 
 }
+
+func TestAddSubDouble(t *testing.T) {
+
+	var A, B Element
+
+	A.Add(&Generator, &Generator)
+	B.Double(&Generator)
+
+	if !A.Equal(&B) {
+		panic("doubling formula does not match Add formula")
+	}
+
+	A.Sub(&A, &B)
+	if !A.Equal(&Identity) {
+		panic("sub formula is incorrect; any point minus itself should give the identity point")
+	}
+}
