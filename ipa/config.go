@@ -6,9 +6,9 @@ import (
 	"math"
 	"runtime"
 
-	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fp"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
+	"github.com/crate-crypto/go-ipa/banderwagon"
 	"github.com/crate-crypto/go-ipa/common"
 )
 
@@ -16,10 +16,10 @@ type IPAConfig struct {
 	// Points to commit to the input vector
 	// TODO: if we use the precomputed SRS, we can probably remove this
 	// TODO slice from memory
-	SRS []bandersnatch.PointAffine
+	SRS []banderwagon.Element
 
 	// Point to commit to the inner product of the two vectors in the inner product argument
-	Q bandersnatch.PointAffine
+	Q banderwagon.Element
 
 	PrecomputedWeights *PrecomputedWeights
 
@@ -29,48 +29,48 @@ type IPAConfig struct {
 	num_ipa_rounds uint32
 
 	// Precomputed SRS points
-	precomp_lag *bandersnatch.PrecomputeLagrange
+	precomp_lag *PrecomputeLagrange
 }
+
+var srs = GenerateRandomPoints(common.POLY_DEGREE)
+var precomp_lag = NewPrecomputeLagrange(srs)
 
 // This function creates 256 random generator points where the relative discrete log is
 // not known between each generator
+// TODO: we should allow a commiter to be passed in, so for tests we do not use the precomputed points as it takes a long time
 func NewIPASettings() *IPAConfig {
-
-	srs := GenerateRandomPoints(common.POLY_DEGREE)
-	var Q bandersnatch.PointAffine = bandersnatch.GetEdwardsCurve().Base
+	var Q banderwagon.Element = banderwagon.Generator
 	return &IPAConfig{
 		SRS:                srs,
 		Q:                  Q,
 		PrecomputedWeights: NewPrecomputedWeights(),
 		num_ipa_rounds:     compute_num_rounds(common.POLY_DEGREE),
-		precomp_lag:        bandersnatch.NewPrecomputeLagrange(srs),
+		precomp_lag:        precomp_lag,
 	}
 }
 
-func multiScalar(points []bandersnatch.PointAffine, scalars []fr.Element) bandersnatch.PointAffine {
-	var result bandersnatch.PointProj
+func multiScalar(points []banderwagon.Element, scalars []fr.Element) banderwagon.Element {
+	var result banderwagon.Element
 	result.Identity()
 
-	var res, err = result.MultiExp(points, scalars, bandersnatch.MultiExpConfig{NbTasks: runtime.NumCPU(), ScalarsMont: true})
+	var res, err = result.MultiExp(points, scalars, banderwagon.MultiExpConfig{NbTasks: runtime.NumCPU(), ScalarsMont: true})
 	if err != nil {
 		panic("mult exponentiation was not successful. TODO: replace panics by bubbling up error")
 	}
 
-	var resAffine bandersnatch.PointAffine
-	resAffine.FromProj(res)
-	return resAffine
+	return *res
 }
 
 // Commits to a polynomial using the SRS
 // panics if the length of the SRS does not equal the number of polynomial coefficients
-func (ic *IPAConfig) Commit(polynomial []fr.Element) bandersnatch.PointAffine {
+func (ic *IPAConfig) Commit(polynomial []fr.Element) banderwagon.Element {
 	return *ic.precomp_lag.Commit(polynomial)
 }
 
 // Commits to a polynomial using the input group elements
 // panics if the number of group elements does not equal the number of polynomial coefficients
 // This is used when the generators are not fixed
-func commit(group_elements []bandersnatch.PointAffine, polynomial []fr.Element) bandersnatch.PointAffine {
+func commit(group_elements []banderwagon.Element, polynomial []fr.Element) banderwagon.Element {
 	if len(group_elements) != len(polynomial) {
 		panic(fmt.Sprintf("diff sizes, %d != %d", len(group_elements), len(polynomial)))
 	}
@@ -116,15 +116,15 @@ func foldScalars(a []fr.Element, b []fr.Element, x fr.Element) []fr.Element {
 // Computes c[i] =a[i] + b[i] * x
 // returns c
 // panics if len(a) != len(b)
-func foldPoints(a []bandersnatch.PointAffine, b []bandersnatch.PointAffine, x fr.Element) []bandersnatch.PointAffine {
+func foldPoints(a []banderwagon.Element, b []banderwagon.Element, x fr.Element) []banderwagon.Element {
 
 	if len(a) != len(b) {
 		panic("slices not equal length")
 	}
 
-	result := make([]bandersnatch.PointAffine, len(a))
+	result := make([]banderwagon.Element, len(a))
 	for i := 0; i < len(a); i++ {
-		var bx bandersnatch.PointAffine
+		var bx banderwagon.Element
 		bx.ScalarMul(&b[i], &x)
 		result[i].Add(&bx, &a[i])
 	}
@@ -146,7 +146,7 @@ func splitScalars(x []fr.Element) ([]fr.Element, []fr.Element) {
 // Splits a slice of points into two slices of equal length
 // Eg [P1,P2,P3,P4,P5,P6] becomes [P1,P2,P3] , [P4,P5,P6]
 // panics if the number of points is not even
-func splitPoints(x []bandersnatch.PointAffine) ([]bandersnatch.PointAffine, []bandersnatch.PointAffine) {
+func splitPoints(x []banderwagon.Element) ([]banderwagon.Element, []banderwagon.Element) {
 	if len(x)%2 != 0 {
 		panic("slice should have an even length")
 	}
@@ -181,7 +181,7 @@ func compute_num_rounds(vector_size uint32) uint32 {
 	return uint32(res)
 }
 
-func GenerateRandomPoints(numPoints uint64) []bandersnatch.PointAffine {
+func GenerateRandomPoints(numPoints uint64) []banderwagon.Element {
 
 	digest := sha256.New()
 	digest.Write([]byte("eth_verkle_oct_2021")) // incase it changes or needs updating, we can use eth_verkle_month_year
@@ -190,11 +190,7 @@ func GenerateRandomPoints(numPoints uint64) []bandersnatch.PointAffine {
 	var u fp.Element
 	u.SetBytes(hash)
 
-	// flag to indicate whether we choose the lexographically larger
-	// element of `y` out of it and it's negative
-	choose_largest := false
-
-	points := []bandersnatch.PointAffine{}
+	points := []banderwagon.Element{}
 
 	var increment uint64 = 0
 
@@ -203,13 +199,14 @@ func GenerateRandomPoints(numPoints uint64) []bandersnatch.PointAffine {
 		var x = incrementBy(u, increment)
 		increment++
 
-		point_found := bandersnatch.GetPointFromX(x, choose_largest)
-		if point_found == nil {
+		x_as_bytes := x.Bytes()
+		var point_found banderwagon.Element
+		err := point_found.SetBytes(x_as_bytes[:])
+		if err != nil {
+			// This point is not in the correct subgroup
 			continue
 		}
-		if point_found.IsInPrimeSubgroup() {
-			points = append(points, *point_found)
-		}
+		points = append(points, point_found)
 
 	}
 

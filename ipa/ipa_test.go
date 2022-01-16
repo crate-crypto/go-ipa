@@ -6,8 +6,8 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
+	"github.com/crate-crypto/go-ipa/banderwagon"
 	"github.com/crate-crypto/go-ipa/common"
 	"github.com/crate-crypto/go-ipa/test_helper"
 )
@@ -60,11 +60,11 @@ func TestIPAConsistencySimpleProof(t *testing.T) {
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
 	)
+
 	prover_comm := ipaConf.Commit(poly)
 	test_helper.PointEqualHex(t, prover_comm, "637bf70491d8a87a5a15a004cfbed28ae94f01bdaa801af034a81e63e0fa7db9")
 
 	prover_transcript := common.NewTranscript("test")
-
 	proof := CreateIPAProof(prover_transcript, ipaConf, prover_comm, poly, input_point)
 
 	lagrange_coeffs := ipaConf.PrecomputedWeights.ComputeBarycentricCoefficients(input_point)
@@ -133,9 +133,9 @@ func TestBasicInnerProduct(t *testing.T) {
 }
 func TestBasicCommit(t *testing.T) {
 
-	gen := bandersnatch.GetEdwardsCurve().Base
+	gen := banderwagon.Generator
 
-	var generators []bandersnatch.PointAffine
+	var generators []banderwagon.Element
 	for i := 0; i < 5; i++ {
 		generators = append(generators, gen)
 	}
@@ -156,7 +156,7 @@ func TestBasicCommit(t *testing.T) {
 		total.Add(&total, &a[i])
 	}
 
-	var expected bandersnatch.PointAffine
+	var expected banderwagon.Element
 	expected.ScalarMul(&gen, &total)
 
 	if !got.Equal(&expected) {
@@ -164,16 +164,20 @@ func TestBasicCommit(t *testing.T) {
 	}
 }
 func TestCRSGeneration(t *testing.T) {
-	generator := bandersnatch.GetEdwardsCurve().Base
+	generator := banderwagon.Generator
 	points := GenerateRandomPoints(256)
 	for _, point := range points {
 		if !point.IsOnCurve() {
 			panic("generated a point that was not on the curve")
 		}
-		if !point.IsInPrimeSubgroup() {
-			panic("point is not in the prime sub group")
-		}
+		// Check point is in the correct subgroup by doing
+		// serialise deserialise roundtrip
 
+		bytes := point.Bytes()
+		err := point.SetBytes(bytes[:])
+		if err != nil {
+			panic("point is not in the banderwagon subgroup")
+		}
 		if point.Equal(&generator) {
 			panic("one of the generated points was the generator. The inner product point is being used as the generator.")
 		}
@@ -225,9 +229,9 @@ func test_serialize_deserialize_proof(proof IPAProof) {
 	}
 }
 
-func removeDuplicatePoints(intSlice []bandersnatch.PointAffine) []bandersnatch.PointAffine {
-	allKeys := make(map[bandersnatch.PointAffine]bool)
-	list := []bandersnatch.PointAffine{}
+func removeDuplicatePoints(intSlice []banderwagon.Element) []banderwagon.Element {
+	allKeys := make(map[banderwagon.Element]bool)
+	list := []banderwagon.Element{}
 	for _, item := range intSlice {
 		if _, value := allKeys[item]; !value {
 			allKeys[item] = true
