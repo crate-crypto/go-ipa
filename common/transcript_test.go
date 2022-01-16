@@ -4,8 +4,8 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
+	"github.com/crate-crypto/go-ipa/banderwagon"
 )
 
 func TestVector0(t *testing.T) {
@@ -68,7 +68,7 @@ func TestVector3(t *testing.T) {
 func TestVector4(t *testing.T) {
 	tr := NewTranscript("simple_protocol")
 
-	gen := bandersnatch.GetEdwardsCurve().Base
+	gen := banderwagon.Generator
 	tr.AppendPoint(&gen, "generator")
 
 	challenge := tr.ChallengeScalar("simple_challenge")
