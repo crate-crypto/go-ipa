@@ -4,8 +4,8 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
+	"github.com/crate-crypto/go-ipa/banderwagon"
 )
 
 func TestPoly256(polynomial ...uint64) []fr.Element {
@@ -26,7 +26,7 @@ func TestPoly256(polynomial ...uint64) []fr.Element {
 	return polynomialFr
 }
 
-func PointEqualHex(t *testing.T, point bandersnatch.PointAffine, expected string) {
+func PointEqualHex(t *testing.T, point banderwagon.Element, expected string) {
 	point_bytes := point.Bytes()
 	got := hex.EncodeToString(point_bytes[:])
 	if got != expected {
