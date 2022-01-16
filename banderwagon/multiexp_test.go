@@ -1,4 +1,4 @@
-package bandersnatch
+package banderwagon
 
 // Copyright 2020 ConsenSys Software Inc.
 //
@@ -46,7 +46,7 @@ func GenFr() gopter.Gen {
 	}
 }
 
-func TestMultiExpPointAffine(t *testing.T) {
+func TestMultiExpElement(t *testing.T) {
 
 	parameters := gopter.DefaultTestParameters()
 	parameters.MinSuccessfulTests = 2
@@ -55,19 +55,15 @@ func TestMultiExpPointAffine(t *testing.T) {
 
 	genScalar := GenFr()
 
-	var genAff = GetEdwardsCurve().Base
-	var Generator PointProj
-	Generator.FromAffine(&genAff)
-
 	// size of the multiExps
 	const nbSamples = 143
 
 	// multi exp points
-	var samplePoints [nbSamples]PointAffine
-	var g PointProj
+	var samplePoints [nbSamples]Element
+	var g Element
 	g.Set(&Generator)
 	for i := 1; i <= nbSamples; i++ {
-		samplePoints[i-1].FromProj(&g)
+		samplePoints[i-1].Set(&g)
 		g.Add(&g, &Generator)
 	}
 
@@ -82,12 +78,12 @@ func TestMultiExpPointAffine(t *testing.T) {
 	// ensure a multiexp that's splitted has the same result as a non-splitted one..
 	properties.Property("[G1] Multi exponentation (c=16) should be consistant with splitted multiexp", prop.ForAll(
 		func(mixer fr.Element) bool {
-			var samplePointsLarge [nbSamples * 13]PointAffine
+			var samplePointsLarge [nbSamples * 13]Element
 			for i := 0; i < 13; i++ {
 				copy(samplePointsLarge[i*nbSamples:], samplePoints[:])
 			}
 
-			var r16, splitted1, splitted2 PointProj
+			var r16, splitted1, splitted2 Element
 
 			// mixer ensures that all the words of a fpElement are set
 			var sampleScalars [nbSamples * 13]fr.Element
@@ -114,7 +110,7 @@ func TestMultiExpPointAffine(t *testing.T) {
 		properties.Property("[G1] Multi exponentation (c=5, c=16) should be consistant with sum of square", prop.ForAll(
 			func(mixer fr.Element) bool {
 
-				var expected PointProj
+				var expected Element
 
 				// compute expected result with double and add
 				var finalScalar, mixerBigInt big.Int
@@ -135,7 +131,7 @@ func TestMultiExpPointAffine(t *testing.T) {
 				scalars5, _ := partitionScalars(sampleScalars[:], 5, false, runtime.NumCPU())
 				scalars16, _ := partitionScalars(sampleScalars[:], 16, false, runtime.NumCPU())
 
-				var r5, r16 PointProj
+				var r5, r16 Element
 				r5.msmC5(samplePoints[:], scalars5, false)
 				r16.msmC16(samplePoints[:], scalars16, true)
 				return (r5.Equal(&expected) && r16.Equal(&expected))
@@ -147,7 +143,7 @@ func TestMultiExpPointAffine(t *testing.T) {
 		properties.Property("[G1] Multi exponentation (c=4) should be consistant with sum of square", prop.ForAll(
 			func(mixer fr.Element) bool {
 
-				var result, expected PointProj
+				var result, expected Element
 
 				// mixer ensures that all the words of a fpElement are set
 				var sampleScalars [nbSamples]fr.Element
@@ -176,7 +172,7 @@ func TestMultiExpPointAffine(t *testing.T) {
 		properties.Property("[G1] Multi exponentation (c=5) should be consistant with sum of square", prop.ForAll(
 			func(mixer fr.Element) bool {
 
-				var result, expected PointProj
+				var result, expected Element
 
 				// mixer ensures that all the words of a fpElement are set
 				var sampleScalars [nbSamples]fr.Element
@@ -205,7 +201,7 @@ func TestMultiExpPointAffine(t *testing.T) {
 		properties.Property("[G1] Multi exponentation (c=6) should be consistant with sum of square", prop.ForAll(
 			func(mixer fr.Element) bool {
 
-				var result, expected PointProj
+				var result, expected Element
 
 				// mixer ensures that all the words of a fpElement are set
 				var sampleScalars [nbSamples]fr.Element
@@ -234,7 +230,7 @@ func TestMultiExpPointAffine(t *testing.T) {
 		properties.Property("[G1] Multi exponentation (c=7) should be consistant with sum of square", prop.ForAll(
 			func(mixer fr.Element) bool {
 
-				var result, expected PointProj
+				var result, expected Element
 
 				// mixer ensures that all the words of a fpElement are set
 				var sampleScalars [nbSamples]fr.Element
@@ -263,7 +259,7 @@ func TestMultiExpPointAffine(t *testing.T) {
 		properties.Property("[G1] Multi exponentation (c=8) should be consistant with sum of square", prop.ForAll(
 			func(mixer fr.Element) bool {
 
-				var result, expected PointProj
+				var result, expected Element
 
 				// mixer ensures that all the words of a fpElement are set
 				var sampleScalars [nbSamples]fr.Element
@@ -292,7 +288,7 @@ func TestMultiExpPointAffine(t *testing.T) {
 		properties.Property("[G1] Multi exponentation (c=9) should be consistant with sum of square", prop.ForAll(
 			func(mixer fr.Element) bool {
 
-				var result, expected PointProj
+				var result, expected Element
 
 				// mixer ensures that all the words of a fpElement are set
 				var sampleScalars [nbSamples]fr.Element
@@ -321,7 +317,7 @@ func TestMultiExpPointAffine(t *testing.T) {
 		properties.Property("[G1] Multi exponentation (c=10) should be consistant with sum of square", prop.ForAll(
 			func(mixer fr.Element) bool {
 
-				var result, expected PointProj
+				var result, expected Element
 
 				// mixer ensures that all the words of a fpElement are set
 				var sampleScalars [nbSamples]fr.Element
@@ -350,7 +346,7 @@ func TestMultiExpPointAffine(t *testing.T) {
 		properties.Property("[G1] Multi exponentation (c=11) should be consistant with sum of square", prop.ForAll(
 			func(mixer fr.Element) bool {
 
-				var result, expected PointProj
+				var result, expected Element
 
 				// mixer ensures that all the words of a fpElement are set
 				var sampleScalars [nbSamples]fr.Element
@@ -379,7 +375,7 @@ func TestMultiExpPointAffine(t *testing.T) {
 		properties.Property("[G1] Multi exponentation (c=12) should be consistant with sum of square", prop.ForAll(
 			func(mixer fr.Element) bool {
 
-				var result, expected PointProj
+				var result, expected Element
 
 				// mixer ensures that all the words of a fpElement are set
 				var sampleScalars [nbSamples]fr.Element
@@ -408,7 +404,7 @@ func TestMultiExpPointAffine(t *testing.T) {
 		properties.Property("[G1] Multi exponentation (c=13) should be consistant with sum of square", prop.ForAll(
 			func(mixer fr.Element) bool {
 
-				var result, expected PointProj
+				var result, expected Element
 
 				// mixer ensures that all the words of a fpElement are set
 				var sampleScalars [nbSamples]fr.Element
@@ -437,7 +433,7 @@ func TestMultiExpPointAffine(t *testing.T) {
 		properties.Property("[G1] Multi exponentation (c=14) should be consistant with sum of square", prop.ForAll(
 			func(mixer fr.Element) bool {
 
-				var result, expected PointProj
+				var result, expected Element
 
 				// mixer ensures that all the words of a fpElement are set
 				var sampleScalars [nbSamples]fr.Element
@@ -466,7 +462,7 @@ func TestMultiExpPointAffine(t *testing.T) {
 		properties.Property("[G1] Multi exponentation (c=15) should be consistant with sum of square", prop.ForAll(
 			func(mixer fr.Element) bool {
 
-				var result, expected PointProj
+				var result, expected Element
 
 				// mixer ensures that all the words of a fpElement are set
 				var sampleScalars [nbSamples]fr.Element
@@ -495,7 +491,7 @@ func TestMultiExpPointAffine(t *testing.T) {
 		properties.Property("[G1] Multi exponentation (c=16) should be consistant with sum of square", prop.ForAll(
 			func(mixer fr.Element) bool {
 
-				var result, expected PointProj
+				var result, expected Element
 
 				// mixer ensures that all the words of a fpElement are set
 				var sampleScalars [nbSamples]fr.Element
@@ -524,7 +520,7 @@ func TestMultiExpPointAffine(t *testing.T) {
 		properties.Property("[G1] Multi exponentation (c=20) should be consistant with sum of square", prop.ForAll(
 			func(mixer fr.Element) bool {
 
-				var result, expected PointProj
+				var result, expected Element
 
 				// mixer ensures that all the words of a fpElement are set
 				var sampleScalars [nbSamples]fr.Element
@@ -553,7 +549,7 @@ func TestMultiExpPointAffine(t *testing.T) {
 		properties.Property("[G1] Multi exponentation (c=21) should be consistant with sum of square", prop.ForAll(
 			func(mixer fr.Element) bool {
 
-				var result, expected PointProj
+				var result, expected Element
 
 				// mixer ensures that all the words of a fpElement are set
 				var sampleScalars [nbSamples]fr.Element
@@ -582,7 +578,7 @@ func TestMultiExpPointAffine(t *testing.T) {
 		properties.Property("[G1] Multi exponentation (c=22) should be consistant with sum of square", prop.ForAll(
 			func(mixer fr.Element) bool {
 
-				var result, expected PointProj
+				var result, expected Element
 
 				// mixer ensures that all the words of a fpElement are set
 				var sampleScalars [nbSamples]fr.Element
@@ -615,35 +611,31 @@ func TestMultiExpPointAffine(t *testing.T) {
 	properties.Property("[G1] Multi exponentation (<50points) should be consistant with sum of square", prop.ForAll(
 		func(mixer fr.Element) bool {
 
-			var g PointProj
-			g.Set(&Generator)
-
-			var GeneratorAff PointAffine
-			GeneratorAff.FromProj(&Generator)
-
+			var g Element = Generator
+			
 			// mixer ensures that all the words of a fpElement are set
-			samplePoints := make([]PointAffine, 30)
+			samplePoints := make([]Element, 30)
 			sampleScalars := make([]fr.Element, 30)
 
 			for i := 1; i <= 30; i++ {
 				sampleScalars[i-1].SetUint64(uint64(i)).
 					Mul(&sampleScalars[i-1], &mixer).
 					FromMont()
-				samplePoints[i-1].FromProj(&g)
+				samplePoints[i-1].Set(&g)
 				g.Add(&g, &Generator)
 			}
 
-			var op1MultiExp PointAffine
+			var op1MultiExp Element
 			op1MultiExp.MultiExp(samplePoints, sampleScalars, MultiExpConfig{})
 
 			var finalBigScalar fr.Element
 			var finalBigScalarBi big.Int
-			var op1ScalarMul PointAffine
+			var op1ScalarMul Element
 			finalBigScalar.SetString("9455").Mul(&finalBigScalar, &mixer)
 			finalBigScalar.ToBigIntRegular(&finalBigScalarBi)
 				var finalBigScalarFr fr.Element
 				finalBigScalarFr.SetBigInt(&finalBigScalarBi)
-			op1ScalarMul.ScalarMul(&GeneratorAff, &finalBigScalarFr)
+			op1ScalarMul.ScalarMul(&Generator, &finalBigScalarFr)
 
 			return op1ScalarMul.Equal(&op1MultiExp)
 		},
@@ -655,7 +647,7 @@ func TestMultiExpPointAffine(t *testing.T) {
 
 func BenchmarkMultiExpG1(b *testing.B) {
 
-				var GeneratorAff = GetEdwardsCurve().Base
+				var Generator Element = Generator
 	// ensure every words of the scalars are filled
 	var mixer fr.Element
 	mixer.SetString("7716837800905789770901243404444209691916730933998574719964609384059111546487")
@@ -663,17 +655,17 @@ func BenchmarkMultiExpG1(b *testing.B) {
 	const pow = (bits.UintSize / 2) - (bits.UintSize / 8) // 24 on 64 bits arch, 12 on 32 bits
 	const nbSamples = 1 << pow
 
-	var samplePoints [nbSamples]PointAffine
+	var samplePoints [nbSamples]Element
 	var sampleScalars [nbSamples]fr.Element
 
 	for i := 1; i <= nbSamples; i++ {
 		sampleScalars[i-1].SetUint64(uint64(i)).
 			Mul(&sampleScalars[i-1], &mixer).
 			FromMont()
-		samplePoints[i-1] = GeneratorAff
+		samplePoints[i-1] = Generator
 	}
 
-	var testPoint PointAffine
+	var testPoint Element
 
 	for i := 5; i <= pow; i++ {
 		using := 1 << i
@@ -689,7 +681,7 @@ func BenchmarkMultiExpG1(b *testing.B) {
 
 func BenchmarkMultiExpG1Reference(b *testing.B) {
 
-					var GeneratorAff = GetEdwardsCurve().Base
+					var Generator Element = Generator
 
 
 	// ensure every words of the scalars are filled
@@ -698,17 +690,17 @@ func BenchmarkMultiExpG1Reference(b *testing.B) {
 
 	const nbSamples = 1 << 20
 
-	var samplePoints [nbSamples]PointAffine
+	var samplePoints [nbSamples]Element
 	var sampleScalars [nbSamples]fr.Element
 
 	for i := 1; i <= nbSamples; i++ {
 		sampleScalars[i-1].SetUint64(uint64(i)).
 			Mul(&sampleScalars[i-1], &mixer).
 			FromMont()
-		samplePoints[i-1] = GeneratorAff
+		samplePoints[i-1] = Generator
 	}
 
-	var testPoint PointAffine
+	var testPoint Element
 
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
@@ -718,7 +710,7 @@ func BenchmarkMultiExpG1Reference(b *testing.B) {
 
 func BenchmarkManyMultiExpG1Reference(b *testing.B) {
 
-				var GeneratorAff = GetEdwardsCurve().Base
+				var Generator Element = Generator
 
 
 	// ensure every words of the scalars are filled
@@ -727,17 +719,17 @@ func BenchmarkManyMultiExpG1Reference(b *testing.B) {
 
 	const nbSamples = 1 << 20
 
-	var samplePoints [nbSamples]PointAffine
+	var samplePoints [nbSamples]Element
 	var sampleScalars [nbSamples]fr.Element
 
 	for i := 1; i <= nbSamples; i++ {
 		sampleScalars[i-1].SetUint64(uint64(i)).
 			Mul(&sampleScalars[i-1], &mixer).
 			FromMont()
-		samplePoints[i-1] = GeneratorAff
+		samplePoints[i-1] = Generator
 	}
 
-	var t1, t2, t3 PointAffine
+	var t1, t2, t3 Element
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
 		var wg sync.WaitGroup

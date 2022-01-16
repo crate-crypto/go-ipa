@@ -16,12 +16,12 @@
 //
 // This code has been editted to be suitable for inner curves
 
-package bandersnatch
+package banderwagon
 
 import (
 	"errors"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
-	"github.com/crate-crypto/go-ipa/bandersnatch/parallel"
+	"github.com/crate-crypto/go-ipa/common/parallel"
 	"math"
 	"runtime"
 )
@@ -169,19 +169,19 @@ func partitionScalars(scalars []fr.Element, c uint64, scalarsMont bool, nbTasks 
 	return toReturn, smallValues
 }
 
-// MultiExp implements section 4 of https://eprint.iacr.org/2012/549.pdf
-func (p *PointAffine) MultiExp(points []PointAffine, scalars []fr.Element, config MultiExpConfig) (*PointAffine, error) {
-	var _p PointProj
-	if _, err := _p.MultiExp(points, scalars, config); err != nil {
-		return nil, err
-	}
+// func (p *Element) MultiExp(points []Element, scalars []fr.Element, config MultiExpConfig) (*Element, error) {
 	
-	p.FromProj(&_p)
-	return p, nil
-}
-
+	// 	if _, err := p.MultiExp(points, scalars, config); err != nil {
+		// 		return nil, err
+		// 	}
+		
+		
+		// 	return p, nil
+		// }
+		
+		
 // MultiExp implements section 4 of https://eprint.iacr.org/2012/549.pdf
-func (p *PointProj) MultiExp(points []PointAffine, scalars []fr.Element, config MultiExpConfig) (*PointProj, error) {
+func (p *Element) MultiExp(points []Element, scalars []fr.Element, config MultiExpConfig) (*Element, error) {
 	// note:
 	// each of the msmCX method is the same, except for the c constant it declares
 	// duplicating (through template generation) these methods allows to declare the buckets on the stack
@@ -268,22 +268,22 @@ func (p *PointProj) MultiExp(points []PointAffine, scalars []fr.Element, config 
 	scalars, smallValues = partitionScalars(scalars, C, config.ScalarsMont, config.NbTasks)
 
 	// if we have more than 10% of small values, we split the processing of the first chunk in 2
-	// we may want to do that in msmInnerPointProj , but that would incur a cost of looping through all scalars one more time
+	// we may want to do that in msmInnerElement , but that would incur a cost of looping through all scalars one more time
 	splitFirstChunk := (float64(smallValues) / float64(len(scalars))) >= 0.1
 
 	// we have nbSplits intermediate results that we must sum together.
-	_p := make([]PointProj, nbSplits-1)
+	_p := make([]Element, nbSplits-1)
 	chDone := make(chan int, nbSplits-1)
 	for i := 0; i < nbSplits-1; i++ {
 		start := i * nbPoints
 		end := start + nbPoints
 		go func(start, end, i int) {
-			msmInnerPointProj(&_p[i], int(C), points[start:end], scalars[start:end], splitFirstChunk)
+			msmInnerElement(&_p[i], int(C), points[start:end], scalars[start:end], splitFirstChunk)
 			chDone <- i
 		}(start, end, i)
 	}
 
-	msmInnerPointProj(p, int(C), points[(nbSplits-1)*nbPoints:], scalars[(nbSplits-1)*nbPoints:], splitFirstChunk)
+	msmInnerElement(p, int(C), points[(nbSplits-1)*nbPoints:], scalars[(nbSplits-1)*nbPoints:], splitFirstChunk)
 	for i := 0; i < nbSplits-1; i++ {
 		done := <-chDone
 		p.Add(p,&_p[done])
@@ -292,7 +292,7 @@ func (p *PointProj) MultiExp(points []PointAffine, scalars []fr.Element, config 
 	return p, nil
 }
 
-func msmInnerPointProj(p *PointProj, c int, points []PointAffine, scalars []fr.Element, splitFirstChunk bool) {
+func msmInnerElement(p *Element, c int, points []Element, scalars []fr.Element, splitFirstChunk bool) {
 
 	switch c {
 
@@ -349,9 +349,9 @@ func msmInnerPointProj(p *PointProj, c int, points []PointAffine, scalars []fr.E
 	}
 }
 
-// msmReduceChunkPointAffine reduces the weighted sum of the buckets into the result of the multiExp
-func msmReduceChunkPointAffine(p *PointProj, c int, chChunks []chan PointProj) *PointProj {
-	var _p PointProj
+// msmReduceChunkElement reduces the weighted sum of the buckets into the result of the multiExp
+func msmReduceChunkElement(p *Element, c int, chChunks []chan Element) *Element {
+	var _p Element
 	totalj := <-chChunks[len(chChunks)-1]
 	_p.Set(&totalj)
 	for j := len(chChunks) - 2; j >= 0; j-- {
@@ -367,11 +367,11 @@ func msmReduceChunkPointAffine(p *PointProj, c int, chChunks []chan PointProj) *
 	return p
 }
 
-func msmProcessChunkPointAffine(chunk uint64,
-	chRes chan<- PointProj,
-	buckets []PointProj,
+func msmProcessChunkElement(chunk uint64,
+	chRes chan<- Element,
+	buckets []Element,
 	c uint64,
-	points []PointAffine,
+	points []Element,
 	scalars []fr.Element) {
 
 	mask := uint64((1 << c) - 1) // low c bits are 1
@@ -407,13 +407,12 @@ func msmProcessChunkPointAffine(chunk uint64,
 		// if msbWindow bit is set, we need to substract
 		if bits&msbWindow == 0 {
 			// add
-			var pProj PointProj
-			pProj.FromAffine(&points[i])
-			buckets[bits-1].Add(&pProj, &buckets[bits-1])
+
+			buckets[bits-1].Add(&points[i], &buckets[bits-1])
 			} else {
 				// sub
-				var pProj PointProj
-				pProj.FromAffine(&points[i])
+				var pProj Element
+				pProj.Set(&points[i])
 				pProj.Neg(&pProj);
 			buckets[bits & ^msbWindow].Add(&buckets[bits & ^msbWindow], &pProj)
 		}
@@ -422,7 +421,7 @@ func msmProcessChunkPointAffine(chunk uint64,
 	// reduce buckets into total
 	// total =  bucket[0] + 2*bucket[1] + 3*bucket[2] ... + n*bucket[n-1]
 
-	var runningSum, total PointProj
+	var runningSum, total Element
 	runningSum.Identity()
 	total.Identity()
 	for k := len(buckets) - 1; k >= 0; k-- {
@@ -436,7 +435,7 @@ func msmProcessChunkPointAffine(chunk uint64,
 
 }
 
-func (p *PointProj) msmC4(points []PointAffine, scalars []fr.Element, splitFirstChunk bool) *PointProj {
+func (p *Element) msmC4(points []Element, scalars []fr.Element, splitFirstChunk bool) *Element {
 	const (
 		c        = 4                   // scalars partitioned into c-bit radixes
 		nbChunks = (fr.Limbs * 64 / c) // number of c-bit radixes in a scalar
@@ -448,14 +447,14 @@ func (p *PointProj) msmC4(points []PointAffine, scalars []fr.Element, splitFirst
 	// critical for performance
 
 	// each go routine sends its result in chChunks[i] channel
-	var chChunks [nbChunks]chan PointProj
+	var chChunks [nbChunks]chan Element
 	for i := 0; i < len(chChunks); i++ {
-		chChunks[i] = make(chan PointProj, 1)
+		chChunks[i] = make(chan Element, 1)
 	}
 
-	processChunk := func(j int, points []PointAffine, scalars []fr.Element, chChunk chan PointProj) {
-		var buckets [1 << (c - 1)]PointProj
-		msmProcessChunkPointAffine(uint64(j), chChunk, buckets[:], c, points, scalars)
+	processChunk := func(j int, points []Element, scalars []fr.Element, chChunk chan Element) {
+		var buckets [1 << (c - 1)]Element
+		msmProcessChunkElement(uint64(j), chChunk, buckets[:], c, points, scalars)
 	}
 
 	for j := int(nbChunks - 1); j > 0; j-- {
@@ -465,7 +464,7 @@ func (p *PointProj) msmC4(points []PointAffine, scalars []fr.Element, splitFirst
 	if !splitFirstChunk {
 		go processChunk(0, points, scalars, chChunks[0])
 	} else {
-		chSplit := make(chan PointProj, 2)
+		chSplit := make(chan Element, 2)
 		split := len(points) / 2
 		go processChunk(0, points[:split], scalars[:split], chSplit)
 		go processChunk(0, points[split:], scalars[split:], chSplit)
@@ -478,10 +477,10 @@ func (p *PointProj) msmC4(points []PointAffine, scalars []fr.Element, splitFirst
 		}()
 	}
 
-	return msmReduceChunkPointAffine(p, c, chChunks[:])
+	return msmReduceChunkElement(p, c, chChunks[:])
 }
 
-func (p *PointProj) msmC5(points []PointAffine, scalars []fr.Element, splitFirstChunk bool) *PointProj {
+func (p *Element) msmC5(points []Element, scalars []fr.Element, splitFirstChunk bool) *Element {
 	const (
 		c        = 5                   // scalars partitioned into c-bit radixes
 		nbChunks = (fr.Limbs * 64 / c) // number of c-bit radixes in a scalar
@@ -493,21 +492,21 @@ func (p *PointProj) msmC5(points []PointAffine, scalars []fr.Element, splitFirst
 	// critical for performance
 
 	// each go routine sends its result in chChunks[i] channel
-	var chChunks [nbChunks + 1]chan PointProj
+	var chChunks [nbChunks + 1]chan Element
 	for i := 0; i < len(chChunks); i++ {
-		chChunks[i] = make(chan PointProj, 1)
+		chChunks[i] = make(chan Element, 1)
 	}
 
 	// c doesn't divide 256, last window is smaller we can allocate less buckets
 	const lastC = (fr.Limbs * 64) - (c * (fr.Limbs * 64 / c))
-	go func(j uint64, points []PointAffine, scalars []fr.Element) {
-		var buckets [1 << (lastC - 1)]PointProj
-		msmProcessChunkPointAffine(j, chChunks[j], buckets[:], c, points, scalars)
+	go func(j uint64, points []Element, scalars []fr.Element) {
+		var buckets [1 << (lastC - 1)]Element
+		msmProcessChunkElement(j, chChunks[j], buckets[:], c, points, scalars)
 	}(uint64(nbChunks), points, scalars)
 
-	processChunk := func(j int, points []PointAffine, scalars []fr.Element, chChunk chan PointProj) {
-		var buckets [1 << (c - 1)]PointProj
-		msmProcessChunkPointAffine(uint64(j), chChunk, buckets[:], c, points, scalars)
+	processChunk := func(j int, points []Element, scalars []fr.Element, chChunk chan Element) {
+		var buckets [1 << (c - 1)]Element
+		msmProcessChunkElement(uint64(j), chChunk, buckets[:], c, points, scalars)
 	}
 
 	for j := int(nbChunks - 1); j > 0; j-- {
@@ -517,7 +516,7 @@ func (p *PointProj) msmC5(points []PointAffine, scalars []fr.Element, splitFirst
 	if !splitFirstChunk {
 		go processChunk(0, points, scalars, chChunks[0])
 	} else {
-		chSplit := make(chan PointProj, 2)
+		chSplit := make(chan Element, 2)
 		split := len(points) / 2
 		go processChunk(0, points[:split], scalars[:split], chSplit)
 		go processChunk(0, points[split:], scalars[split:], chSplit)
@@ -530,10 +529,10 @@ func (p *PointProj) msmC5(points []PointAffine, scalars []fr.Element, splitFirst
 		}()
 	}
 
-	return msmReduceChunkPointAffine(p, c, chChunks[:])
+	return msmReduceChunkElement(p, c, chChunks[:])
 }
 
-func (p *PointProj) msmC6(points []PointAffine, scalars []fr.Element, splitFirstChunk bool) *PointProj {
+func (p *Element) msmC6(points []Element, scalars []fr.Element, splitFirstChunk bool) *Element {
 	const (
 		c        = 6                   // scalars partitioned into c-bit radixes
 		nbChunks = (fr.Limbs * 64 / c) // number of c-bit radixes in a scalar
@@ -545,21 +544,21 @@ func (p *PointProj) msmC6(points []PointAffine, scalars []fr.Element, splitFirst
 	// critical for performance
 
 	// each go routine sends its result in chChunks[i] channel
-	var chChunks [nbChunks + 1]chan PointProj
+	var chChunks [nbChunks + 1]chan Element
 	for i := 0; i < len(chChunks); i++ {
-		chChunks[i] = make(chan PointProj, 1)
+		chChunks[i] = make(chan Element, 1)
 	}
 
 	// c doesn't divide 256, last window is smaller we can allocate less buckets
 	const lastC = (fr.Limbs * 64) - (c * (fr.Limbs * 64 / c))
-	go func(j uint64, points []PointAffine, scalars []fr.Element) {
-		var buckets [1 << (lastC - 1)]PointProj
-		msmProcessChunkPointAffine(j, chChunks[j], buckets[:], c, points, scalars)
+	go func(j uint64, points []Element, scalars []fr.Element) {
+		var buckets [1 << (lastC - 1)]Element
+		msmProcessChunkElement(j, chChunks[j], buckets[:], c, points, scalars)
 	}(uint64(nbChunks), points, scalars)
 
-	processChunk := func(j int, points []PointAffine, scalars []fr.Element, chChunk chan PointProj) {
-		var buckets [1 << (c - 1)]PointProj
-		msmProcessChunkPointAffine(uint64(j), chChunk, buckets[:], c, points, scalars)
+	processChunk := func(j int, points []Element, scalars []fr.Element, chChunk chan Element) {
+		var buckets [1 << (c - 1)]Element
+		msmProcessChunkElement(uint64(j), chChunk, buckets[:], c, points, scalars)
 	}
 
 	for j := int(nbChunks - 1); j > 0; j-- {
@@ -569,7 +568,7 @@ func (p *PointProj) msmC6(points []PointAffine, scalars []fr.Element, splitFirst
 	if !splitFirstChunk {
 		go processChunk(0, points, scalars, chChunks[0])
 	} else {
-		chSplit := make(chan PointProj, 2)
+		chSplit := make(chan Element, 2)
 		split := len(points) / 2
 		go processChunk(0, points[:split], scalars[:split], chSplit)
 		go processChunk(0, points[split:], scalars[split:], chSplit)
@@ -582,10 +581,10 @@ func (p *PointProj) msmC6(points []PointAffine, scalars []fr.Element, splitFirst
 		}()
 	}
 
-	return msmReduceChunkPointAffine(p, c, chChunks[:])
+	return msmReduceChunkElement(p, c, chChunks[:])
 }
 
-func (p *PointProj) msmC7(points []PointAffine, scalars []fr.Element, splitFirstChunk bool) *PointProj {
+func (p *Element) msmC7(points []Element, scalars []fr.Element, splitFirstChunk bool) *Element {
 	const (
 		c        = 7                   // scalars partitioned into c-bit radixes
 		nbChunks = (fr.Limbs * 64 / c) // number of c-bit radixes in a scalar
@@ -597,21 +596,21 @@ func (p *PointProj) msmC7(points []PointAffine, scalars []fr.Element, splitFirst
 	// critical for performance
 
 	// each go routine sends its result in chChunks[i] channel
-	var chChunks [nbChunks + 1]chan PointProj
+	var chChunks [nbChunks + 1]chan Element
 	for i := 0; i < len(chChunks); i++ {
-		chChunks[i] = make(chan PointProj, 1)
+		chChunks[i] = make(chan Element, 1)
 	}
 
 	// c doesn't divide 256, last window is smaller we can allocate less buckets
 	const lastC = (fr.Limbs * 64) - (c * (fr.Limbs * 64 / c))
-	go func(j uint64, points []PointAffine, scalars []fr.Element) {
-		var buckets [1 << (lastC - 1)]PointProj
-		msmProcessChunkPointAffine(j, chChunks[j], buckets[:], c, points, scalars)
+	go func(j uint64, points []Element, scalars []fr.Element) {
+		var buckets [1 << (lastC - 1)]Element
+		msmProcessChunkElement(j, chChunks[j], buckets[:], c, points, scalars)
 	}(uint64(nbChunks), points, scalars)
 
-	processChunk := func(j int, points []PointAffine, scalars []fr.Element, chChunk chan PointProj) {
-		var buckets [1 << (c - 1)]PointProj
-		msmProcessChunkPointAffine(uint64(j), chChunk, buckets[:], c, points, scalars)
+	processChunk := func(j int, points []Element, scalars []fr.Element, chChunk chan Element) {
+		var buckets [1 << (c - 1)]Element
+		msmProcessChunkElement(uint64(j), chChunk, buckets[:], c, points, scalars)
 	}
 
 	for j := int(nbChunks - 1); j > 0; j-- {
@@ -621,7 +620,7 @@ func (p *PointProj) msmC7(points []PointAffine, scalars []fr.Element, splitFirst
 	if !splitFirstChunk {
 		go processChunk(0, points, scalars, chChunks[0])
 	} else {
-		chSplit := make(chan PointProj, 2)
+		chSplit := make(chan Element, 2)
 		split := len(points) / 2
 		go processChunk(0, points[:split], scalars[:split], chSplit)
 		go processChunk(0, points[split:], scalars[split:], chSplit)
@@ -634,10 +633,10 @@ func (p *PointProj) msmC7(points []PointAffine, scalars []fr.Element, splitFirst
 		}()
 	}
 
-	return msmReduceChunkPointAffine(p, c, chChunks[:])
+	return msmReduceChunkElement(p, c, chChunks[:])
 }
 
-func (p *PointProj) msmC8(points []PointAffine, scalars []fr.Element, splitFirstChunk bool) *PointProj {
+func (p *Element) msmC8(points []Element, scalars []fr.Element, splitFirstChunk bool) *Element {
 	const (
 		c        = 8                   // scalars partitioned into c-bit radixes
 		nbChunks = (fr.Limbs * 64 / c) // number of c-bit radixes in a scalar
@@ -649,14 +648,14 @@ func (p *PointProj) msmC8(points []PointAffine, scalars []fr.Element, splitFirst
 	// critical for performance
 
 	// each go routine sends its result in chChunks[i] channel
-	var chChunks [nbChunks]chan PointProj
+	var chChunks [nbChunks]chan Element
 	for i := 0; i < len(chChunks); i++ {
-		chChunks[i] = make(chan PointProj, 1)
+		chChunks[i] = make(chan Element, 1)
 	}
 
-	processChunk := func(j int, points []PointAffine, scalars []fr.Element, chChunk chan PointProj) {
-		var buckets [1 << (c - 1)]PointProj
-		msmProcessChunkPointAffine(uint64(j), chChunk, buckets[:], c, points, scalars)
+	processChunk := func(j int, points []Element, scalars []fr.Element, chChunk chan Element) {
+		var buckets [1 << (c - 1)]Element
+		msmProcessChunkElement(uint64(j), chChunk, buckets[:], c, points, scalars)
 	}
 
 	for j := int(nbChunks - 1); j > 0; j-- {
@@ -666,7 +665,7 @@ func (p *PointProj) msmC8(points []PointAffine, scalars []fr.Element, splitFirst
 	if !splitFirstChunk {
 		go processChunk(0, points, scalars, chChunks[0])
 	} else {
-		chSplit := make(chan PointProj, 2)
+		chSplit := make(chan Element, 2)
 		split := len(points) / 2
 		go processChunk(0, points[:split], scalars[:split], chSplit)
 		go processChunk(0, points[split:], scalars[split:], chSplit)
@@ -679,10 +678,10 @@ func (p *PointProj) msmC8(points []PointAffine, scalars []fr.Element, splitFirst
 		}()
 	}
 
-	return msmReduceChunkPointAffine(p, c, chChunks[:])
+	return msmReduceChunkElement(p, c, chChunks[:])
 }
 
-func (p *PointProj) msmC9(points []PointAffine, scalars []fr.Element, splitFirstChunk bool) *PointProj {
+func (p *Element) msmC9(points []Element, scalars []fr.Element, splitFirstChunk bool) *Element {
 	const (
 		c        = 9                   // scalars partitioned into c-bit radixes
 		nbChunks = (fr.Limbs * 64 / c) // number of c-bit radixes in a scalar
@@ -694,21 +693,21 @@ func (p *PointProj) msmC9(points []PointAffine, scalars []fr.Element, splitFirst
 	// critical for performance
 
 	// each go routine sends its result in chChunks[i] channel
-	var chChunks [nbChunks + 1]chan PointProj
+	var chChunks [nbChunks + 1]chan Element
 	for i := 0; i < len(chChunks); i++ {
-		chChunks[i] = make(chan PointProj, 1)
+		chChunks[i] = make(chan Element, 1)
 	}
 
 	// c doesn't divide 256, last window is smaller we can allocate less buckets
 	const lastC = (fr.Limbs * 64) - (c * (fr.Limbs * 64 / c))
-	go func(j uint64, points []PointAffine, scalars []fr.Element) {
-		var buckets [1 << (lastC - 1)]PointProj
-		msmProcessChunkPointAffine(j, chChunks[j], buckets[:], c, points, scalars)
+	go func(j uint64, points []Element, scalars []fr.Element) {
+		var buckets [1 << (lastC - 1)]Element
+		msmProcessChunkElement(j, chChunks[j], buckets[:], c, points, scalars)
 	}(uint64(nbChunks), points, scalars)
 
-	processChunk := func(j int, points []PointAffine, scalars []fr.Element, chChunk chan PointProj) {
-		var buckets [1 << (c - 1)]PointProj
-		msmProcessChunkPointAffine(uint64(j), chChunk, buckets[:], c, points, scalars)
+	processChunk := func(j int, points []Element, scalars []fr.Element, chChunk chan Element) {
+		var buckets [1 << (c - 1)]Element
+		msmProcessChunkElement(uint64(j), chChunk, buckets[:], c, points, scalars)
 	}
 
 	for j := int(nbChunks - 1); j > 0; j-- {
@@ -718,7 +717,7 @@ func (p *PointProj) msmC9(points []PointAffine, scalars []fr.Element, splitFirst
 	if !splitFirstChunk {
 		go processChunk(0, points, scalars, chChunks[0])
 	} else {
-		chSplit := make(chan PointProj, 2)
+		chSplit := make(chan Element, 2)
 		split := len(points) / 2
 		go processChunk(0, points[:split], scalars[:split], chSplit)
 		go processChunk(0, points[split:], scalars[split:], chSplit)
@@ -731,10 +730,10 @@ func (p *PointProj) msmC9(points []PointAffine, scalars []fr.Element, splitFirst
 		}()
 	}
 
-	return msmReduceChunkPointAffine(p, c, chChunks[:])
+	return msmReduceChunkElement(p, c, chChunks[:])
 }
 
-func (p *PointProj) msmC10(points []PointAffine, scalars []fr.Element, splitFirstChunk bool) *PointProj {
+func (p *Element) msmC10(points []Element, scalars []fr.Element, splitFirstChunk bool) *Element {
 	const (
 		c        = 10                  // scalars partitioned into c-bit radixes
 		nbChunks = (fr.Limbs * 64 / c) // number of c-bit radixes in a scalar
@@ -746,21 +745,21 @@ func (p *PointProj) msmC10(points []PointAffine, scalars []fr.Element, splitFirs
 	// critical for performance
 
 	// each go routine sends its result in chChunks[i] channel
-	var chChunks [nbChunks + 1]chan PointProj
+	var chChunks [nbChunks + 1]chan Element
 	for i := 0; i < len(chChunks); i++ {
-		chChunks[i] = make(chan PointProj, 1)
+		chChunks[i] = make(chan Element, 1)
 	}
 
 	// c doesn't divide 256, last window is smaller we can allocate less buckets
 	const lastC = (fr.Limbs * 64) - (c * (fr.Limbs * 64 / c))
-	go func(j uint64, points []PointAffine, scalars []fr.Element) {
-		var buckets [1 << (lastC - 1)]PointProj
-		msmProcessChunkPointAffine(j, chChunks[j], buckets[:], c, points, scalars)
+	go func(j uint64, points []Element, scalars []fr.Element) {
+		var buckets [1 << (lastC - 1)]Element
+		msmProcessChunkElement(j, chChunks[j], buckets[:], c, points, scalars)
 	}(uint64(nbChunks), points, scalars)
 
-	processChunk := func(j int, points []PointAffine, scalars []fr.Element, chChunk chan PointProj) {
-		var buckets [1 << (c - 1)]PointProj
-		msmProcessChunkPointAffine(uint64(j), chChunk, buckets[:], c, points, scalars)
+	processChunk := func(j int, points []Element, scalars []fr.Element, chChunk chan Element) {
+		var buckets [1 << (c - 1)]Element
+		msmProcessChunkElement(uint64(j), chChunk, buckets[:], c, points, scalars)
 	}
 
 	for j := int(nbChunks - 1); j > 0; j-- {
@@ -770,7 +769,7 @@ func (p *PointProj) msmC10(points []PointAffine, scalars []fr.Element, splitFirs
 	if !splitFirstChunk {
 		go processChunk(0, points, scalars, chChunks[0])
 	} else {
-		chSplit := make(chan PointProj, 2)
+		chSplit := make(chan Element, 2)
 		split := len(points) / 2
 		go processChunk(0, points[:split], scalars[:split], chSplit)
 		go processChunk(0, points[split:], scalars[split:], chSplit)
@@ -783,10 +782,10 @@ func (p *PointProj) msmC10(points []PointAffine, scalars []fr.Element, splitFirs
 		}()
 	}
 
-	return msmReduceChunkPointAffine(p, c, chChunks[:])
+	return msmReduceChunkElement(p, c, chChunks[:])
 }
 
-func (p *PointProj) msmC11(points []PointAffine, scalars []fr.Element, splitFirstChunk bool) *PointProj {
+func (p *Element) msmC11(points []Element, scalars []fr.Element, splitFirstChunk bool) *Element {
 	const (
 		c        = 11                  // scalars partitioned into c-bit radixes
 		nbChunks = (fr.Limbs * 64 / c) // number of c-bit radixes in a scalar
@@ -798,21 +797,21 @@ func (p *PointProj) msmC11(points []PointAffine, scalars []fr.Element, splitFirs
 	// critical for performance
 
 	// each go routine sends its result in chChunks[i] channel
-	var chChunks [nbChunks + 1]chan PointProj
+	var chChunks [nbChunks + 1]chan Element
 	for i := 0; i < len(chChunks); i++ {
-		chChunks[i] = make(chan PointProj, 1)
+		chChunks[i] = make(chan Element, 1)
 	}
 
 	// c doesn't divide 256, last window is smaller we can allocate less buckets
 	const lastC = (fr.Limbs * 64) - (c * (fr.Limbs * 64 / c))
-	go func(j uint64, points []PointAffine, scalars []fr.Element) {
-		var buckets [1 << (lastC - 1)]PointProj
-		msmProcessChunkPointAffine(j, chChunks[j], buckets[:], c, points, scalars)
+	go func(j uint64, points []Element, scalars []fr.Element) {
+		var buckets [1 << (lastC - 1)]Element
+		msmProcessChunkElement(j, chChunks[j], buckets[:], c, points, scalars)
 	}(uint64(nbChunks), points, scalars)
 
-	processChunk := func(j int, points []PointAffine, scalars []fr.Element, chChunk chan PointProj) {
-		var buckets [1 << (c - 1)]PointProj
-		msmProcessChunkPointAffine(uint64(j), chChunk, buckets[:], c, points, scalars)
+	processChunk := func(j int, points []Element, scalars []fr.Element, chChunk chan Element) {
+		var buckets [1 << (c - 1)]Element
+		msmProcessChunkElement(uint64(j), chChunk, buckets[:], c, points, scalars)
 	}
 
 	for j := int(nbChunks - 1); j > 0; j-- {
@@ -822,7 +821,7 @@ func (p *PointProj) msmC11(points []PointAffine, scalars []fr.Element, splitFirs
 	if !splitFirstChunk {
 		go processChunk(0, points, scalars, chChunks[0])
 	} else {
-		chSplit := make(chan PointProj, 2)
+		chSplit := make(chan Element, 2)
 		split := len(points) / 2
 		go processChunk(0, points[:split], scalars[:split], chSplit)
 		go processChunk(0, points[split:], scalars[split:], chSplit)
@@ -835,10 +834,10 @@ func (p *PointProj) msmC11(points []PointAffine, scalars []fr.Element, splitFirs
 		}()
 	}
 
-	return msmReduceChunkPointAffine(p, c, chChunks[:])
+	return msmReduceChunkElement(p, c, chChunks[:])
 }
 
-func (p *PointProj) msmC12(points []PointAffine, scalars []fr.Element, splitFirstChunk bool) *PointProj {
+func (p *Element) msmC12(points []Element, scalars []fr.Element, splitFirstChunk bool) *Element {
 	const (
 		c        = 12                  // scalars partitioned into c-bit radixes
 		nbChunks = (fr.Limbs * 64 / c) // number of c-bit radixes in a scalar
@@ -850,21 +849,21 @@ func (p *PointProj) msmC12(points []PointAffine, scalars []fr.Element, splitFirs
 	// critical for performance
 
 	// each go routine sends its result in chChunks[i] channel
-	var chChunks [nbChunks + 1]chan PointProj
+	var chChunks [nbChunks + 1]chan Element
 	for i := 0; i < len(chChunks); i++ {
-		chChunks[i] = make(chan PointProj, 1)
+		chChunks[i] = make(chan Element, 1)
 	}
 
 	// c doesn't divide 256, last window is smaller we can allocate less buckets
 	const lastC = (fr.Limbs * 64) - (c * (fr.Limbs * 64 / c))
-	go func(j uint64, points []PointAffine, scalars []fr.Element) {
-		var buckets [1 << (lastC - 1)]PointProj
-		msmProcessChunkPointAffine(j, chChunks[j], buckets[:], c, points, scalars)
+	go func(j uint64, points []Element, scalars []fr.Element) {
+		var buckets [1 << (lastC - 1)]Element
+		msmProcessChunkElement(j, chChunks[j], buckets[:], c, points, scalars)
 	}(uint64(nbChunks), points, scalars)
 
-	processChunk := func(j int, points []PointAffine, scalars []fr.Element, chChunk chan PointProj) {
-		var buckets [1 << (c - 1)]PointProj
-		msmProcessChunkPointAffine(uint64(j), chChunk, buckets[:], c, points, scalars)
+	processChunk := func(j int, points []Element, scalars []fr.Element, chChunk chan Element) {
+		var buckets [1 << (c - 1)]Element
+		msmProcessChunkElement(uint64(j), chChunk, buckets[:], c, points, scalars)
 	}
 
 	for j := int(nbChunks - 1); j > 0; j-- {
@@ -874,7 +873,7 @@ func (p *PointProj) msmC12(points []PointAffine, scalars []fr.Element, splitFirs
 	if !splitFirstChunk {
 		go processChunk(0, points, scalars, chChunks[0])
 	} else {
-		chSplit := make(chan PointProj, 2)
+		chSplit := make(chan Element, 2)
 		split := len(points) / 2
 		go processChunk(0, points[:split], scalars[:split], chSplit)
 		go processChunk(0, points[split:], scalars[split:], chSplit)
@@ -887,10 +886,10 @@ func (p *PointProj) msmC12(points []PointAffine, scalars []fr.Element, splitFirs
 		}()
 	}
 
-	return msmReduceChunkPointAffine(p, c, chChunks[:])
+	return msmReduceChunkElement(p, c, chChunks[:])
 }
 
-func (p *PointProj) msmC13(points []PointAffine, scalars []fr.Element, splitFirstChunk bool) *PointProj {
+func (p *Element) msmC13(points []Element, scalars []fr.Element, splitFirstChunk bool) *Element {
 	const (
 		c        = 13                  // scalars partitioned into c-bit radixes
 		nbChunks = (fr.Limbs * 64 / c) // number of c-bit radixes in a scalar
@@ -902,21 +901,21 @@ func (p *PointProj) msmC13(points []PointAffine, scalars []fr.Element, splitFirs
 	// critical for performance
 
 	// each go routine sends its result in chChunks[i] channel
-	var chChunks [nbChunks + 1]chan PointProj
+	var chChunks [nbChunks + 1]chan Element
 	for i := 0; i < len(chChunks); i++ {
-		chChunks[i] = make(chan PointProj, 1)
+		chChunks[i] = make(chan Element, 1)
 	}
 
 	// c doesn't divide 256, last window is smaller we can allocate less buckets
 	const lastC = (fr.Limbs * 64) - (c * (fr.Limbs * 64 / c))
-	go func(j uint64, points []PointAffine, scalars []fr.Element) {
-		var buckets [1 << (lastC - 1)]PointProj
-		msmProcessChunkPointAffine(j, chChunks[j], buckets[:], c, points, scalars)
+	go func(j uint64, points []Element, scalars []fr.Element) {
+		var buckets [1 << (lastC - 1)]Element
+		msmProcessChunkElement(j, chChunks[j], buckets[:], c, points, scalars)
 	}(uint64(nbChunks), points, scalars)
 
-	processChunk := func(j int, points []PointAffine, scalars []fr.Element, chChunk chan PointProj) {
-		var buckets [1 << (c - 1)]PointProj
-		msmProcessChunkPointAffine(uint64(j), chChunk, buckets[:], c, points, scalars)
+	processChunk := func(j int, points []Element, scalars []fr.Element, chChunk chan Element) {
+		var buckets [1 << (c - 1)]Element
+		msmProcessChunkElement(uint64(j), chChunk, buckets[:], c, points, scalars)
 	}
 
 	for j := int(nbChunks - 1); j > 0; j-- {
@@ -926,7 +925,7 @@ func (p *PointProj) msmC13(points []PointAffine, scalars []fr.Element, splitFirs
 	if !splitFirstChunk {
 		go processChunk(0, points, scalars, chChunks[0])
 	} else {
-		chSplit := make(chan PointProj, 2)
+		chSplit := make(chan Element, 2)
 		split := len(points) / 2
 		go processChunk(0, points[:split], scalars[:split], chSplit)
 		go processChunk(0, points[split:], scalars[split:], chSplit)
@@ -939,10 +938,10 @@ func (p *PointProj) msmC13(points []PointAffine, scalars []fr.Element, splitFirs
 		}()
 	}
 
-	return msmReduceChunkPointAffine(p, c, chChunks[:])
+	return msmReduceChunkElement(p, c, chChunks[:])
 }
 
-func (p *PointProj) msmC14(points []PointAffine, scalars []fr.Element, splitFirstChunk bool) *PointProj {
+func (p *Element) msmC14(points []Element, scalars []fr.Element, splitFirstChunk bool) *Element {
 	const (
 		c        = 14                  // scalars partitioned into c-bit radixes
 		nbChunks = (fr.Limbs * 64 / c) // number of c-bit radixes in a scalar
@@ -954,21 +953,21 @@ func (p *PointProj) msmC14(points []PointAffine, scalars []fr.Element, splitFirs
 	// critical for performance
 
 	// each go routine sends its result in chChunks[i] channel
-	var chChunks [nbChunks + 1]chan PointProj
+	var chChunks [nbChunks + 1]chan Element
 	for i := 0; i < len(chChunks); i++ {
-		chChunks[i] = make(chan PointProj, 1)
+		chChunks[i] = make(chan Element, 1)
 	}
 
 	// c doesn't divide 256, last window is smaller we can allocate less buckets
 	const lastC = (fr.Limbs * 64) - (c * (fr.Limbs * 64 / c))
-	go func(j uint64, points []PointAffine, scalars []fr.Element) {
-		var buckets [1 << (lastC - 1)]PointProj
-		msmProcessChunkPointAffine(j, chChunks[j], buckets[:], c, points, scalars)
+	go func(j uint64, points []Element, scalars []fr.Element) {
+		var buckets [1 << (lastC - 1)]Element
+		msmProcessChunkElement(j, chChunks[j], buckets[:], c, points, scalars)
 	}(uint64(nbChunks), points, scalars)
 
-	processChunk := func(j int, points []PointAffine, scalars []fr.Element, chChunk chan PointProj) {
-		var buckets [1 << (c - 1)]PointProj
-		msmProcessChunkPointAffine(uint64(j), chChunk, buckets[:], c, points, scalars)
+	processChunk := func(j int, points []Element, scalars []fr.Element, chChunk chan Element) {
+		var buckets [1 << (c - 1)]Element
+		msmProcessChunkElement(uint64(j), chChunk, buckets[:], c, points, scalars)
 	}
 
 	for j := int(nbChunks - 1); j > 0; j-- {
@@ -978,7 +977,7 @@ func (p *PointProj) msmC14(points []PointAffine, scalars []fr.Element, splitFirs
 	if !splitFirstChunk {
 		go processChunk(0, points, scalars, chChunks[0])
 	} else {
-		chSplit := make(chan PointProj, 2)
+		chSplit := make(chan Element, 2)
 		split := len(points) / 2
 		go processChunk(0, points[:split], scalars[:split], chSplit)
 		go processChunk(0, points[split:], scalars[split:], chSplit)
@@ -991,10 +990,10 @@ func (p *PointProj) msmC14(points []PointAffine, scalars []fr.Element, splitFirs
 		}()
 	}
 
-	return msmReduceChunkPointAffine(p, c, chChunks[:])
+	return msmReduceChunkElement(p, c, chChunks[:])
 }
 
-func (p *PointProj) msmC15(points []PointAffine, scalars []fr.Element, splitFirstChunk bool) *PointProj {
+func (p *Element) msmC15(points []Element, scalars []fr.Element, splitFirstChunk bool) *Element {
 	const (
 		c        = 15                  // scalars partitioned into c-bit radixes
 		nbChunks = (fr.Limbs * 64 / c) // number of c-bit radixes in a scalar
@@ -1006,21 +1005,21 @@ func (p *PointProj) msmC15(points []PointAffine, scalars []fr.Element, splitFirs
 	// critical for performance
 
 	// each go routine sends its result in chChunks[i] channel
-	var chChunks [nbChunks + 1]chan PointProj
+	var chChunks [nbChunks + 1]chan Element
 	for i := 0; i < len(chChunks); i++ {
-		chChunks[i] = make(chan PointProj, 1)
+		chChunks[i] = make(chan Element, 1)
 	}
 
 	// c doesn't divide 256, last window is smaller we can allocate less buckets
 	const lastC = (fr.Limbs * 64) - (c * (fr.Limbs * 64 / c))
-	go func(j uint64, points []PointAffine, scalars []fr.Element) {
-		var buckets [1 << (lastC - 1)]PointProj
-		msmProcessChunkPointAffine(j, chChunks[j], buckets[:], c, points, scalars)
+	go func(j uint64, points []Element, scalars []fr.Element) {
+		var buckets [1 << (lastC - 1)]Element
+		msmProcessChunkElement(j, chChunks[j], buckets[:], c, points, scalars)
 	}(uint64(nbChunks), points, scalars)
 
-	processChunk := func(j int, points []PointAffine, scalars []fr.Element, chChunk chan PointProj) {
-		var buckets [1 << (c - 1)]PointProj
-		msmProcessChunkPointAffine(uint64(j), chChunk, buckets[:], c, points, scalars)
+	processChunk := func(j int, points []Element, scalars []fr.Element, chChunk chan Element) {
+		var buckets [1 << (c - 1)]Element
+		msmProcessChunkElement(uint64(j), chChunk, buckets[:], c, points, scalars)
 	}
 
 	for j := int(nbChunks - 1); j > 0; j-- {
@@ -1030,7 +1029,7 @@ func (p *PointProj) msmC15(points []PointAffine, scalars []fr.Element, splitFirs
 	if !splitFirstChunk {
 		go processChunk(0, points, scalars, chChunks[0])
 	} else {
-		chSplit := make(chan PointProj, 2)
+		chSplit := make(chan Element, 2)
 		split := len(points) / 2
 		go processChunk(0, points[:split], scalars[:split], chSplit)
 		go processChunk(0, points[split:], scalars[split:], chSplit)
@@ -1043,10 +1042,10 @@ func (p *PointProj) msmC15(points []PointAffine, scalars []fr.Element, splitFirs
 		}()
 	}
 
-	return msmReduceChunkPointAffine(p, c, chChunks[:])
+	return msmReduceChunkElement(p, c, chChunks[:])
 }
 
-func (p *PointProj) msmC16(points []PointAffine, scalars []fr.Element, splitFirstChunk bool) *PointProj {
+func (p *Element) msmC16(points []Element, scalars []fr.Element, splitFirstChunk bool) *Element {
 	const (
 		c        = 16                  // scalars partitioned into c-bit radixes
 		nbChunks = (fr.Limbs * 64 / c) // number of c-bit radixes in a scalar
@@ -1058,14 +1057,14 @@ func (p *PointProj) msmC16(points []PointAffine, scalars []fr.Element, splitFirs
 	// critical for performance
 
 	// each go routine sends its result in chChunks[i] channel
-	var chChunks [nbChunks]chan PointProj
+	var chChunks [nbChunks]chan Element
 	for i := 0; i < len(chChunks); i++ {
-		chChunks[i] = make(chan PointProj, 1)
+		chChunks[i] = make(chan Element, 1)
 	}
 
-	processChunk := func(j int, points []PointAffine, scalars []fr.Element, chChunk chan PointProj) {
-		var buckets [1 << (c - 1)]PointProj
-		msmProcessChunkPointAffine(uint64(j), chChunk, buckets[:], c, points, scalars)
+	processChunk := func(j int, points []Element, scalars []fr.Element, chChunk chan Element) {
+		var buckets [1 << (c - 1)]Element
+		msmProcessChunkElement(uint64(j), chChunk, buckets[:], c, points, scalars)
 	}
 
 	for j := int(nbChunks - 1); j > 0; j-- {
@@ -1075,7 +1074,7 @@ func (p *PointProj) msmC16(points []PointAffine, scalars []fr.Element, splitFirs
 	if !splitFirstChunk {
 		go processChunk(0, points, scalars, chChunks[0])
 	} else {
-		chSplit := make(chan PointProj, 2)
+		chSplit := make(chan Element, 2)
 		split := len(points) / 2
 		go processChunk(0, points[:split], scalars[:split], chSplit)
 		go processChunk(0, points[split:], scalars[split:], chSplit)
@@ -1088,10 +1087,10 @@ func (p *PointProj) msmC16(points []PointAffine, scalars []fr.Element, splitFirs
 		}()
 	}
 
-	return msmReduceChunkPointAffine(p, c, chChunks[:])
+	return msmReduceChunkElement(p, c, chChunks[:])
 }
 
-func (p *PointProj) msmC20(points []PointAffine, scalars []fr.Element, splitFirstChunk bool) *PointProj {
+func (p *Element) msmC20(points []Element, scalars []fr.Element, splitFirstChunk bool) *Element {
 	const (
 		c        = 20                  // scalars partitioned into c-bit radixes
 		nbChunks = (fr.Limbs * 64 / c) // number of c-bit radixes in a scalar
@@ -1103,21 +1102,21 @@ func (p *PointProj) msmC20(points []PointAffine, scalars []fr.Element, splitFirs
 	// critical for performance
 
 	// each go routine sends its result in chChunks[i] channel
-	var chChunks [nbChunks + 1]chan PointProj
+	var chChunks [nbChunks + 1]chan Element
 	for i := 0; i < len(chChunks); i++ {
-		chChunks[i] = make(chan PointProj, 1)
+		chChunks[i] = make(chan Element, 1)
 	}
 
 	// c doesn't divide 256, last window is smaller we can allocate less buckets
 	const lastC = (fr.Limbs * 64) - (c * (fr.Limbs * 64 / c))
-	go func(j uint64, points []PointAffine, scalars []fr.Element) {
-		var buckets [1 << (lastC - 1)]PointProj
-		msmProcessChunkPointAffine(j, chChunks[j], buckets[:], c, points, scalars)
+	go func(j uint64, points []Element, scalars []fr.Element) {
+		var buckets [1 << (lastC - 1)]Element
+		msmProcessChunkElement(j, chChunks[j], buckets[:], c, points, scalars)
 	}(uint64(nbChunks), points, scalars)
 
-	processChunk := func(j int, points []PointAffine, scalars []fr.Element, chChunk chan PointProj) {
-		var buckets [1 << (c - 1)]PointProj
-		msmProcessChunkPointAffine(uint64(j), chChunk, buckets[:], c, points, scalars)
+	processChunk := func(j int, points []Element, scalars []fr.Element, chChunk chan Element) {
+		var buckets [1 << (c - 1)]Element
+		msmProcessChunkElement(uint64(j), chChunk, buckets[:], c, points, scalars)
 	}
 
 	for j := int(nbChunks - 1); j > 0; j-- {
@@ -1127,7 +1126,7 @@ func (p *PointProj) msmC20(points []PointAffine, scalars []fr.Element, splitFirs
 	if !splitFirstChunk {
 		go processChunk(0, points, scalars, chChunks[0])
 	} else {
-		chSplit := make(chan PointProj, 2)
+		chSplit := make(chan Element, 2)
 		split := len(points) / 2
 		go processChunk(0, points[:split], scalars[:split], chSplit)
 		go processChunk(0, points[split:], scalars[split:], chSplit)
@@ -1140,10 +1139,10 @@ func (p *PointProj) msmC20(points []PointAffine, scalars []fr.Element, splitFirs
 		}()
 	}
 
-	return msmReduceChunkPointAffine(p, c, chChunks[:])
+	return msmReduceChunkElement(p, c, chChunks[:])
 }
 
-func (p *PointProj) msmC21(points []PointAffine, scalars []fr.Element, splitFirstChunk bool) *PointProj {
+func (p *Element) msmC21(points []Element, scalars []fr.Element, splitFirstChunk bool) *Element {
 	const (
 		c        = 21                  // scalars partitioned into c-bit radixes
 		nbChunks = (fr.Limbs * 64 / c) // number of c-bit radixes in a scalar
@@ -1155,21 +1154,21 @@ func (p *PointProj) msmC21(points []PointAffine, scalars []fr.Element, splitFirs
 	// critical for performance
 
 	// each go routine sends its result in chChunks[i] channel
-	var chChunks [nbChunks + 1]chan PointProj
+	var chChunks [nbChunks + 1]chan Element
 	for i := 0; i < len(chChunks); i++ {
-		chChunks[i] = make(chan PointProj, 1)
+		chChunks[i] = make(chan Element, 1)
 	}
 
 	// c doesn't divide 256, last window is smaller we can allocate less buckets
 	const lastC = (fr.Limbs * 64) - (c * (fr.Limbs * 64 / c))
-	go func(j uint64, points []PointAffine, scalars []fr.Element) {
-		var buckets [1 << (lastC - 1)]PointProj
-		msmProcessChunkPointAffine(j, chChunks[j], buckets[:], c, points, scalars)
+	go func(j uint64, points []Element, scalars []fr.Element) {
+		var buckets [1 << (lastC - 1)]Element
+		msmProcessChunkElement(j, chChunks[j], buckets[:], c, points, scalars)
 	}(uint64(nbChunks), points, scalars)
 
-	processChunk := func(j int, points []PointAffine, scalars []fr.Element, chChunk chan PointProj) {
-		var buckets [1 << (c - 1)]PointProj
-		msmProcessChunkPointAffine(uint64(j), chChunk, buckets[:], c, points, scalars)
+	processChunk := func(j int, points []Element, scalars []fr.Element, chChunk chan Element) {
+		var buckets [1 << (c - 1)]Element
+		msmProcessChunkElement(uint64(j), chChunk, buckets[:], c, points, scalars)
 	}
 
 	for j := int(nbChunks - 1); j > 0; j-- {
@@ -1179,7 +1178,7 @@ func (p *PointProj) msmC21(points []PointAffine, scalars []fr.Element, splitFirs
 	if !splitFirstChunk {
 		go processChunk(0, points, scalars, chChunks[0])
 	} else {
-		chSplit := make(chan PointProj, 2)
+		chSplit := make(chan Element, 2)
 		split := len(points) / 2
 		go processChunk(0, points[:split], scalars[:split], chSplit)
 		go processChunk(0, points[split:], scalars[split:], chSplit)
@@ -1192,10 +1191,10 @@ func (p *PointProj) msmC21(points []PointAffine, scalars []fr.Element, splitFirs
 		}()
 	}
 
-	return msmReduceChunkPointAffine(p, c, chChunks[:])
+	return msmReduceChunkElement(p, c, chChunks[:])
 }
 
-func (p *PointProj) msmC22(points []PointAffine, scalars []fr.Element, splitFirstChunk bool) *PointProj {
+func (p *Element) msmC22(points []Element, scalars []fr.Element, splitFirstChunk bool) *Element {
 	const (
 		c        = 22                  // scalars partitioned into c-bit radixes
 		nbChunks = (fr.Limbs * 64 / c) // number of c-bit radixes in a scalar
@@ -1207,21 +1206,21 @@ func (p *PointProj) msmC22(points []PointAffine, scalars []fr.Element, splitFirs
 	// critical for performance
 
 	// each go routine sends its result in chChunks[i] channel
-	var chChunks [nbChunks + 1]chan PointProj
+	var chChunks [nbChunks + 1]chan Element
 	for i := 0; i < len(chChunks); i++ {
-		chChunks[i] = make(chan PointProj, 1)
+		chChunks[i] = make(chan Element, 1)
 	}
 
 	// c doesn't divide 256, last window is smaller we can allocate less buckets
 	const lastC = (fr.Limbs * 64) - (c * (fr.Limbs * 64 / c))
-	go func(j uint64, points []PointAffine, scalars []fr.Element) {
-		var buckets [1 << (lastC - 1)]PointProj
-		msmProcessChunkPointAffine(j, chChunks[j], buckets[:], c, points, scalars)
+	go func(j uint64, points []Element, scalars []fr.Element) {
+		var buckets [1 << (lastC - 1)]Element
+		msmProcessChunkElement(j, chChunks[j], buckets[:], c, points, scalars)
 	}(uint64(nbChunks), points, scalars)
 
-	processChunk := func(j int, points []PointAffine, scalars []fr.Element, chChunk chan PointProj) {
-		var buckets [1 << (c - 1)]PointProj
-		msmProcessChunkPointAffine(uint64(j), chChunk, buckets[:], c, points, scalars)
+	processChunk := func(j int, points []Element, scalars []fr.Element, chChunk chan Element) {
+		var buckets [1 << (c - 1)]Element
+		msmProcessChunkElement(uint64(j), chChunk, buckets[:], c, points, scalars)
 	}
 
 	for j := int(nbChunks - 1); j > 0; j-- {
@@ -1231,7 +1230,7 @@ func (p *PointProj) msmC22(points []PointAffine, scalars []fr.Element, splitFirs
 	if !splitFirstChunk {
 		go processChunk(0, points, scalars, chChunks[0])
 	} else {
-		chSplit := make(chan PointProj, 2)
+		chSplit := make(chan Element, 2)
 		split := len(points) / 2
 		go processChunk(0, points[:split], scalars[:split], chSplit)
 		go processChunk(0, points[split:], scalars[split:], chSplit)
@@ -1244,5 +1243,5 @@ func (p *PointProj) msmC22(points []PointAffine, scalars []fr.Element, splitFirs
 		}()
 	}
 
-	return msmReduceChunkPointAffine(p, c, chChunks[:])
+	return msmReduceChunkElement(p, c, chChunks[:])
 }
