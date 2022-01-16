@@ -133,6 +133,28 @@ func (p *Element) Add(p1, p2 *Element) *Element {
 	p.inner.Add(&p1.inner, &p2.inner)
 	return p
 }
+func (p *Element) Sub(p1, p2 *Element) *Element {
+	// Store -p2 in receiver
+	p.Neg(p2)
+
+	p.Add(p1, p)
+
+	return p
+}
+
+func (p *Element) IsOnCurve() bool {
+	// TODO: use projective curve equation to check
+	var point_aff bandersnatch.PointAffine
+	point_aff.FromProj(&p.inner)
+	return point_aff.IsOnCurve()
+}
+func (p *Element) Set(p1 *Element) *Element {
+	p.inner.X.Set(&p1.inner.X)
+	p.inner.Y.Set(&p1.inner.Y)
+	p.inner.Z.Set(&p1.inner.Z)
+	return p
+}
+
 func (p *Element) Neg(p1 *Element) *Element {
 	p.inner.Neg(&p1.inner)
 	return p
