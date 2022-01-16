@@ -5,8 +5,8 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
+	"github.com/crate-crypto/go-ipa/banderwagon"
 	"github.com/crate-crypto/go-ipa/common"
 	"github.com/crate-crypto/go-ipa/ipa"
 	"github.com/crate-crypto/go-ipa/test_helper"
@@ -24,7 +24,7 @@ func TestMultiProofCreateVerify(t *testing.T) {
 
 	one := fr.One()
 
-	Cs := []*bandersnatch.PointAffine{&prover_comm_1}
+	Cs := []*banderwagon.Element{&prover_comm_1}
 	fs := [][]fr.Element{poly_1}
 	zs := []uint8{0}
 	ys := []*fr.Element{&one}
@@ -75,7 +75,7 @@ func TestMultiProofConsistency(t *testing.T) {
 	var thirty_two = fr.Element{}
 	thirty_two.SetUint64(32)
 
-	Cs := []*bandersnatch.PointAffine{&comm_a, &comm_b}
+	Cs := []*banderwagon.Element{&comm_a, &comm_b}
 	fs := [][]fr.Element{poly_a, poly_b}
 	zs := []uint8{0, 0}
 	ys := []*fr.Element{&one, &thirty_two}
