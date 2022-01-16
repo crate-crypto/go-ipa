@@ -84,6 +84,7 @@ func newLagrangeTablePoints(point Element) *LagrangeTablePoints {
 	rows = append(rows, base_row...)
 
 	var scale = base
+	// TODO: we can do this in parallel
 	for i := 1; i < num_rows; i++ {
 
 		scaled_row := scale_row(base_row, scale)
@@ -99,7 +100,6 @@ func newLagrangeTablePoints(point Element) *LagrangeTablePoints {
 	}
 }
 
-// TODO: double check if index is needed
 func (ltp *LagrangeTablePoints) point(index int, value uint8) *Element {
 	if value == 0 {
 		return &ltp.identity
