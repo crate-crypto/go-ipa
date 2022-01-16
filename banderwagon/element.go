@@ -134,12 +134,11 @@ func (p *Element) Add(p1, p2 *Element) *Element {
 	return p
 }
 func (p *Element) Sub(p1, p2 *Element) *Element {
-	// Store -p2 in receiver
-	p.Neg(p2)
+	var neg_p2 Element
+	neg_p2.Neg(p2)
 
-	p.Add(p1, p)
+	return p.Add(p1, &neg_p2)
 
-	return p
 }
 
 func (p *Element) IsOnCurve() bool {
