@@ -29,11 +29,11 @@ type IPAConfig struct {
 	num_ipa_rounds uint32
 
 	// Precomputed SRS points
-	precomp_lag *PrecomputeLagrange
+	precomp_lag *banderwagon.PrecomputeLagrange
 }
 
 var srs = GenerateRandomPoints(common.POLY_DEGREE)
-var precomp_lag = NewPrecomputeLagrange(srs)
+var precomp_lag = banderwagon.NewPrecomputeLagrange(srs)
 
 // This function creates 256 random generator points where the relative discrete log is
 // not known between each generator
