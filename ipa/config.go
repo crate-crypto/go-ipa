@@ -35,7 +35,6 @@ type IPAConfig struct {
 // This function creates 256 random generator points where the relative discrete log is
 // not known between each generator
 func NewIPASettings() *IPAConfig {
-
 	srs := GenerateRandomPoints(common.POLY_DEGREE)
 	var Q bandersnatch.PointAffine = bandersnatch.GetEdwardsCurve().Base
 	return &IPAConfig{
@@ -44,6 +43,18 @@ func NewIPASettings() *IPAConfig {
 		PrecomputedWeights: NewPrecomputedWeights(),
 		num_ipa_rounds:     compute_num_rounds(common.POLY_DEGREE),
 		PrecompLag:         bandersnatch.NewPrecomputeLagrange(srs),
+	}
+}
+
+func NewIPASettingsWithPrecomputedLagrange(pcl *bandersnatch.PrecomputeLagrange) *IPAConfig {
+	srs := GenerateRandomPoints(common.POLY_DEGREE)
+	var Q bandersnatch.PointAffine = bandersnatch.GetEdwardsCurve().Base
+	return &IPAConfig{
+		SRS:                srs,
+		Q:                  Q,
+		PrecomputedWeights: NewPrecomputedWeights(),
+		num_ipa_rounds:     compute_num_rounds(common.POLY_DEGREE),
+		PrecompLag:         pcl,
 	}
 }
 
