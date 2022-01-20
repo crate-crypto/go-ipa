@@ -1,6 +1,8 @@
 package bandersnatch
 
 import (
+	"bytes"
+	"encoding/binary"
 	"runtime"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
@@ -23,6 +25,67 @@ func NewPrecomputeLagrange(points []PointAffine) *PrecomputeLagrange {
 		inner:      table,
 		num_points: len(points),
 	}
+}
+
+func (pcl *PrecomputeLagrange) SerializePrecomputedLagrange() ([]byte, error) {
+	var buf bytes.Buffer
+
+	err := binary.Write(&buf, binary.LittleEndian, int64(pcl.num_points))
+	if err != nil {
+		return nil, err
+	}
+
+	err = binary.Write(&buf, binary.LittleEndian, int64(len(pcl.inner[0].matrix)))
+	if err != nil {
+		return nil, err
+	}
+
+	for _, ltp := range pcl.inner {
+		buf.Write(ltp.identity.Marshal())
+
+		for _, p := range ltp.matrix {
+			buf.Write(p.Marshal())
+		}
+	}
+
+	return buf.Bytes(), nil
+}
+
+func DeserializePrecomputedLagrange(serialized []byte) (*PrecomputeLagrange, error) {
+	var pcl PrecomputeLagrange
+	reader := bytes.NewReader(serialized)
+
+	var numPoints int64
+	err := binary.Read(reader, binary.LittleEndian, &numPoints)
+	if err != nil {
+		return nil, err
+	}
+	pcl.num_points = int(numPoints)
+	pcl.inner = make([]*LagrangeTablePoints, pcl.num_points)
+
+	var rowLen int64
+	err = binary.Read(reader, binary.LittleEndian, &rowLen)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := 0; i < pcl.num_points; i++ {
+		var tmp [32]byte
+		pcl.inner[i] = new(LagrangeTablePoints)
+
+		// Deserialize the identity
+		reader.Read(tmp[:])
+		pcl.inner[i].identity.Unmarshal(tmp[:])
+
+		// Deserialize the matrix
+		pcl.inner[i].matrix = make([]PointAffine, rowLen)
+		for j := int64(0); j < rowLen; j++ {
+			reader.Read(tmp[:])
+			pcl.inner[i].matrix[j].Unmarshal(tmp[:32])
+		}
+	}
+
+	return &pcl, nil
 }
 
 func (p *PrecomputeLagrange) Commit(evaluations []fr.Element) *PointAffine {

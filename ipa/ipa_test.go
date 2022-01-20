@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"reflect"
 	"testing"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch"
@@ -235,4 +236,21 @@ func removeDuplicatePoints(intSlice []bandersnatch.PointAffine) []bandersnatch.P
 		}
 	}
 	return list
+}
+
+func TestPrecompSerde(t *testing.T) {
+	points := GenerateRandomPoints(2)
+	pcl := bandersnatch.NewPrecomputeLagrange(points)
+	ser, err := pcl.SerializePrecomputedLagrange()
+	if err != nil {
+		t.Fatal(err)
+	}
+	deser, err := bandersnatch.DeserializePrecomputedLagrange(ser)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(pcl, deser) {
+		t.Fatalf("error during (de)serialization of precomputed data %v %v", pcl, deser)
+	}
 }

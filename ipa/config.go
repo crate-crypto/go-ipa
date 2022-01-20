@@ -29,7 +29,7 @@ type IPAConfig struct {
 	num_ipa_rounds uint32
 
 	// Precomputed SRS points
-	precomp_lag *bandersnatch.PrecomputeLagrange
+	PrecompLag *bandersnatch.PrecomputeLagrange
 }
 
 // This function creates 256 random generator points where the relative discrete log is
@@ -43,7 +43,7 @@ func NewIPASettings() *IPAConfig {
 		Q:                  Q,
 		PrecomputedWeights: NewPrecomputedWeights(),
 		num_ipa_rounds:     compute_num_rounds(common.POLY_DEGREE),
-		precomp_lag:        bandersnatch.NewPrecomputeLagrange(srs),
+		PrecompLag:         bandersnatch.NewPrecomputeLagrange(srs),
 	}
 }
 
@@ -64,7 +64,7 @@ func multiScalar(points []bandersnatch.PointAffine, scalars []fr.Element) bander
 // Commits to a polynomial using the SRS
 // panics if the length of the SRS does not equal the number of polynomial coefficients
 func (ic *IPAConfig) Commit(polynomial []fr.Element) bandersnatch.PointAffine {
-	return *ic.precomp_lag.Commit(polynomial)
+	return *ic.PrecompLag.Commit(polynomial)
 }
 
 // Commits to a polynomial using the input group elements
