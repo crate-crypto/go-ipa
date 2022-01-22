@@ -2,6 +2,7 @@ package ipa
 
 import (
 	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 	"math"
 	"runtime"
@@ -33,6 +34,7 @@ type IPAConfig struct {
 }
 
 var srs = GenerateRandomPoints(common.POLY_DEGREE)
+
 var precomp_lag = banderwagon.NewPrecomputeLagrange(srs)
 
 // This function creates 256 random generator points where the relative discrete log is
@@ -182,13 +184,7 @@ func compute_num_rounds(vector_size uint32) uint32 {
 }
 
 func GenerateRandomPoints(numPoints uint64) []banderwagon.Element {
-
-	digest := sha256.New()
-	digest.Write([]byte("eth_verkle_oct_2021")) // incase it changes or needs updating, we can use eth_verkle_month_year
-	hash := digest.Sum(nil)
-
-	var u fp.Element
-	u.SetBytes(hash)
+	seed := "eth_verkle_oct_2021" // incase it changes or needs updating, we can use eth_verkle_month_year
 
 	points := []banderwagon.Element{}
 
@@ -196,14 +192,25 @@ func GenerateRandomPoints(numPoints uint64) []banderwagon.Element {
 
 	for uint64(len(points)) != numPoints {
 
-		var x = incrementBy(u, increment)
+		digest := sha256.New()
+		digest.Write([]byte(seed))
+
+		b := make([]byte, 8)
+		binary.BigEndian.PutUint64(b, increment)
+		digest.Write(b)
+
+		hash := digest.Sum(nil)
+
+		var x fp.Element
+		x.SetBytes(hash)
+
 		increment++
 
 		x_as_bytes := x.Bytes()
 		var point_found banderwagon.Element
 		err := point_found.SetBytes(x_as_bytes[:])
 		if err != nil {
-			// This point is not in the correct subgroup
+			// This point is not in the correct subgroup or on the curve
 			continue
 		}
 		points = append(points, point_found)
@@ -211,13 +218,4 @@ func GenerateRandomPoints(numPoints uint64) []banderwagon.Element {
 	}
 
 	return points
-}
-
-// returns u + i
-func incrementBy(u fp.Element, i uint64) *fp.Element {
-	var increment fp.Element
-	increment.SetUint64(i)
-
-	var result fp.Element
-	return result.Add(&u, &increment)
 }
