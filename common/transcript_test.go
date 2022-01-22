@@ -74,7 +74,7 @@ func TestVector4(t *testing.T) {
 	challenge := tr.ChallengeScalar("simple_challenge")
 	c_bytes := challenge.BytesLE()
 
-	expected := "c3d390ff8ef3242c4ec3508d9c5f66d8c9f6aae3bde9ce7b4e1a53b9a6e9ac18"
+	expected := "8c2dafe7c0aabfa9ed542bb2cbf0568399ae794fc44fdfd7dff6cc0e6144921c"
 	got := hex.EncodeToString(c_bytes[:])
 	if expected != got {
 		panic("computed challenge scalar is incorrect")
