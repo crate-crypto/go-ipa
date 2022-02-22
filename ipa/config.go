@@ -62,7 +62,6 @@ func multiScalar(points []bandersnatch.PointAffine, scalars []fr.Element) bander
 }
 
 // Commits to a polynomial using the SRS
-// panics if the length of the SRS does not equal the number of polynomial coefficients
 func (ic *IPAConfig) Commit(polynomial []fr.Element) bandersnatch.PointAffine {
 	return *ic.PrecompLag.Commit(polynomial)
 }
