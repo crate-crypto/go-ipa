@@ -71,10 +71,10 @@ func (ic *IPAConfig) Commit(polynomial []fr.Element) bandersnatch.PointAffine {
 // panics if the number of group elements does not equal the number of polynomial coefficients
 // This is used when the generators are not fixed
 func commit(group_elements []bandersnatch.PointAffine, polynomial []fr.Element) bandersnatch.PointAffine {
-	if len(group_elements) != len(polynomial) {
+	if len(group_elements) < len(polynomial) {
 		panic(fmt.Sprintf("diff sizes, %d != %d", len(group_elements), len(polynomial)))
 	}
-	return multiScalar(group_elements, polynomial)
+	return multiScalar(group_elements[:len(polynomial)], polynomial)
 }
 
 // Computes the inner product of a and b
