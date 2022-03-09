@@ -13,13 +13,7 @@ import (
 )
 
 type IPAConfig struct {
-	// Points to commit to the input vector
-	// TODO: if we use the precomputed SRS, we can probably remove this
-	// TODO slice from memory
-	SRS []bandersnatch.PointAffine
-
-	// Point to commit to the inner product of the two vectors in the inner product argument
-	Q bandersnatch.PointAffine
+	SRSPrecompPoints *SRSPrecompPoints
 
 	PrecomputedWeights *PrecomputedWeights
 
@@ -27,34 +21,24 @@ type IPAConfig struct {
 	// in the IPA argument, this will be log2 of the size of the input vectors
 	// since the vector is halved on each round
 	num_ipa_rounds uint32
-
-	// Precomputed SRS points
-	PrecompLag *bandersnatch.PrecomputeLagrange
 }
 
 // This function creates 256 random generator points where the relative discrete log is
-// not known between each generator
+// not known between each generator and all of the other necessary information needed to verify
+// and create an IPA proof
 func NewIPASettings() *IPAConfig {
-	srs := GenerateRandomPoints(common.POLY_DEGREE)
-	var Q bandersnatch.PointAffine = bandersnatch.GetEdwardsCurve().Base
 	return &IPAConfig{
-		SRS:                srs,
-		Q:                  Q,
+		SRSPrecompPoints:   NewSRSPrecomp(common.POLY_DEGREE),
 		PrecomputedWeights: NewPrecomputedWeights(),
 		num_ipa_rounds:     compute_num_rounds(common.POLY_DEGREE),
-		PrecompLag:         bandersnatch.NewPrecomputeLagrange(srs),
 	}
 }
 
-func NewIPASettingsWithPrecomputedLagrange(pcl *bandersnatch.PrecomputeLagrange) *IPAConfig {
-	srs := GenerateRandomPoints(common.POLY_DEGREE)
-	var Q bandersnatch.PointAffine = bandersnatch.GetEdwardsCurve().Base
+func NewIPASettingsWithSRSPrecomp(srs_precomp *SRSPrecompPoints) *IPAConfig {
 	return &IPAConfig{
-		SRS:                srs,
-		Q:                  Q,
+		SRSPrecompPoints:   srs_precomp,
 		PrecomputedWeights: NewPrecomputedWeights(),
 		num_ipa_rounds:     compute_num_rounds(common.POLY_DEGREE),
-		PrecompLag:         pcl,
 	}
 }
 
@@ -75,7 +59,7 @@ func multiScalar(points []bandersnatch.PointAffine, scalars []fr.Element) bander
 // Commits to a polynomial using the SRS
 // panics if the length of the SRS does not equal the number of polynomial coefficients
 func (ic *IPAConfig) Commit(polynomial []fr.Element) bandersnatch.PointAffine {
-	return *ic.PrecompLag.Commit(polynomial)
+	return *ic.SRSPrecompPoints.PrecompLag.Commit(polynomial)
 }
 
 // Commits to a polynomial using the input group elements
