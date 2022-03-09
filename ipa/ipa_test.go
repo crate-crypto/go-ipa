@@ -241,11 +241,14 @@ func removeDuplicatePoints(intSlice []bandersnatch.PointAffine) []bandersnatch.P
 func TestPrecompSerde(t *testing.T) {
 	points := GenerateRandomPoints(2)
 	pcl := bandersnatch.NewPrecomputeLagrange(points)
-	ser, err := pcl.SerializePrecomputedLagrange()
+	var buf bytes.Buffer
+
+	err := pcl.SerializePrecomputedLagrange(&buf)
 	if err != nil {
 		t.Fatal(err)
 	}
-	deser, err := bandersnatch.DeserializePrecomputedLagrange(ser)
+	reader := bytes.NewReader(buf.Bytes())
+	deser, err := bandersnatch.DeserializePrecomputedLagrange(reader)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -253,4 +256,22 @@ func TestPrecompSerde(t *testing.T) {
 	if !reflect.DeepEqual(pcl, deser) {
 		t.Fatalf("error during (de)serialization of precomputed data %v %v", pcl, deser)
 	}
+}
+
+func TestSRSPrecompSerde(t *testing.T) {
+	var srs_precomp = NewSRSPrecomp(2)
+	b, err := srs_precomp.SerializeSRSPrecomp()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	deser, err := DeserializeSRSPrecomp(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(srs_precomp, deser) {
+		t.Fatalf("error during (de)serialization of precomputed data %v %v", srs_precomp, deser)
+	}
+
 }
