@@ -40,7 +40,6 @@ func (pcl *PrecomputeLagrange) SerializePrecomputedLagrange(w io.Writer) error {
 	}
 
 	for _, ltp := range pcl.inner {
-		ltp.identity.WriteUncompressedPoint(w)
 		for _, p := range ltp.matrix {
 			p.WriteUncompressedPoint(w)
 		}
@@ -70,8 +69,7 @@ func DeserializePrecomputedLagrange(reader io.Reader) (*PrecomputeLagrange, erro
 
 		pcl.inner[i] = new(LagrangeTablePoints)
 
-		// Deserialize the identity
-		pcl.inner[i].identity = *ReadUncompressedPoint(reader)
+		pcl.inner[i].identity.Identity()
 
 		// Deserialize the matrix
 		pcl.inner[i].matrix = make([]PointAffine, rowLen)
