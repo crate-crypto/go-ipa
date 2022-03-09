@@ -19,7 +19,6 @@ package bandersnatch
 
 import (
 	"crypto/subtle"
-	"fmt"
 
 	"io"
 
