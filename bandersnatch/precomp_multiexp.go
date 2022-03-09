@@ -1,8 +1,8 @@
 package bandersnatch
 
 import (
-	"bytes"
 	"encoding/binary"
+	"io"
 	"runtime"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
@@ -27,33 +27,30 @@ func NewPrecomputeLagrange(points []PointAffine) *PrecomputeLagrange {
 	}
 }
 
-func (pcl *PrecomputeLagrange) SerializePrecomputedLagrange() ([]byte, error) {
-	var buf bytes.Buffer
+func (pcl *PrecomputeLagrange) SerializePrecomputedLagrange(w io.Writer) error {
 
-	err := binary.Write(&buf, binary.LittleEndian, int64(pcl.num_points))
+	err := binary.Write(w, binary.LittleEndian, int64(pcl.num_points))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	err = binary.Write(&buf, binary.LittleEndian, int64(len(pcl.inner[0].matrix)))
+	err = binary.Write(w, binary.LittleEndian, int64(len(pcl.inner[0].matrix)))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	for _, ltp := range pcl.inner {
-		buf.Write(ltp.identity.Marshal())
-
+		ltp.identity.WriteUncompressedPoint(w)
 		for _, p := range ltp.matrix {
-			buf.Write(p.Marshal())
+			p.WriteUncompressedPoint(w)
 		}
 	}
 
-	return buf.Bytes(), nil
+	return nil
 }
 
-func DeserializePrecomputedLagrange(serialized []byte) (*PrecomputeLagrange, error) {
+func DeserializePrecomputedLagrange(reader io.Reader) (*PrecomputeLagrange, error) {
 	var pcl PrecomputeLagrange
-	reader := bytes.NewReader(serialized)
 
 	var numPoints int64
 	err := binary.Read(reader, binary.LittleEndian, &numPoints)
@@ -70,18 +67,17 @@ func DeserializePrecomputedLagrange(serialized []byte) (*PrecomputeLagrange, err
 	}
 
 	for i := 0; i < pcl.num_points; i++ {
-		var tmp [32]byte
+
 		pcl.inner[i] = new(LagrangeTablePoints)
 
 		// Deserialize the identity
-		reader.Read(tmp[:])
-		pcl.inner[i].identity.Unmarshal(tmp[:])
+		pcl.inner[i].identity = *ReadUncompressedPoint(reader)
 
 		// Deserialize the matrix
 		pcl.inner[i].matrix = make([]PointAffine, rowLen)
 		for j := int64(0); j < rowLen; j++ {
-			reader.Read(tmp[:])
-			pcl.inner[i].matrix[j].Unmarshal(tmp[:32])
+
+			pcl.inner[i].matrix[j] = *ReadUncompressedPoint(reader)
 		}
 	}
 
