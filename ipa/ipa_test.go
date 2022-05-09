@@ -163,6 +163,7 @@ func TestBasicCommit(t *testing.T) {
 		panic("commit function; incorrect results")
 	}
 }
+
 func TestCRSGeneration(t *testing.T) {
 	generator := banderwagon.Generator
 	points := GenerateRandomPoints(256)

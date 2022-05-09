@@ -33,14 +33,12 @@ type IPAConfig struct {
 	precomp_lag *banderwagon.PrecomputeLagrange
 }
 
-var srs = GenerateRandomPoints(common.POLY_DEGREE)
-
-var precomp_lag = banderwagon.NewPrecomputeLagrange(srs)
-
 // This function creates 256 random generator points where the relative discrete log is
 // not known between each generator
 // TODO: we should allow a commiter to be passed in, so for tests we do not use the precomputed points as it takes a long time
 func NewIPASettings() *IPAConfig {
+	var srs = GenerateRandomPoints(common.POLY_DEGREE)
+	var precomp_lag = banderwagon.NewPrecomputeLagrange(srs)
 	var Q banderwagon.Element = banderwagon.Generator
 	return &IPAConfig{
 		SRS:                srs,
