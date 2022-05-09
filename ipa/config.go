@@ -59,7 +59,8 @@ func multiScalar(points []bandersnatch.PointAffine, scalars []fr.Element) bander
 // Commits to a polynomial using the SRS
 // panics if the length of the SRS does not equal the number of polynomial coefficients
 func (ic *IPAConfig) Commit(polynomial []fr.Element) bandersnatch.PointAffine {
-	return *ic.SRSPrecompPoints.PrecompLag.Commit(polynomial)
+	return commit(ic.SRSPrecompPoints.SRS, polynomial)
+	// return *ic.SRSPrecompPoints.PrecompLag.Commit(polynomial)
 }
 
 // Commits to a polynomial using the input group elements
@@ -69,7 +70,8 @@ func commit(group_elements []bandersnatch.PointAffine, polynomial []fr.Element) 
 	if len(group_elements) != len(polynomial) {
 		panic(fmt.Sprintf("diff sizes, %d != %d", len(group_elements), len(polynomial)))
 	}
-	return multiScalar(group_elements, polynomial)
+	return commit(group_elements, polynomial)
+	// return multiScalar(group_elements, polynomial)
 }
 
 // Computes the inner product of a and b
