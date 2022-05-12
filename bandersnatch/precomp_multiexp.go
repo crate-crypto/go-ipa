@@ -75,7 +75,7 @@ func DeserializePrecomputedLagrange(reader io.Reader) (*PrecomputeLagrange, erro
 		pcl.inner[i].matrix = make([]PointAffine, rowLen)
 		for j := int64(0); j < rowLen; j++ {
 
-			pcl.inner[i].matrix[j] = *ReadUncompressedPoint(reader)
+			pcl.inner[i].matrix[j] = ReadUncompressedPoint(reader)
 		}
 	}
 
@@ -83,7 +83,6 @@ func DeserializePrecomputedLagrange(reader io.Reader) (*PrecomputeLagrange, erro
 }
 
 func (p *PrecomputeLagrange) Commit(evaluations []fr.Element) *PointAffine {
-
 	nbTasks := runtime.NumCPU()
 	chPartialResults := make(chan PointProj, nbTasks)
 	parallel.Execute(len(evaluations), func(start, end int) {

@@ -104,17 +104,16 @@ func (p *PointAffine) SetBytes(buf []byte) (int, error) {
 
 // Reads an uncompressed affine point
 // Point is not guaranteed to be in the prime subgroup 
-func ReadUncompressedPoint(r io.Reader) *PointAffine {
-	var x = make([]byte, 32)
-	var y = make([]byte, 32)
-	n, err := r.Read(x)
+func ReadUncompressedPoint(r io.Reader) PointAffine {
+	var xy = make([]byte, 64)
+	n, err := r.Read(xy[:32])
 	if err != nil {
 		panic("error reading bytes")
 	}
 	if n != 32 {
 		panic("did not read enough bytes")
 	}
-	n, err = r.Read(y)
+	n, err = r.Read(xy[32:])
 	if err != nil {
 		panic("error reading bytes")
 	}
@@ -123,16 +122,14 @@ func ReadUncompressedPoint(r io.Reader) *PointAffine {
 	}
 
 	var x_fp = fp.Element{}
-	x_fp.SetBytes(x)
+	x_fp.SetBytes(xy[:32])
 	var y_fp = fp.Element{}
-	y_fp.SetBytes(y)
+	y_fp.SetBytes(xy[32:])
 
-	var p = &PointAffine{
+	return PointAffine{
 		X: x_fp,
 		Y: y_fp,
 	}
-
-	return p
 }
 // Writes an uncompressed affine point to an io.Writer
 func (p *PointAffine) WriteUncompressedPoint(w io.Writer) (int, error) {
