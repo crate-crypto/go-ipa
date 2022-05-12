@@ -20,10 +20,12 @@ package bandersnatch
 
 import (
 	"errors"
-	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
-	"github.com/crate-crypto/go-ipa/bandersnatch/parallel"
 	"math"
 	"runtime"
+	"sync"
+
+	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
+	"github.com/crate-crypto/go-ipa/bandersnatch/parallel"
 )
 
 // MultiExpConfig enables to set optional configuration attribute to a call to MultiExp
@@ -175,7 +177,7 @@ func (p *PointAffine) MultiExp(points []PointAffine, scalars []fr.Element, confi
 	if _, err := _p.MultiExp(points, scalars, config); err != nil {
 		return nil, err
 	}
-	
+
 	p.FromProj(&_p)
 	return p, nil
 }
@@ -286,7 +288,7 @@ func (p *PointProj) MultiExp(points []PointAffine, scalars []fr.Element, config 
 	msmInnerPointProj(p, int(C), points[(nbSplits-1)*nbPoints:], scalars[(nbSplits-1)*nbPoints:], splitFirstChunk)
 	for i := 0; i < nbSplits-1; i++ {
 		done := <-chDone
-		p.Add(p,&_p[done])
+		p.Add(p, &_p[done])
 	}
 	close(chDone)
 	return p, nil
@@ -367,6 +369,23 @@ func msmReduceChunkPointAffine(p *PointProj, c int, chChunks []chan PointProj) *
 	return p
 }
 
+func msmReduceChunkPointAffineDMA(p *PointProj, c int, chChunks []PointProj) *PointProj {
+	var _p PointProj
+	totalj := chChunks[len(chChunks)-1]
+	_p.Set(&totalj)
+	for j := len(chChunks) - 2; j >= 0; j-- {
+		for l := 0; l < c; l++ {
+			_p.Double(&_p)
+		}
+		totalj := chChunks[j]
+		_p.Add(&_p, &totalj)
+	}
+
+	p.Set(&_p)
+
+	return p
+}
+
 func msmProcessChunkPointAffine(chunk uint64,
 	chRes chan<- PointProj,
 	buckets []PointProj,
@@ -410,11 +429,11 @@ func msmProcessChunkPointAffine(chunk uint64,
 			var pProj PointProj
 			pProj.FromAffine(&points[i])
 			buckets[bits-1].Add(&pProj, &buckets[bits-1])
-			} else {
-				// sub
-				var pProj PointProj
-				pProj.FromAffine(&points[i])
-				pProj.Neg(&pProj);
+		} else {
+			// sub
+			var pProj PointProj
+			pProj.FromAffine(&points[i])
+			pProj.Neg(&pProj)
 			buckets[bits & ^msbWindow].Add(&buckets[bits & ^msbWindow], &pProj)
 		}
 	}
@@ -426,13 +445,82 @@ func msmProcessChunkPointAffine(chunk uint64,
 	runningSum.Identity()
 	total.Identity()
 	for k := len(buckets) - 1; k >= 0; k-- {
-		
-		runningSum.Add(&runningSum,&buckets[k])
-		
+
+		runningSum.Add(&runningSum, &buckets[k])
+
 		total.Add(&total, &runningSum)
 	}
 
 	chRes <- total
+
+}
+
+func msmProcessChunkPointAffineDMA(chunk uint64,
+	res *PointProj,
+	buckets []PointProj,
+	c uint64,
+	points []PointAffine,
+	scalars []fr.Element) {
+
+	mask := uint64((1 << c) - 1) // low c bits are 1
+	msbWindow := uint64(1 << (c - 1))
+
+	for i := 0; i < len(buckets); i++ {
+		buckets[i].Identity()
+	}
+
+	jc := uint64(chunk * c)
+	s := selector{}
+	s.index = jc / 64
+	s.shift = jc - (s.index * 64)
+	s.mask = mask << s.shift
+	s.multiWordSelect = (64%c) != 0 && s.shift > (64-c) && s.index < (fr.Limbs-1)
+	if s.multiWordSelect {
+		nbBitsHigh := s.shift - uint64(64-c)
+		s.maskHigh = (1 << nbBitsHigh) - 1
+		s.shiftHigh = (c - nbBitsHigh)
+	}
+
+	// for each scalars, get the digit corresponding to the chunk we're processing.
+	for i := 0; i < len(scalars); i++ {
+		bits := (scalars[i][s.index] & s.mask) >> s.shift
+		if s.multiWordSelect {
+			bits += (scalars[i][s.index+1] & s.maskHigh) << s.shiftHigh
+		}
+
+		if bits == 0 {
+			continue
+		}
+
+		// if msbWindow bit is set, we need to substract
+		if bits&msbWindow == 0 {
+			// add
+			var pProj PointProj
+			pProj.FromAffine(&points[i])
+			buckets[bits-1].Add(&pProj, &buckets[bits-1])
+		} else {
+			// sub
+			var pProj PointProj
+			pProj.FromAffine(&points[i])
+			pProj.Neg(&pProj)
+			buckets[bits & ^msbWindow].Add(&buckets[bits & ^msbWindow], &pProj)
+		}
+	}
+
+	// reduce buckets into total
+	// total =  bucket[0] + 2*bucket[1] + 3*bucket[2] ... + n*bucket[n-1]
+
+	var runningSum, total PointProj
+	runningSum.Identity()
+	total.Identity()
+	for k := len(buckets) - 1; k >= 0; k-- {
+
+		runningSum.Add(&runningSum, &buckets[k])
+
+		total.Add(&total, &runningSum)
+	}
+
+	*res = total
 
 }
 
@@ -448,37 +536,48 @@ func (p *PointProj) msmC4(points []PointAffine, scalars []fr.Element, splitFirst
 	// critical for performance
 
 	// each go routine sends its result in chChunks[i] channel
-	var chChunks [nbChunks]chan PointProj
-	for i := 0; i < len(chChunks); i++ {
-		chChunks[i] = make(chan PointProj, 1)
-	}
-
-	processChunk := func(j int, points []PointAffine, scalars []fr.Element, chChunk chan PointProj) {
+	//var chChunks [nbChunks]chan PointProj
+	//for i := 0; i < len(chChunks); i++ {
+	//chChunks[i] = make(chan PointProj, 1)
+	//}
+	var chChunks [nbChunks]PointProj
+	processChunk := func(j int, points []PointAffine, scalars []fr.Element, pointProj *PointProj) {
 		var buckets [1 << (c - 1)]PointProj
-		msmProcessChunkPointAffine(uint64(j), chChunk, buckets[:], c, points, scalars)
+		msmProcessChunkPointAffineDMA(uint64(j), pointProj, buckets[:], c, points, scalars)
 	}
 
+	var wg sync.WaitGroup
+	wg.Add(int(nbChunks - 1))
 	for j := int(nbChunks - 1); j > 0; j-- {
-		go processChunk(j, points, scalars, chChunks[j])
-	}
-
-	if !splitFirstChunk {
-		go processChunk(0, points, scalars, chChunks[0])
-	} else {
-		chSplit := make(chan PointProj, 2)
-		split := len(points) / 2
-		go processChunk(0, points[:split], scalars[:split], chSplit)
-		go processChunk(0, points[split:], scalars[split:], chSplit)
+		j := j
 		go func() {
-			s1 := <-chSplit
-			s2 := <-chSplit
-			close(chSplit)
-			s1.Add(&s1, &s2)
-			chChunks[0] <- s1
+			processChunk(j, points, scalars, &chChunks[j])
+			wg.Done()
 		}()
 	}
+	wg.Wait()
 
-	return msmReduceChunkPointAffine(p, c, chChunks[:])
+	if !splitFirstChunk {
+		processChunk(0, points, scalars, &chChunks[0])
+	} else {
+		chSplits := make([]PointProj, 2)
+		split := len(points) / 2
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() {
+			processChunk(0, points[:split], scalars[:split], &chSplits[0])
+			wg.Done()
+		}()
+		go func() {
+			processChunk(0, points[split:], scalars[split:], &chSplits[1])
+			wg.Done()
+		}()
+		wg.Wait()
+		chSplits[0].Add(&chSplits[0], &chSplits[1])
+		chChunks[0] = chSplits[0]
+	}
+
+	return msmReduceChunkPointAffineDMA(p, c, chChunks[:])
 }
 
 func (p *PointProj) msmC5(points []PointAffine, scalars []fr.Element, splitFirstChunk bool) *PointProj {
