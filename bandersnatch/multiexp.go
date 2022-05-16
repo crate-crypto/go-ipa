@@ -478,10 +478,6 @@ func (p *PointProj) msmC4(points []PointAffine, scalars []fr.Element, splitFirst
 	// critical for performance
 
 	// each go routine sends its result in chChunks[i] channel
-	//var chChunks [nbChunks]chan PointProj
-	//for i := 0; i < len(chChunks); i++ {
-	//chChunks[i] = make(chan PointProj, 1)
-	//}
 	var chChunks [nbChunks]PointProj
 	processChunk := func(j int, points []PointAffine, scalars []fr.Element, pointProj *PointProj) {
 		var buckets [1 << (c - 1)]PointProj
