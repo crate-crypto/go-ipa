@@ -36,10 +36,14 @@ func (pcl PrecomputeLagrange) Equal(other PrecomputeLagrange) bool {
 func NewPrecomputeLagrange(points []Element) *PrecomputeLagrange {
 
 	table := make([]*LagrangeTablePoints, len(points))
-	for i := 0; i < len(points); i++ {
-		point := points[i]
-		table[i] = newLagrangeTablePoints(point)
-	}
+	parallel.Execute(len(points), func(start, end int) {
+
+		for i := start; i < end; i++ {
+			point := points[i]
+			table[i] = newLagrangeTablePoints(point)
+		}
+
+	})
 
 	return &PrecomputeLagrange{
 		inner:      table,
