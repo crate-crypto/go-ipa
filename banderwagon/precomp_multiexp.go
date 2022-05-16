@@ -3,7 +3,6 @@ package banderwagon
 import (
 	"encoding/binary"
 	"io"
-	"runtime"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
 	"github.com/crate-crypto/go-ipa/common/parallel"
@@ -107,42 +106,24 @@ func DeserializePrecomputedLagrange(reader io.Reader) (*PrecomputeLagrange, erro
 }
 
 func (p *PrecomputeLagrange) Commit(evaluations []fr.Element) *Element {
-
-	nbTasks := runtime.NumCPU()
-	chPartialResults := make(chan Element, nbTasks)
-	parallel.Execute(len(evaluations), func(start, end int) {
-		var partial_result Element
-		partial_result.Identity()
-
-		for i := start; i < end; i++ {
-			scalar := &evaluations[i]
-
-			if scalar.IsZero() {
-				continue
-			}
-
-			table := p.inner[i]
-			scalar_bytes_le := scalar.BytesLE()
-
-			for row, byte := range scalar_bytes_le {
-				var tp = table.point(row, byte)
-				partial_result.Add(&partial_result, tp)
-			}
-		}
-
-		chPartialResults <- partial_result
-
-	}, nbTasks)
-
-	// Aggregate Parallel Results
-
-	close(chPartialResults)
 	var result Element
 	result.Identity()
-	for partial := range chPartialResults {
-		result.Add(&result, &partial)
-	}
 
+	for i := 0; i < len(evaluations); i++ {
+		scalar := &evaluations[i]
+
+		if scalar.IsZero() {
+			continue
+		}
+
+		table := p.inner[i]
+		scalar_bytes_le := scalar.BytesLE()
+
+		for row, byte := range scalar_bytes_le {
+			var tp = table.point(row, byte)
+			result.Add(&result, tp)
+		}
+	}
 	return &result
 }
 

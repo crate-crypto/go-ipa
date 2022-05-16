@@ -79,7 +79,7 @@ func (p Element) MapToBaseField() fp.Element {
 	return res
 }
 
-// TODO: change this to note use pointers
+// TODO: change this to not use pointers
 func (p *Element) Equal(other *Element) bool {
 	x1 := p.inner.X
 	y1 := p.inner.Y
@@ -177,7 +177,7 @@ func UnsafeReadUncompressedPoint(r io.Reader) *Element {
 
 	affine_point := bandersnatch.ReadUncompressedPoint(r)
 	var proj_repr bandersnatch.PointProj
-	proj_repr.FromAffine(affine_point)
+	proj_repr.FromAffine(&affine_point)
 
 	return &Element{
 		inner: proj_repr,
