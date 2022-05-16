@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	"github.com/crate-crypto/go-ipa/bandersnatch"
+	"github.com/crate-crypto/go-ipa/banderwagon"
 )
 
 // Stores the SRS and the precomputed SRS points too
@@ -12,21 +12,23 @@ type SRSPrecompPoints struct {
 	// Points to commit to the input vector
 	// We could try to find these points in the precomputed points
 	// but for now, we just store the SRS too
-	SRS []bandersnatch.PointAffine
+	SRS []banderwagon.Element
 	// Point to commit to the inner product of the two vectors in the inner product argument
-	Q bandersnatch.PointAffine
+	Q banderwagon.Element
 	// Precomputed SRS points
-	PrecompLag *bandersnatch.PrecomputeLagrange
+	PrecompLag *banderwagon.PrecomputeLagrange
 }
 
 func NewSRSPrecomp(num_points uint) *SRSPrecompPoints {
+
 	srs := GenerateRandomPoints(uint64(num_points))
-	var Q bandersnatch.PointAffine = bandersnatch.GetEdwardsCurve().Base
+	var Q banderwagon.Element = banderwagon.Generator
+	var preComp = banderwagon.NewPrecomputeLagrange(srs)
 
 	return &SRSPrecompPoints{
 		SRS:        srs,
 		Q:          Q,
-		PrecompLag: bandersnatch.NewPrecomputeLagrange(srs),
+		PrecompLag: preComp,
 	}
 }
 
@@ -39,7 +41,7 @@ func (spc *SRSPrecompPoints) SerializeSRSPrecomp() ([]byte, error) {
 	}
 
 	for _, p := range spc.SRS {
-		p.WriteUncompressedPoint(&buf)
+		p.UnsafeWriteUncompressedPoint(&buf)
 	}
 
 	err = spc.PrecompLag.SerializePrecomputedLagrange(&buf)
@@ -57,18 +59,37 @@ func DeserializeSRSPrecomp(serialized []byte) (*SRSPrecompPoints, error) {
 	if err != nil {
 		return nil, err
 	}
-	spc.SRS = make([]bandersnatch.PointAffine, lenSRS)
+	spc.SRS = make([]banderwagon.Element, lenSRS)
 
 	for i := 0; i < int(lenSRS); i++ {
-		spc.SRS[i] = bandersnatch.ReadUncompressedPoint(reader)
+		spc.SRS[i] = *banderwagon.UnsafeReadUncompressedPoint(reader)
 	}
 
-	pcl, err := bandersnatch.DeserializePrecomputedLagrange(reader)
+	pcl, err := banderwagon.DeserializePrecomputedLagrange(reader)
 	if err != nil {
 		return nil, err
 	}
 	spc.PrecompLag = pcl
-	spc.Q = bandersnatch.GetEdwardsCurve().Base
+	spc.Q = banderwagon.Generator
 
 	return &spc, nil
+}
+
+func (spc SRSPrecompPoints) Equal(other SRSPrecompPoints) bool {
+
+	if len(spc.SRS) != len(other.SRS) {
+		return false
+	}
+
+	for i := 0; i < len(spc.SRS); i++ {
+		if !spc.SRS[i].Equal(&other.SRS[i]) {
+			return false
+		}
+	}
+
+	if !spc.Q.Equal(&other.Q) {
+		return false
+	}
+
+	return spc.PrecompLag.Equal(*other.PrecompLag)
 }

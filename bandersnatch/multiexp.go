@@ -25,7 +25,7 @@ import (
 	"sync"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
-	"github.com/crate-crypto/go-ipa/bandersnatch/parallel"
+	"github.com/crate-crypto/go-ipa/common/parallel"
 )
 
 // MultiExpConfig enables to set optional configuration attribute to a call to MultiExp
@@ -183,6 +183,7 @@ func (p *PointAffine) MultiExp(points []PointAffine, scalars []fr.Element, confi
 }
 
 // MultiExp implements section 4 of https://eprint.iacr.org/2012/549.pdf
+//Note: We rely on this algortithm not use Equal functionality, since it is called by a banderwagon element
 func (p *PointProj) MultiExp(points []PointAffine, scalars []fr.Element, config MultiExpConfig) (*PointProj, error) {
 	// note:
 	// each of the msmCX method is the same, except for the c constant it declares

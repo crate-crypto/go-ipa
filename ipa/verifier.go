@@ -1,12 +1,12 @@
 package ipa
 
 import (
-	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
+	"github.com/crate-crypto/go-ipa/banderwagon"
 	"github.com/crate-crypto/go-ipa/common"
 )
 
-func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment bandersnatch.PointAffine, proof IPAProof, eval_point fr.Element, inner_prod fr.Element) bool {
+func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment banderwagon.Element, proof IPAProof, eval_point fr.Element, inner_prod fr.Element) bool {
 	transcript.DomainSep("ipa")
 
 	if len(proof.L) != len(proof.R) {
@@ -24,10 +24,10 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 
 	w := transcript.ChallengeScalar("w")
 
-	var q bandersnatch.PointAffine
+	var q banderwagon.Element
 	q.ScalarMul(&ic.SRSPrecompPoints.Q, &w)
 
-	var qy bandersnatch.PointAffine
+	var qy banderwagon.Element
 	qy.ScalarMul(&q, &inner_prod)
 	commitment.Add(&commitment, &qy)
 
@@ -45,7 +45,7 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 
 		challenges_inv[i] = xInv
 
-		commitment = commit([]bandersnatch.PointAffine{commitment, L, R}, []fr.Element{fr.One(), x, xInv})
+		commitment = commit([]banderwagon.Element{commitment, L, R}, []fr.Element{fr.One(), x, xInv})
 	}
 
 	current_basis := ic.SRSPrecompPoints.SRS
@@ -72,12 +72,12 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 
 	b0 := b[0]
 
-	var got bandersnatch.PointAffine
+	var got banderwagon.Element
 	//  G[0] * a + (a * b) * Q;
-	var part_1 bandersnatch.PointAffine
+	var part_1 banderwagon.Element
 	part_1.ScalarMul(&current_basis[0], &proof.A_scalar)
 
-	var part_2 bandersnatch.PointAffine
+	var part_2 banderwagon.Element
 	var part_2a fr.Element
 
 	part_2a.Mul(&b0, &proof.A_scalar)

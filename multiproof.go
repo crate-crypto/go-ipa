@@ -5,18 +5,18 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
+	"github.com/crate-crypto/go-ipa/banderwagon"
 	"github.com/crate-crypto/go-ipa/common"
 	"github.com/crate-crypto/go-ipa/ipa"
 )
 
 type MultiProof struct {
 	IPA ipa.IPAProof
-	D   bandersnatch.PointAffine
+	D   banderwagon.Element
 }
 
-func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs []*bandersnatch.PointAffine, fs [][]fr.Element, zs []uint8) *MultiProof {
+func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs []*banderwagon.Element, fs [][]fr.Element, zs []uint8) *MultiProof {
 	transcript.DomainSep("multiproof")
 
 	if len(Cs) != len(fs) {
@@ -99,7 +99,7 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 	E := ipaConf.Commit(h_x)
 	transcript.AppendPoint(&E, "E")
 
-	var E_minus_D bandersnatch.PointAffine
+	var E_minus_D banderwagon.Element
 
 	E_minus_D.Sub(&E, &D)
 
@@ -111,7 +111,7 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 	}
 }
 
-func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proof *MultiProof, Cs []*bandersnatch.PointAffine, ys []*fr.Element, zs []uint8) bool {
+func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proof *MultiProof, Cs []*banderwagon.Element, ys []*fr.Element, zs []uint8) bool {
 	transcript.DomainSep("multiproof")
 
 	if len(Cs) != len(ys) {
@@ -164,16 +164,16 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 	}
 
 	// Compute E = SUM C_i * (r^i / t - z_i) = SUM C_i * helper_scalars
-	var E bandersnatch.PointAffine
+	var E banderwagon.Element
 	E.Identity()
 	for i := 0; i < num_queries; i++ {
-		var tmp bandersnatch.PointAffine
+		var tmp banderwagon.Element
 		tmp.ScalarMul(Cs[i], &helper_scalars[i])
 		E.Add(&E, &tmp)
 	}
 	transcript.AppendPoint(&E, "E")
 
-	var E_minus_D bandersnatch.PointAffine
+	var E_minus_D banderwagon.Element
 	E_minus_D.Sub(&E, &proof.D)
 
 	return ipa.CheckIPAProof(transcript, ipaConf, E_minus_D, proof.IPA, t, g_2_t)

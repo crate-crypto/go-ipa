@@ -3,8 +3,8 @@ package common
 import (
 	"io"
 
-	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
+	"github.com/crate-crypto/go-ipa/banderwagon"
 )
 
 // TODO: This is not entirely correct, the degree is 255. We can change this to VECTOR_LENGTH or NUM_EVAL_POINTS?
@@ -28,7 +28,7 @@ func PowersOf(x fr.Element, degree int) []fr.Element {
 	return result
 }
 
-func ReadPoint(r io.Reader) *bandersnatch.PointAffine {
+func ReadPoint(r io.Reader) *banderwagon.Element {
 	var x = make([]byte, 32)
 	n, err := r.Read(x)
 	if err != nil {
@@ -37,13 +37,10 @@ func ReadPoint(r io.Reader) *bandersnatch.PointAffine {
 	if n != 32 {
 		panic("did not read enough bytes")
 	}
-	var p = &bandersnatch.PointAffine{}
-	_, err = p.SetBytes(x)
+	var p = &banderwagon.Element{}
+	err = p.SetBytes(x)
 	if err != nil {
 		panic("could not deserialize point")
-	}
-	if !p.IsInPrimeSubgroup() {
-		panic("point not in the prime subgroup")
 	}
 	return p
 }

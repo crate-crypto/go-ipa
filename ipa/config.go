@@ -2,13 +2,14 @@ package ipa
 
 import (
 	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 	"math"
 	"runtime"
 
-	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fp"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
+	"github.com/crate-crypto/go-ipa/banderwagon"
 	"github.com/crate-crypto/go-ipa/common"
 )
 
@@ -42,30 +43,28 @@ func NewIPASettingsWithSRSPrecomp(srs_precomp *SRSPrecompPoints) *IPAConfig {
 	}
 }
 
-func multiScalar(points []bandersnatch.PointAffine, scalars []fr.Element) bandersnatch.PointAffine {
-	var result bandersnatch.PointProj
+func multiScalar(points []banderwagon.Element, scalars []fr.Element) banderwagon.Element {
+	var result banderwagon.Element
 	result.Identity()
 
-	var res, err = result.MultiExp(points, scalars, bandersnatch.MultiExpConfig{NbTasks: runtime.NumCPU(), ScalarsMont: true})
+	var res, err = result.MultiExp(points, scalars, banderwagon.MultiExpConfig{NbTasks: runtime.NumCPU(), ScalarsMont: true})
 	if err != nil {
 		panic("mult exponentiation was not successful. TODO: replace panics by bubbling up error")
 	}
 
-	var resAffine bandersnatch.PointAffine
-	resAffine.FromProj(res)
-	return resAffine
+	return *res
 }
 
 // Commits to a polynomial using the SRS
 // panics if the length of the SRS does not equal the number of polynomial coefficients
-func (ic *IPAConfig) Commit(polynomial []fr.Element) bandersnatch.PointAffine {
+func (ic *IPAConfig) Commit(polynomial []fr.Element) banderwagon.Element {
 	return *ic.SRSPrecompPoints.PrecompLag.Commit(polynomial)
 }
 
 // Commits to a polynomial using the input group elements
 // panics if the number of group elements does not equal the number of polynomial coefficients
 // This is used when the generators are not fixed
-func commit(group_elements []bandersnatch.PointAffine, polynomial []fr.Element) bandersnatch.PointAffine {
+func commit(group_elements []banderwagon.Element, polynomial []fr.Element) banderwagon.Element {
 	if len(group_elements) != len(polynomial) {
 		panic(fmt.Sprintf("diff sizes, %d != %d", len(group_elements), len(polynomial)))
 	}
@@ -111,15 +110,15 @@ func foldScalars(a []fr.Element, b []fr.Element, x fr.Element) []fr.Element {
 // Computes c[i] =a[i] + b[i] * x
 // returns c
 // panics if len(a) != len(b)
-func foldPoints(a []bandersnatch.PointAffine, b []bandersnatch.PointAffine, x fr.Element) []bandersnatch.PointAffine {
+func foldPoints(a []banderwagon.Element, b []banderwagon.Element, x fr.Element) []banderwagon.Element {
 
 	if len(a) != len(b) {
 		panic("slices not equal length")
 	}
 
-	result := make([]bandersnatch.PointAffine, len(a))
+	result := make([]banderwagon.Element, len(a))
 	for i := 0; i < len(a); i++ {
-		var bx bandersnatch.PointAffine
+		var bx banderwagon.Element
 		bx.ScalarMul(&b[i], &x)
 		result[i].Add(&bx, &a[i])
 	}
@@ -141,7 +140,7 @@ func splitScalars(x []fr.Element) ([]fr.Element, []fr.Element) {
 // Splits a slice of points into two slices of equal length
 // Eg [P1,P2,P3,P4,P5,P6] becomes [P1,P2,P3] , [P4,P5,P6]
 // panics if the number of points is not even
-func splitPoints(x []bandersnatch.PointAffine) ([]bandersnatch.PointAffine, []bandersnatch.PointAffine) {
+func splitPoints(x []banderwagon.Element) ([]banderwagon.Element, []banderwagon.Element) {
 	if len(x)%2 != 0 {
 		panic("slice should have an even length")
 	}
@@ -176,46 +175,40 @@ func compute_num_rounds(vector_size uint32) uint32 {
 	return uint32(res)
 }
 
-func GenerateRandomPoints(numPoints uint64) []bandersnatch.PointAffine {
+func GenerateRandomPoints(numPoints uint64) []banderwagon.Element {
 
-	digest := sha256.New()
-	digest.Write([]byte("eth_verkle_oct_2021")) // incase it changes or needs updating, we can use eth_verkle_month_year
-	hash := digest.Sum(nil)
+	seed := "eth_verkle_oct_2021" // incase it changes or needs updating, we can use eth_verkle_month_year
 
-	var u fp.Element
-	u.SetBytes(hash)
-
-	// flag to indicate whether we choose the lexographically larger
-	// element of `y` out of it and it's negative
-	choose_largest := false
-
-	points := []bandersnatch.PointAffine{}
+	points := []banderwagon.Element{}
 
 	var increment uint64 = 0
 
 	for uint64(len(points)) != numPoints {
 
-		var x = incrementBy(u, increment)
+		digest := sha256.New()
+		digest.Write([]byte(seed))
+
+		b := make([]byte, 8)
+		binary.BigEndian.PutUint64(b, increment)
+		digest.Write(b)
+
+		hash := digest.Sum(nil)
+
+		var x fp.Element
+		x.SetBytes(hash)
+
 		increment++
 
-		point_found := bandersnatch.GetPointFromX(x, choose_largest)
-		if point_found == nil {
+		x_as_bytes := x.Bytes()
+		var point_found banderwagon.Element
+		err := point_found.SetBytes(x_as_bytes[:])
+		if err != nil {
+			// This point is not in the correct subgroup or on the curve
 			continue
 		}
-		if point_found.IsInPrimeSubgroup() {
-			points = append(points, *point_found)
-		}
+		points = append(points, point_found)
 
 	}
 
 	return points
-}
-
-// returns u + i
-func incrementBy(u fp.Element, i uint64) *fp.Element {
-	var increment fp.Element
-	increment.SetUint64(i)
-
-	var result fp.Element
-	return result.Add(&u, &increment)
 }

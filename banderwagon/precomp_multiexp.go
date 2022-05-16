@@ -1,10 +1,11 @@
-package bandersnatch
+package banderwagon
 
 import (
 	"encoding/binary"
 	"io"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
+	"github.com/crate-crypto/go-ipa/common/parallel"
 )
 
 type PrecomputeLagrange struct {
@@ -12,12 +13,36 @@ type PrecomputeLagrange struct {
 	num_points int
 }
 
-func NewPrecomputeLagrange(points []PointAffine) *PrecomputeLagrange {
-	table := make([]*LagrangeTablePoints, len(points))
-	for i := 0; i < len(points); i++ {
-		point := points[i]
-		table[i] = newLagrangeTablePoints(point)
+func (pcl PrecomputeLagrange) Equal(other PrecomputeLagrange) bool {
+
+	if pcl.num_points != other.num_points {
+		return false
 	}
+
+	if len(pcl.inner) != len(other.inner) {
+		return false
+	}
+
+	for i := 0; i < len(pcl.inner); i++ {
+		if !pcl.inner[i].Equal(*other.inner[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func NewPrecomputeLagrange(points []Element) *PrecomputeLagrange {
+
+	table := make([]*LagrangeTablePoints, len(points))
+	parallel.Execute(len(points), func(start, end int) {
+
+		for i := start; i < end; i++ {
+			point := points[i]
+			table[i] = newLagrangeTablePoints(point)
+		}
+
+	})
 
 	return &PrecomputeLagrange{
 		inner:      table,
@@ -39,7 +64,7 @@ func (pcl *PrecomputeLagrange) SerializePrecomputedLagrange(w io.Writer) error {
 
 	for _, ltp := range pcl.inner {
 		for _, p := range ltp.matrix {
-			p.WriteUncompressedPoint(w)
+			p.UnsafeWriteUncompressedPoint(w)
 		}
 	}
 
@@ -70,18 +95,18 @@ func DeserializePrecomputedLagrange(reader io.Reader) (*PrecomputeLagrange, erro
 		pcl.inner[i].identity.Identity()
 
 		// Deserialize the matrix
-		pcl.inner[i].matrix = make([]PointAffine, rowLen)
+		pcl.inner[i].matrix = make([]Element, rowLen)
 		for j := int64(0); j < rowLen; j++ {
 
-			pcl.inner[i].matrix[j] = ReadUncompressedPoint(reader)
+			pcl.inner[i].matrix[j] = *UnsafeReadUncompressedPoint(reader)
 		}
 	}
 
 	return &pcl, nil
 }
 
-func (p *PrecomputeLagrange) Commit(evaluations []fr.Element) *PointAffine {
-	var result PointProj
+func (p *PrecomputeLagrange) Commit(evaluations []fr.Element) *Element {
+	var result Element
 	result.Identity()
 
 	for i := 0; i < len(evaluations); i++ {
@@ -96,25 +121,35 @@ func (p *PrecomputeLagrange) Commit(evaluations []fr.Element) *PointAffine {
 
 		for row, byte := range scalar_bytes_le {
 			var tp = table.point(row, byte)
-			var tp_proj PointProj
-			tp_proj.FromAffine(tp)
-			result.Add(&result, &tp_proj)
+			result.Add(&result, tp)
 		}
 	}
-
-	// Aggregate Parallel Results
-
-	var res_affine PointAffine
-	res_affine.FromProj(&result)
-	return &res_affine
+	return &result
 }
 
 type LagrangeTablePoints struct {
-	identity PointAffine
-	matrix   []PointAffine
+	identity Element // TODO We can save memory by removing this
+	matrix   []Element
 }
 
-func newLagrangeTablePoints(point PointAffine) *LagrangeTablePoints {
+func (ltp LagrangeTablePoints) Equal(other LagrangeTablePoints) bool {
+	if len(ltp.matrix) != len(other.matrix) {
+		return false
+	}
+
+	if ltp.identity != other.identity {
+		return false
+	}
+
+	for i := 0; i < len(ltp.matrix); i++ {
+		if !ltp.matrix[i].Equal(&other.matrix[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func newLagrangeTablePoints(point Element) *LagrangeTablePoints {
 	num_rows := 32
 	// We use base 256
 	base_int := 256
@@ -124,10 +159,11 @@ func newLagrangeTablePoints(point PointAffine) *LagrangeTablePoints {
 
 	base_row := compute_base_row(point, (base_int - 1))
 
-	var rows []PointAffine
+	var rows []Element
 	rows = append(rows, base_row...)
 
 	var scale = base
+	// TODO: we can do this in parallel
 	for i := 1; i < num_rows; i++ {
 
 		scaled_row := scale_row(base_row, scale)
@@ -135,7 +171,7 @@ func newLagrangeTablePoints(point PointAffine) *LagrangeTablePoints {
 		scale.Mul(&scale, &base)
 	}
 
-	var identity PointAffine
+	var identity Element
 	identity.Identity()
 	return &LagrangeTablePoints{
 		identity: identity,
@@ -143,29 +179,28 @@ func newLagrangeTablePoints(point PointAffine) *LagrangeTablePoints {
 	}
 }
 
-// TODO: double check if index is needed
-func (ltp *LagrangeTablePoints) point(index int, value uint8) *PointAffine {
+func (ltp *LagrangeTablePoints) point(index int, value uint8) *Element {
 	if value == 0 {
 		return &ltp.identity
 	}
 	return &ltp.matrix[uint(index*255)+uint(value-1)]
 }
 
-func compute_base_row(point PointAffine, num_points int) []PointAffine {
+func compute_base_row(point Element, num_points int) []Element {
 
-	row := make([]PointAffine, num_points)
+	row := make([]Element, num_points)
 	row[0] = point
 
 	for i := 1; i < num_points; i++ {
-		var row_i PointAffine
+		var row_i Element
 		row_i.Add(&row[i-1], &point)
 		row[i] = row_i
 	}
 	return row
 }
 
-func scale_row(points []PointAffine, scale fr.Element) []PointAffine {
-	scaled_points := make([]PointAffine, len(points))
+func scale_row(points []Element, scale fr.Element) []Element {
+	scaled_points := make([]Element, len(points))
 	for i := 0; i < len(points); i++ {
 
 		scaled_points[i].ScalarMul(&points[i], &scale)

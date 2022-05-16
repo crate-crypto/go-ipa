@@ -4,18 +4,18 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
+	"github.com/crate-crypto/go-ipa/banderwagon"
 	"github.com/crate-crypto/go-ipa/common"
 )
 
 type IPAProof struct {
-	L        []bandersnatch.PointAffine
-	R        []bandersnatch.PointAffine
+	L        []banderwagon.Element
+	R        []banderwagon.Element
 	A_scalar fr.Element
 }
 
-func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment bandersnatch.PointAffine, a []fr.Element, eval_point fr.Element) IPAProof {
+func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment banderwagon.Element, a []fr.Element, eval_point fr.Element) IPAProof {
 	transcript.DomainSep("ipa")
 
 	b := ic.PrecomputedWeights.ComputeBarycentricCoefficients(eval_point)
@@ -26,15 +26,15 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 	transcript.AppendScalar(&inner_prod, "output point")
 	w := transcript.ChallengeScalar("w")
 
-	var q bandersnatch.PointAffine
+	var q banderwagon.Element
 	q.ScalarMul(&ic.SRSPrecompPoints.Q, &w)
 
 	num_rounds := ic.num_ipa_rounds
 
 	current_basis := ic.SRSPrecompPoints.SRS
 
-	L := make([]bandersnatch.PointAffine, num_rounds)
-	R := make([]bandersnatch.PointAffine, num_rounds)
+	L := make([]banderwagon.Element, num_rounds)
+	R := make([]banderwagon.Element, num_rounds)
 
 	for i := 0; i < int(num_rounds); i++ {
 
@@ -48,10 +48,10 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 		z_R := InnerProd(a_L, b_R)
 
 		C_L_1 := commit(G_L, a_R)
-		C_L := commit([]bandersnatch.PointAffine{C_L_1, q}, []fr.Element{fr.One(), z_L})
+		C_L := commit([]banderwagon.Element{C_L_1, q}, []fr.Element{fr.One(), z_L})
 
 		C_R_1 := commit(G_R, a_L)
-		C_R := commit([]bandersnatch.PointAffine{C_R_1, q}, []fr.Element{fr.One(), z_R})
+		C_R := commit([]banderwagon.Element{C_R_1, q}, []fr.Element{fr.One(), z_R})
 
 		L[i] = C_L
 		R[i] = C_R
@@ -93,13 +93,13 @@ func (ip *IPAProof) Write(w io.Writer) {
 }
 
 func (ip *IPAProof) Read(r io.Reader) {
-	var L []bandersnatch.PointAffine
+	var L []banderwagon.Element
 	for i := 0; i < 8; i++ {
 		L_i := common.ReadPoint(r)
 		L = append(L, *L_i)
 	}
 	ip.L = L
-	var R []bandersnatch.PointAffine
+	var R []banderwagon.Element
 	for i := 0; i < 8; i++ {
 		R_i := common.ReadPoint(r)
 		R = append(R, *R_i)

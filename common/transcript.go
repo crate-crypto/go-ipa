@@ -4,8 +4,8 @@ import (
 	"crypto/sha256"
 	"hash"
 
-	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
+	"github.com/crate-crypto/go-ipa/banderwagon"
 )
 
 /// The transcript is used to create challenge scalars.
@@ -44,7 +44,7 @@ func (t *Transcript) AppendScalar(scalar *fr.Element, label string) {
 //
 // Compresses the Point into a 32 byte slice, then appends it to
 // the state
-func (t *Transcript) AppendPoint(point *bandersnatch.PointAffine, label string) {
+func (t *Transcript) AppendPoint(point *banderwagon.Element, label string) {
 	tmp_bytes := point.Bytes()
 	t.AppendMessage(tmp_bytes[:], label)
 
