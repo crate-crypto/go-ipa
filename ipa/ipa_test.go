@@ -12,12 +12,13 @@ import (
 	"github.com/crate-crypto/go-ipa/test_helper"
 )
 
+var ipaConf = NewIPASettings()
+
 func TestIPAProofCreateVerify(t *testing.T) {
 
 	// Shared View
 	var point fr.Element
 	point.SetUint64(123456789)
-	ipaConf := NewIPASettings()
 
 	// Prover view
 	poly := test_helper.TestPoly256(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)
@@ -46,7 +47,6 @@ func TestIPAConsistencySimpleProof(t *testing.T) {
 	// Shared View
 	var input_point fr.Element
 	input_point.SetUint64(2101)
-	ipaConf := NewIPASettings()
 
 	// Prover view
 	//

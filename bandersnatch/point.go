@@ -102,6 +102,55 @@ func (p *PointAffine) SetBytes(buf []byte) (int, error) {
 	return sizePointCompressed, nil
 }
 
+// Reads an uncompressed affine point
+// Point is not guaranteed to be in the prime subgroup 
+func ReadUncompressedPoint(r io.Reader) *PointAffine {
+	var x = make([]byte, 32)
+	var y = make([]byte, 32)
+	n, err := r.Read(x)
+	if err != nil {
+		panic("error reading bytes")
+	}
+	if n != 32 {
+		panic("did not read enough bytes")
+	}
+	n, err = r.Read(y)
+	if err != nil {
+		panic("error reading bytes")
+	}
+	if n != 32 {
+		panic("did not read enough bytes")
+	}
+
+	var x_fp = fp.Element{}
+	x_fp.SetBytes(x)
+	var y_fp = fp.Element{}
+	y_fp.SetBytes(y)
+
+	var p = &PointAffine{
+		X: x_fp,
+		Y: y_fp,
+	}
+
+	return p
+}
+// Writes an uncompressed affine point to an io.Writer
+func (p *PointAffine) WriteUncompressedPoint(w io.Writer) (int, error) {
+	x_bytes := p.X.Bytes()
+	y_bytes := p.Y.Bytes()
+	n1, err := w.Write(x_bytes[:])
+	if err != nil {
+		return n1, err
+	}
+	n2, err := w.Write(y_bytes[:])
+	total_bytes_written := n1 + n2
+	if err != nil {
+		return total_bytes_written, err
+	}
+	return total_bytes_written, nil
+}
+
+
 // Unmarshal alias to SetBytes()
 func (p *PointAffine) Unmarshal(b []byte) error {
 	_, err := p.SetBytes(b)

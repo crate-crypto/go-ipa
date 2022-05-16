@@ -14,13 +14,7 @@ import (
 )
 
 type IPAConfig struct {
-	// Points to commit to the input vector
-	// TODO: if we use the precomputed SRS, we can probably remove this
-	// TODO slice from memory
-	SRS []banderwagon.Element
-
-	// Point to commit to the inner product of the two vectors in the inner product argument
-	Q banderwagon.Element
+	SRSPrecompPoints *SRSPrecompPoints
 
 	PrecomputedWeights *PrecomputedWeights
 
@@ -28,24 +22,24 @@ type IPAConfig struct {
 	// in the IPA argument, this will be log2 of the size of the input vectors
 	// since the vector is halved on each round
 	num_ipa_rounds uint32
-
-	// Precomputed SRS points
-	precomp_lag *banderwagon.PrecomputeLagrange
 }
 
 // This function creates 256 random generator points where the relative discrete log is
-// not known between each generator
-// TODO: we should allow a commiter to be passed in, so for tests we do not use the precomputed points as it takes a long time
+// not known between each generator and all of the other necessary information needed to verify
+// and create an IPA proof
 func NewIPASettings() *IPAConfig {
-	var srs = GenerateRandomPoints(common.POLY_DEGREE)
-	var precomp_lag = banderwagon.NewPrecomputeLagrange(srs)
-	var Q banderwagon.Element = banderwagon.Generator
 	return &IPAConfig{
-		SRS:                srs,
-		Q:                  Q,
+		SRSPrecompPoints:   NewSRSPrecomp(common.POLY_DEGREE),
 		PrecomputedWeights: NewPrecomputedWeights(),
 		num_ipa_rounds:     compute_num_rounds(common.POLY_DEGREE),
-		precomp_lag:        precomp_lag,
+	}
+}
+
+func NewIPASettingsWithSRSPrecomp(srs_precomp *SRSPrecompPoints) *IPAConfig {
+	return &IPAConfig{
+		SRSPrecompPoints:   srs_precomp,
+		PrecomputedWeights: NewPrecomputedWeights(),
+		num_ipa_rounds:     compute_num_rounds(common.POLY_DEGREE),
 	}
 }
 
@@ -64,7 +58,7 @@ func multiScalar(points []banderwagon.Element, scalars []fr.Element) banderwagon
 // Commits to a polynomial using the SRS
 // panics if the length of the SRS does not equal the number of polynomial coefficients
 func (ic *IPAConfig) Commit(polynomial []fr.Element) banderwagon.Element {
-	return *ic.precomp_lag.Commit(polynomial)
+	return *ic.SRSPrecompPoints.PrecompLag.Commit(polynomial)
 }
 
 // Commits to a polynomial using the input group elements
@@ -182,6 +176,7 @@ func compute_num_rounds(vector_size uint32) uint32 {
 }
 
 func GenerateRandomPoints(numPoints uint64) []banderwagon.Element {
+
 	seed := "eth_verkle_oct_2021" // incase it changes or needs updating, we can use eth_verkle_month_year
 
 	points := []banderwagon.Element{}

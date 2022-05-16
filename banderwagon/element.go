@@ -2,6 +2,7 @@ package banderwagon
 
 import (
 	"errors"
+	"io"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fp"
@@ -78,6 +79,7 @@ func (p Element) MapToBaseField() fp.Element {
 	return res
 }
 
+// TODO: change this to note use pointers
 func (p *Element) Equal(other *Element) bool {
 	x1 := p.inner.X
 	y1 := p.inner.Y
@@ -161,4 +163,32 @@ func (p *Element) Neg(p1 *Element) *Element {
 func (p *Element) ScalarMul(p1 *Element, scalar_mont *fr.Element) *Element {
 	p.inner.ScalarMul(&p1.inner, scalar_mont)
 	return p
+}
+
+// This method is unsafe for two reasons:
+// - It does not check that the point is indeed in the group
+// - The serialisation method being used is for bandersnatch and not banderwagon
+// Only use this method if you point is trusted and it has been serialised using
+// UnsafeWriteUncompressedPoint.
+// You can use this method to write points to disk that will not be sent to others
+//
+// we could increase storage by 2x and save CPU time by serialising the projective point
+func UnsafeReadUncompressedPoint(r io.Reader) *Element {
+
+	affine_point := bandersnatch.ReadUncompressedPoint(r)
+	var proj_repr bandersnatch.PointProj
+	proj_repr.FromAffine(affine_point)
+
+	return &Element{
+		inner: proj_repr,
+	}
+}
+
+// Writes an uncompressed affine point to an io.Writer
+func (element *Element) UnsafeWriteUncompressedPoint(w io.Writer) (int, error) {
+
+	// Convert underlying point to affine representation
+	var p bandersnatch.PointAffine
+	p.FromProj(&element.inner)
+	return p.WriteUncompressedPoint(w)
 }

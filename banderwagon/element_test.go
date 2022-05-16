@@ -1,6 +1,7 @@
 package banderwagon
 
 import (
+	"bytes"
 	"encoding/hex"
 	"testing"
 
@@ -133,6 +134,10 @@ func TestAddSubDouble(t *testing.T) {
 	A.Add(&Generator, &Generator)
 	B.Double(&Generator)
 
+	if A.Equal(&Generator) {
+		panic("The generator should not have order < 2 ")
+	}
+
 	if !A.Equal(&B) {
 		panic("doubling formula does not match Add formula")
 	}
@@ -141,4 +146,21 @@ func TestAddSubDouble(t *testing.T) {
 	if !A.Equal(&Identity) {
 		panic("sub formula is incorrect; any point minus itself should give the identity point")
 	}
+}
+
+func TestSerde(t *testing.T) {
+
+	var point Element
+
+	point.Add(&Generator, &Generator)
+
+	var buf bytes.Buffer
+
+	point.UnsafeWriteUncompressedPoint(&buf)
+	got := UnsafeReadUncompressedPoint(&buf)
+
+	if !point.Equal(got) {
+		panic("deserialised point does not equal serialised point ")
+	}
+
 }

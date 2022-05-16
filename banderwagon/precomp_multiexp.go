@@ -1,6 +1,8 @@
 package banderwagon
 
 import (
+	"encoding/binary"
+	"io"
 	"runtime"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
@@ -12,7 +14,27 @@ type PrecomputeLagrange struct {
 	num_points int
 }
 
+func (pcl PrecomputeLagrange) Equal(other PrecomputeLagrange) bool {
+
+	if pcl.num_points != other.num_points {
+		return false
+	}
+
+	if len(pcl.inner) != len(other.inner) {
+		return false
+	}
+
+	for i := 0; i < len(pcl.inner); i++ {
+		if !pcl.inner[i].Equal(*other.inner[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func NewPrecomputeLagrange(points []Element) *PrecomputeLagrange {
+
 	table := make([]*LagrangeTablePoints, len(points))
 	for i := 0; i < len(points); i++ {
 		point := points[i]
@@ -23,6 +45,61 @@ func NewPrecomputeLagrange(points []Element) *PrecomputeLagrange {
 		inner:      table,
 		num_points: len(points),
 	}
+}
+
+func (pcl *PrecomputeLagrange) SerializePrecomputedLagrange(w io.Writer) error {
+
+	err := binary.Write(w, binary.LittleEndian, int64(pcl.num_points))
+	if err != nil {
+		return err
+	}
+
+	err = binary.Write(w, binary.LittleEndian, int64(len(pcl.inner[0].matrix)))
+	if err != nil {
+		return err
+	}
+
+	for _, ltp := range pcl.inner {
+		for _, p := range ltp.matrix {
+			p.UnsafeWriteUncompressedPoint(w)
+		}
+	}
+
+	return nil
+}
+
+func DeserializePrecomputedLagrange(reader io.Reader) (*PrecomputeLagrange, error) {
+	var pcl PrecomputeLagrange
+
+	var numPoints int64
+	err := binary.Read(reader, binary.LittleEndian, &numPoints)
+	if err != nil {
+		return nil, err
+	}
+	pcl.num_points = int(numPoints)
+	pcl.inner = make([]*LagrangeTablePoints, pcl.num_points)
+
+	var rowLen int64
+	err = binary.Read(reader, binary.LittleEndian, &rowLen)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := 0; i < pcl.num_points; i++ {
+
+		pcl.inner[i] = new(LagrangeTablePoints)
+
+		pcl.inner[i].identity.Identity()
+
+		// Deserialize the matrix
+		pcl.inner[i].matrix = make([]Element, rowLen)
+		for j := int64(0); j < rowLen; j++ {
+
+			pcl.inner[i].matrix[j] = *UnsafeReadUncompressedPoint(reader)
+		}
+	}
+
+	return &pcl, nil
 }
 
 func (p *PrecomputeLagrange) Commit(evaluations []fr.Element) *Element {
@@ -66,8 +143,25 @@ func (p *PrecomputeLagrange) Commit(evaluations []fr.Element) *Element {
 }
 
 type LagrangeTablePoints struct {
-	identity Element
+	identity Element // TODO We can save memory by removing this
 	matrix   []Element
+}
+
+func (ltp LagrangeTablePoints) Equal(other LagrangeTablePoints) bool {
+	if len(ltp.matrix) != len(other.matrix) {
+		return false
+	}
+
+	if ltp.identity != other.identity {
+		return false
+	}
+
+	for i := 0; i < len(ltp.matrix); i++ {
+		if !ltp.matrix[i].Equal(&other.matrix[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 func newLagrangeTablePoints(point Element) *LagrangeTablePoints {

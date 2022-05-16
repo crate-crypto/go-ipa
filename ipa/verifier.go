@@ -25,7 +25,7 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 	w := transcript.ChallengeScalar("w")
 
 	var q banderwagon.Element
-	q.ScalarMul(&ic.Q, &w)
+	q.ScalarMul(&ic.SRSPrecompPoints.Q, &w)
 
 	var qy banderwagon.Element
 	qy.ScalarMul(&q, &inner_prod)
@@ -48,7 +48,7 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 		commitment = commit([]banderwagon.Element{commitment, L, R}, []fr.Element{fr.One(), x, xInv})
 	}
 
-	current_basis := ic.SRS
+	current_basis := ic.SRSPrecompPoints.SRS
 
 	for i := 0; i < len(challenges); i++ {
 
