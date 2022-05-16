@@ -60,7 +60,7 @@ func DeserializeSRSPrecomp(serialized []byte) (*SRSPrecompPoints, error) {
 	spc.SRS = make([]bandersnatch.PointAffine, lenSRS)
 
 	for i := 0; i < int(lenSRS); i++ {
-		spc.SRS[i] = *bandersnatch.ReadUncompressedPoint(reader)
+		spc.SRS[i] = bandersnatch.ReadUncompressedPoint(reader)
 	}
 
 	pcl, err := bandersnatch.DeserializePrecomputedLagrange(reader)

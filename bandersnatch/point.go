@@ -104,17 +104,16 @@ func (p *PointAffine) SetBytes(buf []byte) (int, error) {
 
 // Reads an uncompressed affine point
 // Point is not guaranteed to be in the prime subgroup 
-func ReadUncompressedPoint(r io.Reader) *PointAffine {
-	var x = make([]byte, 32)
-	var y = make([]byte, 32)
-	n, err := r.Read(x)
+func ReadUncompressedPoint(r io.Reader) PointAffine {
+	var xy = make([]byte, 64)
+	n, err := r.Read(xy[:32])
 	if err != nil {
 		panic("error reading bytes")
 	}
 	if n != 32 {
 		panic("did not read enough bytes")
 	}
-	n, err = r.Read(y)
+	n, err = r.Read(xy[32:])
 	if err != nil {
 		panic("error reading bytes")
 	}
@@ -123,16 +122,14 @@ func ReadUncompressedPoint(r io.Reader) *PointAffine {
 	}
 
 	var x_fp = fp.Element{}
-	x_fp.SetBytes(x)
+	x_fp.SetBytes(xy[:32])
 	var y_fp = fp.Element{}
-	y_fp.SetBytes(y)
+	y_fp.SetBytes(xy[32:])
 
-	var p = &PointAffine{
+	return PointAffine{
 		X: x_fp,
 		Y: y_fp,
 	}
-
-	return p
 }
 // Writes an uncompressed affine point to an io.Writer
 func (p *PointAffine) WriteUncompressedPoint(w io.Writer) (int, error) {
@@ -216,19 +213,17 @@ func NewPointAffine(x, y fp.Element) PointAffine {
 // IsOnCurve checks if a point is on the twisted Edwards curve
 func (p *PointAffine) IsOnCurve() bool {
 
-	ecurve := GetEdwardsCurve()
-
 	var lhs, rhs, tmp fp.Element
 
 	tmp.Mul(&p.Y, &p.Y)
 	lhs.Mul(&p.X, &p.X).
-		Mul(&lhs, &ecurve.A).
+		Mul(&lhs, &edwards.A).
 		Add(&lhs, &tmp)
 
 	tmp.Mul(&p.X, &p.X).
 		Mul(&tmp, &p.Y).
 		Mul(&tmp, &p.Y).
-		Mul(&tmp, &ecurve.D)
+		Mul(&tmp, &edwards.D)
 	rhs.SetOne().Add(&rhs, &tmp)
 
 	return lhs.Equal(&rhs)
@@ -238,19 +233,17 @@ func (p *PointAffine) IsOnCurve() bool {
 // modifies p
 func (p *PointAffine) Add(p1, p2 *PointAffine) *PointAffine {
 
-	ecurve := GetEdwardsCurve()
-
 	var xu, yv, xv, yu, dxyuv, one, denx, deny fp.Element
 	pRes := new(PointAffine)
 	xv.Mul(&p1.X, &p2.Y)
 	yu.Mul(&p1.Y, &p2.X)
 	pRes.X.Add(&xv, &yu)
 
-	xu.Mul(&p1.X, &p2.X).Mul(&xu, &ecurve.A)
+	xu.Mul(&p1.X, &p2.X).Mul(&xu, &edwards.A)
 	yv.Mul(&p1.Y, &p2.Y)
 	pRes.Y.Sub(&yv, &xu)
 
-	dxyuv.Mul(&xv, &yu).Mul(&dxyuv, &ecurve.D)
+	dxyuv.Mul(&xv, &yu).Mul(&dxyuv, &edwards.D)
 	one.SetOne()
 	denx.Add(&one, &dxyuv)
 	deny.Sub(&one, &dxyuv)
@@ -302,14 +295,12 @@ func (p *PointProj) Add(p1, p2 *PointProj) *PointProj {
 
 	var res PointProj
 
-	ecurve := GetEdwardsCurve()
-
 	var A, B, C, D, E, F, G, H, I fp.Element
 	A.Mul(&p1.Z, &p2.Z)
 	B.Square(&A)
 	C.Mul(&p1.X, &p2.X)
 	D.Mul(&p1.Y, &p2.Y)
-	E.Mul(&ecurve.D, &C).Mul(&E, &D)
+	E.Mul(&edwards.D, &C).Mul(&E, &D)
 	F.Sub(&B, &E)
 	G.Add(&B, &E)
 	H.Add(&p1.X, &p1.Y)
@@ -319,7 +310,7 @@ func (p *PointProj) Add(p1, p2 *PointProj) *PointProj {
 		Sub(&res.X, &D).
 		Mul(&res.X, &A).
 		Mul(&res.X, &F)
-	H.Mul(&ecurve.A, &C)
+	H.Mul(&edwards.A, &C)
 	res.Y.Sub(&D, &H).
 		Mul(&res.Y, &A).
 		Mul(&res.Y, &G)
@@ -335,14 +326,12 @@ func (p *PointProj) Double(p1 *PointProj) *PointProj {
 
 	var res PointProj
 
-	ecurve := GetEdwardsCurve()
-
 	var B, C, D, E, F, H, J, tmp fp.Element
 
 	B.Add(&p1.X, &p1.Y).Square(&B)
 	C.Square(&p1.X)
 	D.Square(&p1.Y)
-	E.Mul(&ecurve.A, &C)
+	E.Mul(&edwards.A, &C)
 	F.Add(&E, &D)
 	H.Square(&p1.Z)
 	tmp.Double(&H)
@@ -449,16 +438,13 @@ func GetPointFromX(x *fp.Element, choose_largest bool) *PointAffine {
 // ax^2 - 1 / (dx^2 - 1) = y^2
 func computeY(x *fp.Element, choose_largest bool) *fp.Element {
 
-	var D = GetEdwardsCurve().D
-	var A = GetEdwardsCurve().A
-
 	var one, num, den, y fp.Element
 	one.SetOne()
 	num.Square(x)       // x^2
-	den.Mul(&num, &D)   //dx^2
+	den.Mul(&num, &edwards.D)   //dx^2
 	den.Sub(&den, &one) //dx^2 - 1
 
-	num.Mul(&num, &A)   // ax^2
+	num.Mul(&num, &edwards.A)   // ax^2
 	num.Sub(&num, &one) // ax^2 - 1
 	y.Div(&num, &den)
 	is_nil := y.Sqrt(&y)
