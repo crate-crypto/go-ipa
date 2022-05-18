@@ -72,10 +72,7 @@ func (p *Element) SetBytes(buf []byte) error {
 func (p Element) MapToBaseField() fp.Element {
 
 	var res fp.Element
-	res.Set(&p.inner.X)
-	res.Neg(&res)
-
-	res.Mul(&res, &p.inner.Y)
+	res.Div(&p.inner.X, &p.inner.Y)
 	return res
 }
 
