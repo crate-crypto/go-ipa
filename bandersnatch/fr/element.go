@@ -708,11 +708,24 @@ func (z *Element) SetBytes(e []byte) *Element {
 	vv.SetBytes(e)
 
 	// set big int
-	z.SetBigInt(vv)
-
+	{ //code below is almost like z.SetBigInt(vv), but makes do with one less big.Int
+		var zero big.Int
+		// fast path
+		if c := vv.Cmp(&_modulus); c == 0 {
+			// v == 0
+			z.SetZero()
+		} else if c != 1 && vv.Cmp(&zero) != -1 {
+			// 0 < v < q
+			z.setBigInt(vv)
+		} else {
+			// modular reduction
+			vv.Mod(vv, &_modulus)
+			// set big int byte value
+			z.setBigInt(vv)
+		}
+	}
 	// put temporary object back in pool
 	bigIntPool.Put(vv)
-
 	return z
 }
 
@@ -722,17 +735,7 @@ func (z *Element) SetBytesLE(e []byte) *Element {
 	for i, j := 0, len(e)-1; i < j; i, j = i+1, j-1 {
 		e[i], e[j] = e[j], e[i]
 	}
-	// get a big int from our pool
-	vv := bigIntPool.Get().(*big.Int)
-	vv.SetBytes(e)
-
-	// set big int
-	z.SetBigInt(vv)
-
-	// put temporary object back in pool
-	bigIntPool.Put(vv)
-
-	return z
+	return z.SetBytes(e)
 }
 
 // SetBigInt sets z to v (regular form) and returns z in Montgomery form
