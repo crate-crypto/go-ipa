@@ -65,15 +65,18 @@ func (p *Element) SetBytes(buf []byte) error {
 	return nil
 }
 
-// TODO: this exposes Fp, whereas we probably only want to expose
-// TODO Fr, the scalar field. we could also return a byte string instead
-//
 // computes X/Y
-func (p Element) MapToBaseField() fp.Element {
+func (p Element) mapToBaseField() fp.Element {
 
 	var res fp.Element
 	res.Div(&p.inner.X, &p.inner.Y)
 	return res
+}
+
+// computes X/Y and returns the byte representation
+func (p Element) MapToBaseFieldBytes() [sizePointCompressed]byte {
+	basefield := p.mapToBaseField()
+	return basefield.BytesLE()
 }
 
 // TODO: change this to not use pointers
