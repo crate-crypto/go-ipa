@@ -709,12 +709,11 @@ func (z *Element) SetBytes(e []byte) *Element {
 
 	// set big int
 	{ //code below is almost like z.SetBigInt(vv), but makes do with one less big.Int
-		var zero big.Int
 		// fast path
 		if c := vv.Cmp(&_modulus); c == 0 {
 			// v == 0
 			z.SetZero()
-		} else if c != 1 && vv.Cmp(&zero) != -1 {
+		} else if c != 1 && vv.Sign() != -1 {
 			// 0 < v < q
 			z.setBigInt(vv)
 		} else {
@@ -742,14 +741,12 @@ func (z *Element) SetBytesLE(e []byte) *Element {
 func (z *Element) SetBigInt(v *big.Int) *Element {
 	z.SetZero()
 
-	var zero big.Int
-
 	// fast path
 	c := v.Cmp(&_modulus)
 	if c == 0 {
 		// v == 0
 		return z
-	} else if c != 1 && v.Cmp(&zero) != -1 {
+	} else if c != 1 && v.Sign() != -1 {
 		// 0 < v < q
 		return z.setBigInt(v)
 	}
