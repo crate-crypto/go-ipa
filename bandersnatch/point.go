@@ -330,7 +330,31 @@ func (p *PointProj) Add(p1, p2 *PointProj) *PointProj {
 	p.Set(&res)
 	return p
 }
+func (p *PointProj) MixedAdd(p1 *PointProj, p2 *PointAffine) *PointProj {
 
+
+	var B, C, D, E, F, G, H, I fp.Element
+	B.Square(&p1.Z)
+	C.Mul(&p1.X, &p2.X)
+	D.Mul(&p1.Y, &p2.Y)
+	E.Mul(&edwards.D, &C).Mul(&E, &D)
+	F.Sub(&B, &E)
+	G.Add(&B, &E)
+	H.Add(&p1.X, &p1.Y)
+	I.Add(&p2.X, &p2.Y)
+	p.X.Mul(&H, &I).
+		Sub(&p.X, &C).
+		Sub(&p.X, &D).
+		Mul(&p.X, &p1.Z).
+		Mul(&p.X, &F)
+	mulByA(&C)
+	p.Y.Sub(&D, &C).
+		Mul(&p.Y, &p1.Z).
+		Mul(&p.Y, &G)
+	p.Z.Mul(&F, &G)
+
+	return p
+}
 // Double adds points in projective coordinates
 // cf https://hyperelliptic.org/EFD/g1p/auto-twisted-projective.html
 func (p *PointProj) Double(p1 *PointProj) *PointProj {

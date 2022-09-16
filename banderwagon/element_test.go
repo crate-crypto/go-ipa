@@ -151,15 +151,17 @@ func TestAddSubDouble(t *testing.T) {
 func TestSerde(t *testing.T) {
 
 	var point Element
+	var point_aff bandersnatch.PointAffine
 
 	point.Add(&Generator, &Generator)
+	point_aff.FromProj(&point.inner)
 
 	var buf bytes.Buffer
 
-	point.UnsafeWriteUncompressedPoint(&buf)
-	got := UnsafeReadUncompressedPoint(&buf)
+	point_aff.WriteUncompressedPoint(&buf)
+	got := bandersnatch.ReadUncompressedPoint(&buf)
 
-	if !point.Equal(got) {
+	if !point_aff.Equal(&got) {
 		panic("deserialised point does not equal serialised point ")
 	}
 

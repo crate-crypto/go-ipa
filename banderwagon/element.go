@@ -184,6 +184,10 @@ func (p *Element) Add(p1, p2 *Element) *Element {
 	p.inner.Add(&p1.inner, &p2.inner)
 	return p
 }
+func (p *Element) AddMixed(p1 *Element, p2 bandersnatch.PointAffine) *Element {
+	p.inner.MixedAdd(&p1.inner, &p2)
+	return p
+}
 func (p *Element) Sub(p1, p2 *Element) *Element {
 	var neg_p2 Element
 	neg_p2.Neg(p2)
@@ -197,6 +201,15 @@ func (p *Element) IsOnCurve() bool {
 	var point_aff bandersnatch.PointAffine
 	point_aff.FromProj(&p.inner)
 	return point_aff.IsOnCurve()
+}
+
+func (p *Element) Normalise() {
+	var point_aff bandersnatch.PointAffine
+	point_aff.FromProj(&p.inner)
+
+	p.inner.X.Set(&point_aff.X)
+	p.inner.Y.Set(&point_aff.Y)
+	p.inner.Z.SetOne()
 }
 func (p *Element) Set(p1 *Element) *Element {
 	p.inner.X.Set(&p1.inner.X)

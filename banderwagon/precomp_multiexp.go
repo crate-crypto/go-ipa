@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"io"
 
+	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
 	"github.com/crate-crypto/go-ipa/common/parallel"
 )
@@ -64,7 +65,7 @@ func (pcl *PrecomputeLagrange) SerializePrecomputedLagrange(w io.Writer) error {
 
 	for _, ltp := range pcl.inner {
 		for _, p := range ltp.matrix {
-			p.UnsafeWriteUncompressedPoint(w)
+			p.WriteUncompressedPoint(w)
 		}
 	}
 
@@ -95,10 +96,10 @@ func DeserializePrecomputedLagrange(reader io.Reader) (*PrecomputeLagrange, erro
 		pcl.inner[i].identity.Identity()
 
 		// Deserialize the matrix
-		pcl.inner[i].matrix = make([]Element, rowLen)
+		pcl.inner[i].matrix = make([]bandersnatch.PointAffine, rowLen)
 		for j := int64(0); j < rowLen; j++ {
 
-			pcl.inner[i].matrix[j] = *UnsafeReadUncompressedPoint(reader)
+			pcl.inner[i].matrix[j] = bandersnatch.ReadUncompressedPoint(reader)
 		}
 	}
 
@@ -120,16 +121,19 @@ func (p *PrecomputeLagrange) Commit(evaluations []fr.Element) *Element {
 		scalar_bytes_le := scalar.BytesLE()
 
 		for row, byte := range scalar_bytes_le {
+			if byte == 0 {
+				continue
+			}
 			var tp = table.point(row, byte)
-			result.Add(&result, tp)
+			result.AddMixed(&result, *tp)
 		}
 	}
 	return &result
 }
 
 type LagrangeTablePoints struct {
-	identity Element // TODO We can save memory by removing this
-	matrix   []Element
+	identity bandersnatch.PointAffine // TODO We can save memory by removing this
+	matrix   []bandersnatch.PointAffine
 }
 
 func (ltp LagrangeTablePoints) Equal(other LagrangeTablePoints) bool {
@@ -170,16 +174,16 @@ func newLagrangeTablePoints(point Element) *LagrangeTablePoints {
 		rows = append(rows, scaled_row...)
 		scale.Mul(&scale, &base)
 	}
-
-	var identity Element
+	rows_affine := elements_to_affine(rows)
+	var identity bandersnatch.PointAffine
 	identity.Identity()
 	return &LagrangeTablePoints{
 		identity: identity,
-		matrix:   rows,
+		matrix:   rows_affine,
 	}
 }
 
-func (ltp *LagrangeTablePoints) point(index int, value uint8) *Element {
+func (ltp *LagrangeTablePoints) point(index int, value uint8) *bandersnatch.PointAffine {
 	if value == 0 {
 		return &ltp.identity
 	}
@@ -204,6 +208,19 @@ func scale_row(points []Element, scale fr.Element) []Element {
 	for i := 0; i < len(points); i++ {
 
 		scaled_points[i].ScalarMul(&points[i], &scale)
+		scaled_points[i].Normalise()
 	}
 	return scaled_points
+}
+
+func elements_to_affine(points []Element) []bandersnatch.PointAffine {
+	affine_points := make([]bandersnatch.PointAffine, len(points))
+
+	for index, point := range points {
+		var affine bandersnatch.PointAffine
+		affine.FromProj(&point.inner)
+		affine_points[index] = affine
+	}
+
+	return affine_points
 }
