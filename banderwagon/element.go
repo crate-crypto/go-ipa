@@ -41,7 +41,7 @@ func (p Element) Bytes() [sizePointCompressed]byte {
 	return x.Bytes()
 }
 
-func (p *Element) SetBytes(buf []byte) error {
+func (p *Element) SetBytesTrusted(buf []byte, trusted bool) error {
 	// set the buffer which is x * SignY as X
 	var x fp.Element
 	x.SetBytes(buf)
@@ -51,9 +51,11 @@ func (p *Element) SetBytes(buf []byte) error {
 	}
 
 	// subgroup check
-	err := subgroup_check(x)
-	if err != nil {
-		return err
+	if !trusted {
+		err := subgroup_check(x)
+		if err != nil {
+			return err
+		}
 	}
 
 	*p = Element{inner: bandersnatch.PointProj{
@@ -63,6 +65,12 @@ func (p *Element) SetBytes(buf []byte) error {
 	}}
 
 	return nil
+}
+
+// Deserialises bytes into a group element
+// assuming the input is not trusted
+func (p *Element) SetBytes(buf []byte) error {
+	return p.SetBytesTrusted(buf, true)
 }
 
 // computes X/Y
