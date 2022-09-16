@@ -41,7 +41,7 @@ func (p Element) Bytes() [sizePointCompressed]byte {
 	return x.Bytes()
 }
 
-func (p *Element) SetBytesTrusted(buf []byte, trusted bool) error {
+func (p *Element) setBytes(buf []byte, trusted bool) error {
 	// set the buffer which is x * SignY as X
 	var x fp.Element
 	x.SetBytes(buf)
@@ -70,7 +70,13 @@ func (p *Element) SetBytesTrusted(buf []byte, trusted bool) error {
 // Deserialises bytes into a group element
 // assuming the input is not trusted
 func (p *Element) SetBytes(buf []byte) error {
-	return p.SetBytesTrusted(buf, false)
+	return p.setBytes(buf, false)
+}
+
+// Deserialises bytes into a group element
+// assuming the input is trusted
+func (p *Element) SetBytesTrusted(buf []byte) error {
+	return p.setBytes(buf, true)
 }
 
 // computes X/Y
