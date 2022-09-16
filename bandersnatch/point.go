@@ -276,6 +276,14 @@ func (p *PointAffine) Neg(p1 *PointAffine) *PointAffine {
 
 // FromProj sets p in affine from p in projective
 func (p *PointAffine) FromProj(p1 *PointProj) *PointAffine {
+	var one = fp.One()
+
+	if p1.Z.Equal(&one) {
+		p.X.Set(&p1.X)
+		p.Y.Set(&p1.Y)
+		return p
+	}
+	
 	var zInv fp.Element
 	zInv.Inverse(&p1.Z)
 	
