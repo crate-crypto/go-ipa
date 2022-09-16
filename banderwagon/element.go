@@ -70,7 +70,7 @@ func (p *Element) SetBytesTrusted(buf []byte, trusted bool) error {
 // Deserialises bytes into a group element
 // assuming the input is not trusted
 func (p *Element) SetBytes(buf []byte) error {
-	return p.SetBytesTrusted(buf, true)
+	return p.SetBytesTrusted(buf, false)
 }
 
 // computes X/Y
