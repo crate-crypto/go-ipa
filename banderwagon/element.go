@@ -41,6 +41,41 @@ func (p Element) Bytes() [sizePointCompressed]byte {
 	return x.Bytes()
 }
 
+// Serialises multiple group elements using a batch multi inversion
+func ElementsToBytes(elements []Element) [][sizePointCompressed]byte {
+	// Collect all z co-ordinates
+	var zs []fp.Element
+	for i := 0; i < int(len(elements)); i++ {
+		zs = append(zs, elements[i].inner.Z)
+	}
+
+	// Invert z co-ordinates
+	zInvs := fp.BatchInvert(zs)
+
+	var serialised_points [][sizePointCompressed]byte
+
+	// Multiply x and y by zInv
+	for i := 0; i < int(len(elements)); i++ {
+		var X fp.Element
+		var Y fp.Element
+
+		element := elements[i]
+
+		X.Mul(&element.inner.X, &zInvs[i])
+		Y.Mul(&element.inner.Y, &zInvs[i])
+
+		// Serialisation takes the x co-ordinate and multiplies it by the sign of y
+		if !Y.LexicographicallyLargest() {
+			X.Neg(&X)
+		}
+
+		serialised_points = append(serialised_points, X.Bytes())
+	}
+
+	return serialised_points
+
+}
+
 func (p *Element) setBytes(buf []byte, trusted bool) error {
 	// set the buffer which is x * SignY as X
 	var x fp.Element
