@@ -42,7 +42,7 @@ func (p Element) Bytes() [sizePointCompressed]byte {
 }
 
 // Serialises multiple group elements using a batch multi inversion
-func ElementsToBytes(elements []Element) [][sizePointCompressed]byte {
+func ElementsToBytes(elements []*Element) [][sizePointCompressed]byte {
 	// Collect all z co-ordinates
 	var zs []fp.Element
 	for i := 0; i < int(len(elements)); i++ {

@@ -175,7 +175,7 @@ func TestBatchElementsToBytes(t *testing.T) {
 	expected_serialised_a := A.Bytes()
 	expected_serialised_b := B.Bytes()
 
-	serialised_points := ElementsToBytes([]Element{A, B})
+	serialised_points := ElementsToBytes([]*Element{&A, &B})
 
 	got_serialised_a := serialised_points[0]
 	got_serialised_b := serialised_points[1]
