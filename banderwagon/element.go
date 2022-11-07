@@ -128,6 +128,30 @@ func (p Element) MapToBaseFieldBytes() [sizePointCompressed]byte {
 	return basefield.BytesLE()
 }
 
+func MultiMapToBaseFieldBytes(elements []*Element) [][sizePointCompressed]byte {
+	// Collect all y co-ordinates
+	var ys []fp.Element
+	for i := 0; i < int(len(elements)); i++ {
+		ys = append(ys, elements[i].inner.Y)
+	}
+
+	// Invert y co-ordinates
+	yInvs := fp.BatchInvert(ys)
+
+	var serialisedPoints [][sizePointCompressed]byte
+
+	// Multiply x by yInv
+	for i := 0; i < int(len(elements)); i++ {
+		var res fp.Element
+
+		res.Mul(&elements[i].inner.X, &yInvs[i])
+		serialisedPoints = append(serialisedPoints, res.BytesLE())
+	}
+
+	return serialisedPoints
+
+}
+
 // TODO: change this to not use pointers
 func (p *Element) Equal(other *Element) bool {
 	x1 := p.inner.X

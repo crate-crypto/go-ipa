@@ -190,3 +190,27 @@ func TestBatchElementsToBytes(t *testing.T) {
 	}
 
 }
+
+func TestMultiMapToBaseField(t *testing.T) {
+
+	var A, B Element
+
+	A.Add(&Generator, &Generator)
+	B.Double(&Generator)
+	B.Double(&B)
+
+	expected_serialised_a := A.MapToBaseFieldBytes()
+	expected_serialised_b := B.MapToBaseFieldBytes()
+
+	serialised_points := MultiMapToBaseFieldBytes([]*Element{&A, &B})
+
+	got_serialised_a := serialised_points[0]
+	got_serialised_b := serialised_points[1]
+	if expected_serialised_a != got_serialised_a {
+		panic("expected serialised point of A is incorrect ")
+	}
+
+	if expected_serialised_b != got_serialised_b {
+		panic("expected serialised point of B is incorrect ")
+	}
+}
