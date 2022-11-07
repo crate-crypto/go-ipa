@@ -58,3 +58,10 @@ func madd3(a, b, c, d, e uint64) (hi uint64, lo uint64) {
 	hi, _ = bits.Add64(hi, e, carry)
 	return
 }
+
+func min(a int, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
