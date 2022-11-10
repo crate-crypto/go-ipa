@@ -122,13 +122,18 @@ func (p Element) mapToBaseField() fp.Element {
 	return res
 }
 
-// computes X/Y and returns the byte representation
-func (p Element) MapToBaseFieldBytes() [sizePointCompressed]byte {
+func (p Element) MapToScalarField() fr.Element {
 	basefield := p.mapToBaseField()
-	return basefield.BytesLE()
+	baseFieldBytes := basefield.BytesLE()
+
+	var res fr.Element
+	res.SetBytesLE(baseFieldBytes[:])
+
+	return res
 }
 
-func MultiMapToBaseFieldBytes(elements []*Element) [][sizePointCompressed]byte {
+// Maps each point to a field element in the scalar field
+func MultiMapToScalarField(elements []*Element) []fr.Element {
 	// Collect all y co-ordinates
 	var ys []fp.Element
 	for i := 0; i < int(len(elements)); i++ {
@@ -138,17 +143,21 @@ func MultiMapToBaseFieldBytes(elements []*Element) [][sizePointCompressed]byte {
 	// Invert y co-ordinates
 	yInvs := fp.BatchInvert(ys)
 
-	var serialisedPoints [][sizePointCompressed]byte
+	var scalars []fr.Element
 
 	// Multiply x by yInv
 	for i := 0; i < int(len(elements)); i++ {
-		var res fp.Element
+		var mappedElement fp.Element
 
-		res.Mul(&elements[i].inner.X, &yInvs[i])
-		serialisedPoints = append(serialisedPoints, res.BytesLE())
+		mappedElement.Mul(&elements[i].inner.X, &yInvs[i])
+		byts := mappedElement.BytesLE()
+
+		var res fr.Element
+		res.SetBytesLE(byts[:])
+		scalars = append(scalars, res)
 	}
 
-	return serialisedPoints
+	return scalars
 
 }
 

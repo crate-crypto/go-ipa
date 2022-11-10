@@ -199,18 +199,18 @@ func TestMultiMapToBaseField(t *testing.T) {
 	B.Double(&Generator)
 	B.Double(&B)
 
-	expected_serialised_a := A.MapToBaseFieldBytes()
-	expected_serialised_b := B.MapToBaseFieldBytes()
+	expected_a := A.MapToScalarField()
+	expected_b := B.MapToScalarField()
 
-	serialised_points := MultiMapToBaseFieldBytes([]*Element{&A, &B})
+	scalars := MultiMapToScalarField([]*Element{&A, &B})
 
-	got_serialised_a := serialised_points[0]
-	got_serialised_b := serialised_points[1]
-	if expected_serialised_a != got_serialised_a {
-		panic("expected serialised point of A is incorrect ")
+	got_a := scalars[0]
+	got_b := scalars[1]
+	if expected_a != got_a {
+		panic("expected scalar for point `A` is incorrect ")
 	}
 
-	if expected_serialised_b != got_serialised_b {
-		panic("expected serialised point of B is incorrect ")
+	if expected_b != got_b {
+		panic("expected scalar for point `A` is incorrect ")
 	}
 }
