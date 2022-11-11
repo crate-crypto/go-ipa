@@ -7,10 +7,10 @@ import (
 
 	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fp"
+	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
 )
 
 func TestEncodingFixedVectors(t *testing.T) {
-
 	expected_bit_strings := [16]string{
 		"4a2c7486fd924882bf02c6908de395122843e3e05264d7991e18e7985dad51e9",
 		"43aa74ef706605705989e8fd38df46873b7eae5921fbed115ac9d937399ce4d5",
@@ -90,6 +90,7 @@ func TestTwoTorsionEqual(t *testing.T) {
 		point.Double(&point)
 	}
 }
+
 func TestPointAtInfinityComponent(t *testing.T) {
 	// These are all points which will be shown to be on the curve
 	// but are not in the correct subgroup
@@ -124,11 +125,9 @@ func TestPointAtInfinityComponent(t *testing.T) {
 			panic("point should not be in the correct subgroup as it has an infinity component")
 		}
 	}
-
 }
 
 func TestAddSubDouble(t *testing.T) {
-
 	var A, B Element
 
 	A.Add(&Generator, &Generator)
@@ -149,7 +148,6 @@ func TestAddSubDouble(t *testing.T) {
 }
 
 func TestSerde(t *testing.T) {
-
 	var point Element
 	var point_aff bandersnatch.PointAffine
 
@@ -164,11 +162,9 @@ func TestSerde(t *testing.T) {
 	if !point_aff.Equal(&got) {
 		panic("deserialised point does not equal serialised point ")
 	}
-
 }
 
 func TestBatchElementsToBytes(t *testing.T) {
-
 	var A, B Element
 
 	A.Add(&Generator, &Generator)
@@ -183,16 +179,13 @@ func TestBatchElementsToBytes(t *testing.T) {
 	got_serialised_b := serialised_points[1]
 	if expected_serialised_a != got_serialised_a {
 		panic("expected serialised point of A is incorrect ")
-
 	}
 	if expected_serialised_b != got_serialised_b {
 		panic("expected serialised point of B is incorrect ")
 	}
-
 }
 
 func TestMultiMapToBaseField(t *testing.T) {
-
 	var A, B Element
 
 	A.Add(&Generator, &Generator)
@@ -202,15 +195,17 @@ func TestMultiMapToBaseField(t *testing.T) {
 	expected_a := A.MapToScalarField()
 	expected_b := B.MapToScalarField()
 
-	scalars := MultiMapToScalarField([]*Element{&A, &B})
+	var ARes, BRes fr.Element
+	scalars := []*fr.Element{&ARes, &BRes}
+	MultiMapToScalarField(scalars, []*Element{&A, &B})
 
 	got_a := scalars[0]
 	got_b := scalars[1]
-	if expected_a != got_a {
+	if expected_a != *got_a {
 		panic("expected scalar for point `A` is incorrect ")
 	}
 
-	if expected_b != got_b {
+	if expected_b != *got_b {
 		panic("expected scalar for point `A` is incorrect ")
 	}
 }
