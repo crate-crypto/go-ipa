@@ -45,15 +45,15 @@ func (p Element) Bytes() [sizePointCompressed]byte {
 // Serialises multiple group elements using a batch multi inversion
 func ElementsToBytes(elements []*Element) [][sizePointCompressed]byte {
 	// Collect all z co-ordinates
-	var zs []fp.Element
+	zs := make([]fp.Element, len(elements))
 	for i := 0; i < int(len(elements)); i++ {
-		zs = append(zs, elements[i].inner.Z)
+		zs[i] = elements[i].inner.Z
 	}
 
 	// Invert z co-ordinates
 	zInvs := fp.BatchInvert(zs)
 
-	var serialised_points [][sizePointCompressed]byte
+	serialised_points := make([][sizePointCompressed]byte, len(elements))
 
 	// Multiply x and y by zInv
 	for i := 0; i < int(len(elements)); i++ {
@@ -70,7 +70,7 @@ func ElementsToBytes(elements []*Element) [][sizePointCompressed]byte {
 			X.Neg(&X)
 		}
 
-		serialised_points = append(serialised_points, X.Bytes())
+		serialised_points[i] = X.Bytes()
 	}
 
 	return serialised_points
