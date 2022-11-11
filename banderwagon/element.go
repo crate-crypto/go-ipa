@@ -121,14 +121,11 @@ func (p Element) mapToBaseField() fp.Element {
 	return res
 }
 
-func (p Element) MapToScalarField() fr.Element {
+func (p Element) MapToScalarField(res *fr.Element) {
 	basefield := p.mapToBaseField()
 	baseFieldBytes := basefield.BytesLE()
 
-	var res fr.Element
 	res.SetBytesLE(baseFieldBytes[:])
-
-	return res
 }
 
 // Maps each point to a field element in the scalar field

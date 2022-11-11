@@ -192,8 +192,9 @@ func TestMultiMapToBaseField(t *testing.T) {
 	B.Double(&Generator)
 	B.Double(&B)
 
-	expected_a := A.MapToScalarField()
-	expected_b := B.MapToScalarField()
+	var expected_a, expected_b fr.Element
+	A.MapToScalarField(&expected_a)
+	B.MapToScalarField(&expected_b)
 
 	var ARes, BRes fr.Element
 	scalars := []*fr.Element{&ARes, &BRes}
