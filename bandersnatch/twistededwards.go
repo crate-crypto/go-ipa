@@ -3,7 +3,7 @@ package bandersnatch
 import (
 	"math/big"
 
-	"github.com/crate-crypto/go-ipa/bandersnatch/fp"
+	fp "github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 )
 
 // CurveParams curve parameters: ax^2 + y^2 = 1 + d*x^2*y^2

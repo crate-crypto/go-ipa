@@ -123,7 +123,7 @@ func (p Element) mapToBaseField() fp.Element {
 
 func (p Element) MapToScalarField(res *fr.Element) {
 	basefield := p.mapToBaseField()
-	baseFieldBytes := basefield.BytesLE()
+	baseFieldBytes := fp.SerialiseLe(basefield)
 
 	res.SetBytesLE(baseFieldBytes[:])
 }
@@ -148,7 +148,7 @@ func MultiMapToScalarField(result []*fr.Element, elements []*Element) {
 		var mappedElement fp.Element
 
 		mappedElement.Mul(&elements[i].inner.X, &yInvs[i])
-		byts := mappedElement.BytesLE()
+		byts := fp.SerialiseLe(mappedElement)
 		result[i].SetBytesLE(byts[:])
 	}
 }
