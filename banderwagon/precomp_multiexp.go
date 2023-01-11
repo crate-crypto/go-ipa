@@ -15,7 +15,6 @@ type PrecomputeLagrange struct {
 }
 
 func (pcl PrecomputeLagrange) Equal(other PrecomputeLagrange) bool {
-
 	if pcl.num_points != other.num_points {
 		return false
 	}
@@ -34,15 +33,12 @@ func (pcl PrecomputeLagrange) Equal(other PrecomputeLagrange) bool {
 }
 
 func NewPrecomputeLagrange(points []Element) *PrecomputeLagrange {
-
 	table := make([]*LagrangeTablePoints, len(points))
 	parallel.Execute(len(points), func(start, end int) {
-
 		for i := start; i < end; i++ {
 			point := points[i]
 			table[i] = newLagrangeTablePoints(point)
 		}
-
 	})
 
 	return &PrecomputeLagrange{
@@ -52,7 +48,6 @@ func NewPrecomputeLagrange(points []Element) *PrecomputeLagrange {
 }
 
 func (pcl *PrecomputeLagrange) SerializePrecomputedLagrange(w io.Writer) error {
-
 	err := binary.Write(w, binary.LittleEndian, int64(pcl.num_points))
 	if err != nil {
 		return err
@@ -98,7 +93,6 @@ func DeserializePrecomputedLagrange(reader io.Reader) (*PrecomputeLagrange, erro
 		// Deserialize the matrix
 		pcl.inner[i].matrix = make([]bandersnatch.PointAffine, rowLen)
 		for j := int64(0); j < rowLen; j++ {
-
 			pcl.inner[i].matrix[j] = bandersnatch.ReadUncompressedPoint(reader)
 		}
 	}
@@ -106,7 +100,7 @@ func DeserializePrecomputedLagrange(reader io.Reader) (*PrecomputeLagrange, erro
 	return &pcl, nil
 }
 
-func (p *PrecomputeLagrange) Commit(evaluations []fr.Element) *Element {
+func (p *PrecomputeLagrange) Commit(evaluations []fr.Element) Element {
 	var result Element
 	result.Identity()
 
@@ -124,11 +118,11 @@ func (p *PrecomputeLagrange) Commit(evaluations []fr.Element) *Element {
 			if byte == 0 {
 				continue
 			}
-			var tp = table.point(row, byte)
+			tp := table.point(row, byte)
 			result.AddMixed(&result, *tp)
 		}
 	}
-	return &result
+	return result
 }
 
 type LagrangeTablePoints struct {
@@ -166,7 +160,7 @@ func newLagrangeTablePoints(point Element) *LagrangeTablePoints {
 	var rows []Element
 	rows = append(rows, base_row...)
 
-	var scale = base
+	scale := base
 	// TODO: we can do this in parallel
 	for i := 1; i < num_rows; i++ {
 
@@ -191,7 +185,6 @@ func (ltp *LagrangeTablePoints) point(index int, value uint8) *bandersnatch.Poin
 }
 
 func compute_base_row(point Element, num_points int) []Element {
-
 	row := make([]Element, num_points)
 	row[0] = point
 
