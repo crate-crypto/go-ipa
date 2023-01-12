@@ -47,7 +47,7 @@ func multiScalar(points []banderwagon.Element, scalars []fr.Element) banderwagon
 	var result banderwagon.Element
 	result.Identity()
 
-	var res, err = result.MultiExp(points, scalars, banderwagon.MultiExpConfig{NbTasks: runtime.NumCPU(), ScalarsMont: true})
+	res, err := result.MultiExp(points, scalars, banderwagon.MultiExpConfig{NbTasks: runtime.NumCPU(), ScalarsMont: true})
 	if err != nil {
 		panic("mult exponentiation was not successful. TODO: replace panics by bubbling up error")
 	}
@@ -58,7 +58,7 @@ func multiScalar(points []banderwagon.Element, scalars []fr.Element) banderwagon
 // Commits to a polynomial using the SRS
 // panics if the length of the SRS does not equal the number of polynomial coefficients
 func (ic *IPAConfig) Commit(polynomial []fr.Element) banderwagon.Element {
-	return *ic.SRSPrecompPoints.PrecompLag.Commit(polynomial)
+	return ic.SRSPrecompPoints.PrecompLag.Commit(polynomial)
 }
 
 // Commits to a polynomial using the input group elements
@@ -93,7 +93,6 @@ func InnerProd(a []fr.Element, b []fr.Element) fr.Element {
 // returns c
 // panics if len(a) != len(b)
 func foldScalars(a []fr.Element, b []fr.Element, x fr.Element) []fr.Element {
-
 	if len(a) != len(b) {
 		panic("slices not equal length")
 	}
@@ -111,7 +110,6 @@ func foldScalars(a []fr.Element, b []fr.Element, x fr.Element) []fr.Element {
 // returns c
 // panics if len(a) != len(b)
 func foldPoints(a []banderwagon.Element, b []banderwagon.Element, x fr.Element) []banderwagon.Element {
-
 	if len(a) != len(b) {
 		panic("slices not equal length")
 	}
@@ -176,7 +174,6 @@ func compute_num_rounds(vector_size uint32) uint32 {
 }
 
 func GenerateRandomPoints(numPoints uint64) []banderwagon.Element {
-
 	seed := "eth_verkle_oct_2021" // incase it changes or needs updating, we can use eth_verkle_month_year
 
 	points := []banderwagon.Element{}
