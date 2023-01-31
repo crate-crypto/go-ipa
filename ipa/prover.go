@@ -84,10 +84,10 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 
 func (ip *IPAProof) Write(w io.Writer) {
 	for _, el := range ip.L {
-		binary.Write(w, binary.BigEndian, el.Bytes())
+		binary.Write(w, binary.BigEndian, el.BytesCompressed())
 	}
 	for _, ar := range ip.R {
-		binary.Write(w, binary.BigEndian, ar.Bytes())
+		binary.Write(w, binary.BigEndian, ar.BytesCompressed())
 	}
 	binary.Write(w, binary.BigEndian, ip.A_scalar.BytesLE())
 }

@@ -198,7 +198,7 @@ func GenerateRandomPoints(numPoints uint64) []banderwagon.Element {
 
 		x_as_bytes := x.Bytes()
 		var point_found banderwagon.Element
-		err := point_found.SetBytes(x_as_bytes[:])
+		err := point_found.SetBytesCompressed(x_as_bytes[:])
 		if err != nil {
 			// This point is not in the correct subgroup or on the curve
 			continue

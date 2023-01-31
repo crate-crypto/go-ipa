@@ -34,7 +34,7 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 
 	for i := 0; i < num_queries; i++ {
 		transcript.AppendPoint(Cs[i], "C")
-		var z = domainToFr(zs[i])
+		z := domainToFr(zs[i])
 		transcript.AppendScalar(&z, "z")
 
 		// get the `y` value
@@ -77,7 +77,7 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 		f := fs[i]
 
 		var den_inv fr.Element
-		var z = domainToFr(zs[i])
+		z := domainToFr(zs[i])
 		den_inv.Sub(&t, &z)
 		den_inv.Inverse(&den_inv)
 
@@ -130,7 +130,7 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 
 	for i := 0; i < num_queries; i++ {
 		transcript.AppendPoint(Cs[i], "C")
-		var z = domainToFr(zs[i])
+		z := domainToFr(zs[i])
 		transcript.AppendScalar(&z, "z")
 		transcript.AppendScalar(ys[i], "y")
 	}
@@ -149,7 +149,7 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 		r := powers_of_r[i]
 
 		// r^i / (t - z_i)
-		var z = domainToFr(zs[i])
+		z := domainToFr(zs[i])
 		helper_scalars[i].Sub(&t, &z)
 		helper_scalars[i].Inverse(&helper_scalars[i])
 		helper_scalars[i].Mul(&helper_scalars[i], &r)
@@ -186,7 +186,7 @@ func domainToFr(in uint8) fr.Element {
 }
 
 func (mp *MultiProof) Write(w io.Writer) {
-	binary.Write(w, binary.BigEndian, mp.D.Bytes())
+	binary.Write(w, binary.BigEndian, mp.D.BytesCompressed())
 	mp.IPA.Write(w)
 }
 
@@ -195,6 +195,7 @@ func (mp *MultiProof) Read(r io.Reader) {
 	mp.D = *D
 	mp.IPA.Read(r)
 }
+
 func (mp MultiProof) Equal(other MultiProof) bool {
 	if !mp.IPA.Equal(other.IPA) {
 		return false

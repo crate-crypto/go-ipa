@@ -2,6 +2,7 @@ package banderwagon
 
 import (
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch"
@@ -9,7 +10,16 @@ import (
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
 )
 
-const sizePointCompressed = fp.Limbs * 8
+const (
+	sizeCoordinate                      = fp.Limbs * 8
+	SerializedAffinePointSize           = 2 * sizeCoordinate
+	SerializedAffinePointCompressedSize = sizeCoordinate
+)
+
+type (
+	SerializedAffinePoint           [SerializedAffinePointSize]byte
+	SerializedAffinePointCompressed [SerializedAffinePointCompressedSize]byte
+)
 
 var Generator = Element{inner: bandersnatch.PointProj{
 	X: bandersnatch.GetEdwardsCurve().Base.X,
@@ -29,7 +39,22 @@ type Element struct {
 	inner bandersnatch.PointProj
 }
 
-func (p Element) Bytes() [sizePointCompressed]byte {
+func (p Element) Bytes() SerializedAffinePoint {
+	// Convert underlying point to affine representation
+	var affine_representation bandersnatch.PointAffine
+	affine_representation.FromProj(&p.inner)
+
+	xbytes := affine_representation.X.Bytes()
+	ybytes := affine_representation.Y.Bytes()
+
+	var xy SerializedAffinePoint
+	copy(xy[:], xbytes[:])
+	copy(xy[sizeCoordinate:], ybytes[:])
+
+	return xy
+}
+
+func (p Element) BytesCompressed() SerializedAffinePointCompressed {
 	// Convert underlying point to affine representation
 	var affine_representation bandersnatch.PointAffine
 	affine_representation.FromProj(&p.inner)
@@ -43,7 +68,7 @@ func (p Element) Bytes() [sizePointCompressed]byte {
 }
 
 // Serialises multiple group elements using a batch multi inversion
-func ElementsToBytes(elements []*Element) [][sizePointCompressed]byte {
+func ElementsToBytes(elements []*Element) []SerializedAffinePoint {
 	// Collect all z co-ordinates
 	zs := make([]fp.Element, len(elements))
 	for i := 0; i < int(len(elements)); i++ {
@@ -53,7 +78,7 @@ func ElementsToBytes(elements []*Element) [][sizePointCompressed]byte {
 	// Invert z co-ordinates
 	zInvs := fp.BatchInvert(zs)
 
-	serialised_points := make([][sizePointCompressed]byte, len(elements))
+	serialised_points := make([]SerializedAffinePoint, len(elements))
 
 	// Multiply x and y by zInv
 	for i := 0; i < int(len(elements)); i++ {
@@ -65,25 +90,22 @@ func ElementsToBytes(elements []*Element) [][sizePointCompressed]byte {
 		X.Mul(&element.inner.X, &zInvs[i])
 		Y.Mul(&element.inner.Y, &zInvs[i])
 
-		// Serialisation takes the x co-ordinate and multiplies it by the sign of y
-		if !Y.LexicographicallyLargest() {
-			X.Neg(&X)
-		}
-
-		serialised_points[i] = X.Bytes()
+		xbytes := X.Bytes()
+		ybytes := Y.Bytes()
+		copy(serialised_points[i][:], xbytes[:])
+		copy(serialised_points[i][sizeCoordinate:], ybytes[:])
 	}
 
 	return serialised_points
 }
 
 func (p *Element) setBytes(buf []byte, trusted bool) error {
-	// set the buffer which is x * SignY as X
-	var x fp.Element
-	x.SetBytes(buf)
-	point := bandersnatch.GetPointFromX(&x, true)
-	if point == nil {
-		return errors.New("point is not on the curve")
+	if len(buf) != SerializedAffinePointSize {
+		return fmt.Errorf("invalid serialized element lenght, exp: %d, got: %d", SerializedAffinePointSize, len(buf))
 	}
+
+	var x fp.Element
+	x.SetBytes(buf[:sizeCoordinate])
 
 	// subgroup check
 	if !trusted {
@@ -93,9 +115,12 @@ func (p *Element) setBytes(buf []byte, trusted bool) error {
 		}
 	}
 
+	var y fp.Element
+	y.SetBytes(buf[sizeCoordinate:])
+
 	*p = Element{inner: bandersnatch.PointProj{
-		X: point.X,
-		Y: point.Y,
+		X: x,
+		Y: y,
 		Z: fp.One(),
 	}}
 
@@ -106,6 +131,34 @@ func (p *Element) setBytes(buf []byte, trusted bool) error {
 // assuming the input is not trusted
 func (p *Element) SetBytes(buf []byte) error {
 	return p.setBytes(buf, false)
+}
+
+func (p *Element) SetBytesCompressed(buf []byte) error {
+	if len(buf) != SerializedAffinePointCompressedSize {
+		return fmt.Errorf("invalid serialized element lenght, exp: %d, got: %d", SerializedAffinePointCompressedSize, len(buf))
+	}
+	// set the buffer which is x * SignY as X
+	var x fp.Element
+	x.SetBytes(buf)
+	point := bandersnatch.GetPointFromX(&x, true)
+	if point == nil {
+		return errors.New("point is not on the curve")
+	}
+	// subgroup check
+	err := subgroup_check(x)
+	if err != nil {
+		return err
+	}
+	var y fp.Element
+	y.SetBytes(buf[sizeCoordinate:])
+
+	*p = Element{inner: bandersnatch.PointProj{
+		X: point.X,
+		Y: point.Y,
+		Z: fp.One(),
+	}}
+
+	return nil
 }
 
 // Deserialises bytes into a group element

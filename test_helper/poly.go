@@ -27,12 +27,13 @@ func TestPoly256(polynomial ...uint64) []fr.Element {
 }
 
 func PointEqualHex(t *testing.T, point banderwagon.Element, expected string) {
-	point_bytes := point.Bytes()
+	point_bytes := point.BytesCompressed()
 	got := hex.EncodeToString(point_bytes[:])
 	if got != expected {
 		t.Fatalf("point does not equal expected hex value, expected %s got %s", expected, got)
 	}
 }
+
 func ScalarEqualHex(t *testing.T, scalar fr.Element, expected string) {
 	scalar_bytes := scalar.BytesLE()
 	got := hex.EncodeToString(scalar_bytes[:])

@@ -459,7 +459,6 @@ func (p PointAffine) IsInPrimeSubgroup() bool {
 }
 
 func GetPointFromX(x *fp.Element, choose_largest bool) *PointAffine {
-
 	y := computeY(x, choose_largest)
 	if y == nil { // not a square
 		return nil

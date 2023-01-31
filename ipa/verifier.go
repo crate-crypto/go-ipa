@@ -89,7 +89,6 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 }
 
 func generateChallenges(transcript *common.Transcript, proof *IPAProof) []fr.Element {
-
 	challenges := make([]fr.Element, len(proof.L))
 	for i := 0; i < len(proof.L); i++ {
 		transcript.AppendPoint(&proof.L[i], "L")

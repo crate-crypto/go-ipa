@@ -33,7 +33,7 @@ func TestEncodingFixedVectors(t *testing.T) {
 	point := Generator
 	// Check encoding is as expected
 	for i := 0; i < 16; i++ {
-		byts := point.Bytes()
+		byts := point.BytesCompressed()
 		if expected_bit_strings[i] != hex.EncodeToString(byts[:]) {
 			panic("bit string does not match expected")
 		}
@@ -50,7 +50,7 @@ func TestEncodingFixedVectors(t *testing.T) {
 		}
 
 		var element Element
-		err = element.SetBytes(bytes)
+		err = element.SetBytesCompressed(bytes)
 		if err != nil {
 			panic("point was decoded as invalid")
 		}
@@ -81,8 +81,8 @@ func TestTwoTorsionEqual(t *testing.T) {
 			panic("points that differ by an order-2 point should be equal")
 		}
 
-		expected_bit_string := point.Bytes()
-		got_bit_string := point_plus_torsion.Bytes()
+		expected_bit_string := point.BytesCompressed()
+		got_bit_string := point_plus_torsion.BytesCompressed()
 		if expected_bit_string != got_bit_string {
 			panic("points that differ by an order-2 point should produce the same bit string")
 		}
