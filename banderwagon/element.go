@@ -257,6 +257,12 @@ func (p *Element) ScalarMul(p1 *Element, scalar_mont *fr.Element) *Element {
 	return p
 }
 
+func (p *Element) ToAffine() bandersnatch.PointAffine {
+	var affine bandersnatch.PointAffine
+	affine.FromProj(&p.inner)
+	return affine
+}
+
 // This method is unsafe for two reasons:
 // - It does not check that the point is indeed in the group
 // - The serialisation method being used is for bandersnatch and not banderwagon

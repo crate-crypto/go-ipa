@@ -3,6 +3,7 @@ package banderwagon
 import (
 	"encoding/binary"
 	"io"
+	"sync"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
@@ -101,6 +102,42 @@ func DeserializePrecomputedLagrange(reader io.Reader) (*PrecomputeLagrange, erro
 }
 
 func (p *PrecomputeLagrange) Commit(evaluations []fr.Element) Element {
+	return p.commit(evaluations, 0)
+}
+
+func (p *PrecomputeLagrange) CommitParallel(evaluations []fr.Element) Element {
+	const batchSize = 4
+	numBatches := (len(evaluations) + batchSize - 1) / batchSize
+
+	resultsContainer := [256 / batchSize]Element{}
+	results := resultsContainer[:numBatches]
+	for i := 0; i < len(results); i++ {
+		results[i].Identity()
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(numBatches)
+	for i := 0; i < numBatches; i++ {
+		i := i
+		start := i * batchSize
+		end := (i + 1) * batchSize
+		if end > len(evaluations) {
+			end = len(evaluations)
+		}
+		go func() {
+			results[i] = p.commit(evaluations[start:end], start)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+
+	for i := 1; i < numBatches; i++ {
+		results[0].Add(&results[0], &results[i])
+	}
+	return results[0]
+}
+
+func (p *PrecomputeLagrange) commit(evaluations []fr.Element, start int) Element {
 	var result Element
 	result.Identity()
 
@@ -111,7 +148,7 @@ func (p *PrecomputeLagrange) Commit(evaluations []fr.Element) Element {
 			continue
 		}
 
-		table := p.inner[i]
+		table := p.inner[i+start]
 		scalar_bytes_le := scalar.BytesLE()
 
 		for row, byte := range scalar_bytes_le {

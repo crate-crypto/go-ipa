@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 
+	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/banderwagon"
 )
 
@@ -12,7 +13,8 @@ type SRSPrecompPoints struct {
 	// Points to commit to the input vector
 	// We could try to find these points in the precomputed points
 	// but for now, we just store the SRS too
-	SRS []banderwagon.Element
+	SRS       []banderwagon.Element
+	SRSAffine []bandersnatch.PointAffine
 	// Point to commit to the inner product of the two vectors in the inner product argument
 	Q banderwagon.Element
 	// Precomputed SRS points
@@ -20,13 +22,18 @@ type SRSPrecompPoints struct {
 }
 
 func NewSRSPrecomp(num_points uint) *SRSPrecompPoints {
-
 	srs := GenerateRandomPoints(uint64(num_points))
 	var Q banderwagon.Element = banderwagon.Generator
-	var preComp = banderwagon.NewPrecomputeLagrange(srs)
+	preComp := banderwagon.NewPrecomputeLagrange(srs)
 
+	srsAffine := make([]bandersnatch.PointAffine, len(srs))
+	for i := 0; i < len(srs); i++ {
+		srsAffine[i] = srs[i].ToAffine()
+	}
 	return &SRSPrecompPoints{
-		SRS:        srs,
+		SRS:       srs,
+		SRSAffine: srsAffine,
+
 		Q:          Q,
 		PrecompLag: preComp,
 	}
@@ -50,6 +57,7 @@ func (spc *SRSPrecompPoints) SerializeSRSPrecomp() ([]byte, error) {
 	}
 	return buf.Bytes(), nil
 }
+
 func DeserializeSRSPrecomp(serialized []byte) (*SRSPrecompPoints, error) {
 	var spc SRSPrecompPoints
 	reader := bytes.NewReader(serialized)
@@ -76,7 +84,6 @@ func DeserializeSRSPrecomp(serialized []byte) (*SRSPrecompPoints, error) {
 }
 
 func (spc SRSPrecompPoints) Equal(other SRSPrecompPoints) bool {
-
 	if len(spc.SRS) != len(other.SRS) {
 		return false
 	}

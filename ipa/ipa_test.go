@@ -4,18 +4,19 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"testing"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
 	"github.com/crate-crypto/go-ipa/banderwagon"
 	"github.com/crate-crypto/go-ipa/common"
 	"github.com/crate-crypto/go-ipa/test_helper"
+	"github.com/stretchr/testify/require"
 )
 
 var ipaConf = NewIPASettings()
 
 func TestIPAProofCreateVerify(t *testing.T) {
-
 	// Shared View
 	var point fr.Element
 	point.SetUint64(123456789)
@@ -40,10 +41,9 @@ func TestIPAProofCreateVerify(t *testing.T) {
 	if !ok {
 		panic("inner product proof failed")
 	}
-
 }
-func TestIPAConsistencySimpleProof(t *testing.T) {
 
+func TestIPAConsistencySimpleProof(t *testing.T) {
 	// Shared View
 	var input_point fr.Element
 	input_point.SetUint64(2101)
@@ -96,7 +96,7 @@ func TestIPAConsistencySimpleProof(t *testing.T) {
 	// Check that the serialised proof matches the other implementations
 	expected := "273395a8febdaed38e94c3d874e99c911a47dd84616d54c55021d5c4131b507e46a4ec2c7e82b77ec2f533994c91ca7edaef212c666a1169b29c323eabb0cf690e0146638d0e2d543f81da4bd597bf3013e1663f340a8f87b845495598d0a3951590b6417f868edaeb3424ff174901d1185a53a3ee127fb7be0af42dda44bf992885bde279ef821a298087717ef3f2b78b2ede7f5d2ea1b60a4195de86a530eb247fd7e456012ae9a070c61635e55d1b7a340dfab8dae991d6273d099d9552815434cc1ba7bcdae341cf7928c6f25102370bdf4b26aad3af654d9dff4b3735661db3177342de5aad774a59d3e1b12754aee641d5f9cd1ecd2751471b308d2d8410add1c9fcc5a2b7371259f0538270832a98d18151f653efbc60895fab8be9650510449081626b5cd24671d1a3253487d44f589c2ff0da3557e307e520cf4e0054bbf8bdffaa24b7e4cce5092ccae5a08281ee24758374f4e65f126cacce64051905b5e2038060ad399c69ca6cb1d596d7c9cb5e161c7dcddc1a7ad62660dd4a5f69b31229b80e6b3df520714e4ea2b5896ebd48d14c7455e91c1ecf4acc5ffb36937c49413b7d1005dd6efbd526f5af5d61131ca3fcdae1218ce81c75e62b39100ec7f474b48a2bee6cef453fa1bc3db95c7c6575bc2d5927cbf7413181ac905766a4038a7b422a8ef2bf7b5059b5c546c19a33c1049482b9a9093f864913ca82290decf6e9a65bf3f66bc3ba4a8ed17b56d890a83bcbe74435a42499dec115"
 
-	var buf = new(bytes.Buffer)
+	buf := new(bytes.Buffer)
 	proof.Write(buf)
 
 	bytes := buf.Bytes()
@@ -104,8 +104,8 @@ func TestIPAConsistencySimpleProof(t *testing.T) {
 		panic("expected serialised proof is different from the other implementations")
 	}
 }
-func TestBasicInnerProduct(t *testing.T) {
 
+func TestBasicInnerProduct(t *testing.T) {
 	var a []fr.Element
 	for i := 0; i < 10; i++ {
 		var tmp fr.Element
@@ -131,8 +131,8 @@ func TestBasicInnerProduct(t *testing.T) {
 		panic("the inner product should just be the sum of a since b is just 1")
 	}
 }
-func TestBasicCommit(t *testing.T) {
 
+func TestBasicCommit(t *testing.T) {
 	gen := banderwagon.Generator
 
 	var generators []banderwagon.Element
@@ -197,7 +197,6 @@ func TestCRSGeneration(t *testing.T) {
 	expected := "01587ad1336675eb912550ec2a28eb8923b824b490dd2ba82e48f14590a298a0"
 	if got != expected {
 		panic("the first point is not correct")
-
 	}
 	bytes = points[255].Bytes()
 	got = hex.EncodeToString(bytes[:])
@@ -217,11 +216,10 @@ func TestCRSGeneration(t *testing.T) {
 	if got != expected {
 		panic("unexpected point encountered")
 	}
-
 }
 
 func test_serialize_deserialize_proof(proof IPAProof) {
-	var buf = new(bytes.Buffer)
+	buf := new(bytes.Buffer)
 	proof.Write(buf)
 
 	var got_proof IPAProof
@@ -242,4 +240,79 @@ func removeDuplicatePoints(intSlice []banderwagon.Element) []banderwagon.Element
 		}
 	}
 	return list
+}
+
+func BenchmarkCommitToPoly(b *testing.B) {
+	conf := NewIPASettings()
+	_, err := conf.SRSPrecompPoints.SerializeSRSPrecomp()
+	require.NoError(b, err)
+
+	// We'll benchmark for different vector lengths.
+	vecLengths := []int{1, 2, 4, 8, 16, 32, 64, 128, 256}
+
+	for _, vl := range vecLengths {
+		// Generate `vl` random Fr elements, so we can benchmark MSM with them..
+		frs := make([]fr.Element, vl)
+		for i := 0; i < vl; i++ {
+			frs[i].SetRandom()
+		}
+		b.Run(fmt.Sprintf("vector length %d with go-ipa precomputed table (current)", vl), func(b *testing.B) {
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				conf.Commit(frs)
+			}
+		})
+		b.Run(fmt.Sprintf("vector length %d with pristine gnark (no precomp tables)", vl), func(b *testing.B) {
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				conf.CommitGnark(frs)
+			}
+		})
+		b.Run(fmt.Sprintf("vector length %d with go-ipa (hybrid (precomputed or gnark depending on size [new])", vl), func(b *testing.B) {
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				conf.CommitHybrid(frs)
+			}
+		})
+		b.Run(fmt.Sprintf("vector length %d with go-ipa (precomputed and parallel [new])", vl), func(b *testing.B) {
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				conf.CommitParallel(frs)
+			}
+		})
+
+	}
+}
+
+func TestCommitToPolyFlavors(t *testing.T) {
+	conf := NewIPASettings()
+
+	// Generate 256 random Fr elements.
+	frs := make([]fr.Element, 256)
+	for i := 0; i < len(frs); i++ {
+		frs[i].SetRandom()
+	}
+
+	// With the same vector of Frs, calculate the commitment with all the algorithms and check they match.
+
+	// generate in `ipaElem` the same MSM, but using our Precomp table.
+	goIPACurrent := conf.Commit(frs)
+
+	// gnark pristine
+	gnark := conf.CommitGnark(frs)
+
+	// go-ipa parallel
+	goIPAParallel := conf.CommitParallel(frs)
+
+	// hybrid (go-ipa or gnark) depending on vector length
+	hybrid := conf.CommitHybrid(frs)
+
+	// Check that both match.
+	if !goIPACurrent.Equal(&gnark) || !goIPACurrent.Equal(&goIPAParallel) || !goIPACurrent.Equal(&hybrid) {
+		t.Fatalf("points don't match (%v, %v, %v %v)", goIPACurrent, gnark, goIPAParallel, hybrid)
+	}
 }

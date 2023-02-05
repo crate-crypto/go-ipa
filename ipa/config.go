@@ -7,6 +7,7 @@ import (
 	"math"
 	"runtime"
 
+	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fp"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
 	"github.com/crate-crypto/go-ipa/banderwagon"
@@ -55,10 +56,33 @@ func multiScalar(points []banderwagon.Element, scalars []fr.Element) banderwagon
 	return *res
 }
 
+func multiScalarAffine(points []bandersnatch.PointAffine, scalars []fr.Element) banderwagon.Element {
+	var result banderwagon.Element
+	result.Identity()
+
+	res, err := result.MultiExpAffine(points, scalars, banderwagon.MultiExpConfig{NbTasks: runtime.NumCPU(), ScalarsMont: true})
+	if err != nil {
+		panic("mult exponentiation was not successful. TODO: replace panics by bubbling up error")
+	}
+
+	return *res
+}
+
 // Commits to a polynomial using the SRS
 // panics if the length of the SRS does not equal the number of polynomial coefficients
 func (ic *IPAConfig) Commit(polynomial []fr.Element) banderwagon.Element {
 	return ic.SRSPrecompPoints.PrecompLag.Commit(polynomial)
+}
+
+func (ic *IPAConfig) CommitParallel(polynomial []fr.Element) banderwagon.Element {
+	return ic.SRSPrecompPoints.PrecompLag.CommitParallel(polynomial)
+}
+
+func (ic *IPAConfig) CommitHybrid(polynomial []fr.Element) banderwagon.Element {
+	if len(polynomial) < 16 {
+		return ic.Commit(polynomial)
+	}
+	return ic.CommitGnark(polynomial)
 }
 
 // Commits to a polynomial using the input group elements
@@ -69,6 +93,10 @@ func commit(group_elements []banderwagon.Element, polynomial []fr.Element) bande
 		panic(fmt.Sprintf("diff sizes, %d != %d", len(group_elements), len(polynomial)))
 	}
 	return multiScalar(group_elements, polynomial)
+}
+
+func (ic *IPAConfig) CommitGnark(polynomial []fr.Element) banderwagon.Element {
+	return multiScalarAffine(ic.SRSPrecompPoints.SRSAffine[:len(polynomial)], polynomial)
 }
 
 // Computes the inner product of a and b
