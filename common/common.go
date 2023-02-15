@@ -29,7 +29,7 @@ func PowersOf(x fr.Element, degree int) []fr.Element {
 }
 
 func ReadPoint(r io.Reader) *banderwagon.Element {
-	var x = make([]byte, 32)
+	x := make([]byte, 32)
 	n, err := r.Read(x)
 	if err != nil {
 		panic("error reading bytes")
@@ -37,8 +37,8 @@ func ReadPoint(r io.Reader) *banderwagon.Element {
 	if n != 32 {
 		panic("did not read enough bytes")
 	}
-	var p = &banderwagon.Element{}
-	err = p.SetBytes(x)
+	p := &banderwagon.Element{}
+	err = p.SetBytes(banderwagon.SerializedAffinePointCompressed(x), false)
 	if err != nil {
 		panic("could not deserialize point")
 	}
@@ -46,7 +46,7 @@ func ReadPoint(r io.Reader) *banderwagon.Element {
 }
 
 func ReadScalar(r io.Reader) *fr.Element {
-	var x = make([]byte, 32)
+	x := make([]byte, 32)
 	n, err := r.Read(x)
 	if err != nil {
 		panic("error reading bytes")
@@ -54,7 +54,7 @@ func ReadScalar(r io.Reader) *fr.Element {
 	if n != 32 {
 		panic("did not read enough bytes")
 	}
-	var scalar = &fr.Element{}
+	scalar := &fr.Element{}
 	scalar.SetBytesLE(x)
 	if err != nil {
 		panic("could not deserialize point")

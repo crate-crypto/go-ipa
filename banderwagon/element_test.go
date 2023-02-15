@@ -50,7 +50,7 @@ func TestEncodingFixedVectors(t *testing.T) {
 		}
 
 		var element Element
-		err = element.SetBytes(bytes)
+		err = element.SetBytes(bytes, false)
 		if err != nil {
 			panic("point was decoded as invalid")
 		}
@@ -83,7 +83,7 @@ func TestTwoTorsionEqual(t *testing.T) {
 
 		expected_bit_string := point.Bytes()
 		got_bit_string := point_plus_torsion.Bytes()
-		if expected_bit_string != got_bit_string {
+		if !bytes.Equal(expected_bit_string, got_bit_string) {
 			panic("points that differ by an order-2 point should produce the same bit string")
 		}
 
@@ -120,7 +120,7 @@ func TestPointAtInfinityComponent(t *testing.T) {
 			panic("malformed byte string")
 		}
 
-		err = element.SetBytes(byts)
+		err = element.SetBytesUncompressed(byts, false)
 		if err == nil {
 			panic("point should not be in the correct subgroup as it has an infinity component")
 		}
@@ -170,17 +170,17 @@ func TestBatchElementsToBytes(t *testing.T) {
 	A.Add(&Generator, &Generator)
 	B.Double(&Generator)
 
-	expected_serialised_a := A.Bytes()
-	expected_serialised_b := B.Bytes()
+	expected_serialised_a := A.BytesUncompressed()
+	expected_serialised_b := B.BytesUncompressed()
 
-	serialised_points := ElementsToBytes([]*Element{&A, &B})
+	serialised_points := ElementsToBytesUncompressed([]*Element{&A, &B})
 
 	got_serialised_a := serialised_points[0]
 	got_serialised_b := serialised_points[1]
-	if expected_serialised_a != got_serialised_a {
+	if !bytes.Equal(expected_serialised_a, got_serialised_a) {
 		panic("expected serialised point of A is incorrect ")
 	}
-	if expected_serialised_b != got_serialised_b {
+	if !bytes.Equal(expected_serialised_b, got_serialised_b) {
 		panic("expected serialised point of B is incorrect ")
 	}
 }
