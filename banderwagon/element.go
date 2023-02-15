@@ -16,8 +16,8 @@ const (
 )
 
 type (
-	SerializedAffinePoint           []byte
-	SerializedAffinePointCompressed []byte
+	SerializedPoint           []byte
+	SerializedPointCompressed []byte
 )
 
 var Generator = Element{inner: bandersnatch.PointProj{
@@ -38,7 +38,7 @@ type Element struct {
 	inner bandersnatch.PointProj
 }
 
-func (p Element) Bytes() SerializedAffinePointCompressed {
+func (p Element) Bytes() SerializedPointCompressed {
 	// Convert underlying point to affine representation
 	var affine_representation bandersnatch.PointAffine
 	affine_representation.FromProj(&p.inner)
@@ -53,7 +53,7 @@ func (p Element) Bytes() SerializedAffinePointCompressed {
 	return compressedPoint[:]
 }
 
-func (p *Element) SetBytes(buf SerializedAffinePointCompressed, trusted bool) error {
+func (p *Element) SetBytes(buf SerializedPointCompressed, trusted bool) error {
 	// set the buffer which is x * SignY as X
 	var x fp.Element
 	x.SetBytes(buf[:])
@@ -79,7 +79,7 @@ func (p *Element) SetBytes(buf SerializedAffinePointCompressed, trusted bool) er
 	return nil
 }
 
-func (p Element) BytesUncompressed() SerializedAffinePoint {
+func (p Element) BytesUncompressed() SerializedPoint {
 	// Convert underlying point to affine representation
 	var affine_representation bandersnatch.PointAffine
 	affine_representation.FromProj(&p.inner)
@@ -87,7 +87,7 @@ func (p Element) BytesUncompressed() SerializedAffinePoint {
 	xbytes := affine_representation.X.Bytes()
 	ybytes := affine_representation.Y.Bytes()
 
-	xy := make(SerializedAffinePoint, SerializedPointSize)
+	xy := make(SerializedPoint, SerializedPointSize)
 	copy(xy, xbytes[:])
 	copy(xy[coordinateSize:], ybytes[:])
 
@@ -96,7 +96,7 @@ func (p Element) BytesUncompressed() SerializedAffinePoint {
 
 // Deserialises bytes into a group element
 // assuming the input is not trusted
-func (p *Element) SetBytesUncompressed(buf SerializedAffinePoint, trusted bool) error {
+func (p *Element) SetBytesUncompressed(buf SerializedPoint, trusted bool) error {
 	var x fp.Element
 	x.SetBytes(buf[:coordinateSize])
 
@@ -121,7 +121,7 @@ func (p *Element) SetBytesUncompressed(buf SerializedAffinePoint, trusted bool) 
 }
 
 // Serialises multiple group elements using a batch multi inversion
-func ElementsToBytesUncompressed(elements []*Element) []SerializedAffinePoint {
+func ElementsToBytesUncompressed(elements []*Element) []SerializedPoint {
 	// Collect all z co-ordinates
 	zs := make([]fp.Element, len(elements))
 	for i := 0; i < int(len(elements)); i++ {
@@ -132,7 +132,7 @@ func ElementsToBytesUncompressed(elements []*Element) []SerializedAffinePoint {
 	zInvs := fp.BatchInvert(zs)
 
 	// compressedPoints := make([]SerializedAffinePointCompressed, len(elements))
-	uncompressedPoints := make([]SerializedAffinePoint, len(elements))
+	uncompressedPoints := make([]SerializedPoint, len(elements))
 
 	// Multiply x and y by zInv
 	for i := 0; i < int(len(elements)); i++ {
@@ -147,7 +147,7 @@ func ElementsToBytesUncompressed(elements []*Element) []SerializedAffinePoint {
 		// compressedPoints[i] = element.Bytes()
 		xbytes := X.Bytes()
 		ybytes := Y.Bytes()
-		uncompressedPoints[i] = make(SerializedAffinePoint, SerializedPointSize)
+		uncompressedPoints[i] = make(SerializedPoint, SerializedPointSize)
 		copy(uncompressedPoints[i][:], xbytes[:])
 		copy(uncompressedPoints[i][coordinateSize:], ybytes[:])
 	}
@@ -324,7 +324,7 @@ func (element *Element) UnsafeWriteUncompressedPoint(w io.Writer) (int, error) {
 	return p.WriteUncompressedPoint(w)
 }
 
-func (sp SerializedAffinePoint) ToCompressed() SerializedAffinePointCompressed {
+func (sp SerializedPoint) ToCompressed() SerializedPointCompressed {
 	// Deserialize `y` since we have to do the lexicographical check.
 	var y fp.Element
 	y.SetBytes(sp[SerializedPointCompressedSize:])
@@ -340,5 +340,5 @@ func (sp SerializedAffinePoint) ToCompressed() SerializedAffinePointCompressed {
 	}
 
 	// We're lucky in this case, return the original `x` bytes.
-	return SerializedAffinePointCompressed(sp[:SerializedPointCompressedSize])
+	return SerializedPointCompressed(sp[:SerializedPointCompressedSize])
 }

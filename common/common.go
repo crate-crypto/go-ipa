@@ -38,7 +38,7 @@ func ReadPoint(r io.Reader) *banderwagon.Element {
 		panic("did not read enough bytes")
 	}
 	p := &banderwagon.Element{}
-	err = p.SetBytes(banderwagon.SerializedAffinePointCompressed(x), false)
+	err = p.SetBytes(banderwagon.SerializedPointCompressed(x), false)
 	if err != nil {
 		panic("could not deserialize point")
 	}
