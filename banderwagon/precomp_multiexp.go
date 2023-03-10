@@ -187,7 +187,7 @@ func (p *PrecomputeLagrange) Commit(evaluations []fr.Element) Element {
 			if value == 0 {
 				continue
 			}
-			tp := table.point2(row, value)
+			tp := table.point(row, value)
 			result.AddMixed(&result, *tp)
 		}
 	}
@@ -202,11 +202,11 @@ func (p *PrecomputeLagrange) Commit(evaluations []fr.Element) Element {
 		table := p.inner8Bit[i-len(p.inner16Bit)]
 		scalar_bytes_le := scalar.BytesLE()
 
-		for row, byte := range scalar_bytes_le {
-			if byte == 0 {
+		for row, value := range scalar_bytes_le {
+			if value == 0 {
 				continue
 			}
-			tp := table.point(row, byte)
+			tp := table.point(row, uint16(value))
 			result.AddMixed(&result, *tp)
 		}
 	}
@@ -216,15 +216,23 @@ func (p *PrecomputeLagrange) Commit(evaluations []fr.Element) Element {
 
 type LagrangeTablePoints struct {
 	identity bandersnatch.PointAffine // TODO We can save memory by removing this
-	matrix   []bandersnatch.PointAffine
+	// windowSize is the window size for each index.
+	// e.g: point(index, value) = matrix[i *windowSize + value]
+	windowSize int
+	matrix     []bandersnatch.PointAffine
 }
 
-// Serialize serializes a LagrangeTablePoints in the following format: [int64(numRows)][point1]...[pointN]
+// Serialize serializes a LagrangeTablePoints in the following format:
+// [int64(numRows)][int64(windowSize)][point1]...[pointN]
 // Where [pointX] is an affine point in uncompressed form.
 func (ltp *LagrangeTablePoints) Serialize(w io.Writer) error {
 	// Number of rows.
 	if err := binary.Write(w, binary.LittleEndian, int64(len(ltp.matrix))); err != nil {
-		return fmt.Errorf("writing row length: %s", err)
+		return fmt.Errorf("writing column count: %s", err)
+	}
+	// Window size.
+	if err := binary.Write(w, binary.LittleEndian, int64(ltp.windowSize)); err != nil {
+		return fmt.Errorf("writing window size: %s", err)
 	}
 	// Write points in affine uncompressed form.
 	for _, p := range ltp.matrix {
@@ -239,9 +247,14 @@ func (ltp *LagrangeTablePoints) Serialize(w io.Writer) error {
 func (ltp *LagrangeTablePoints) Deserialize(r io.Reader) error {
 	var columnCount int64
 	if err := binary.Read(r, binary.LittleEndian, &columnCount); err != nil {
-		return fmt.Errorf("deserializing the number of rows: %s", err)
+		return fmt.Errorf("deserializing the number of columns: %s", err)
+	}
+	var windowSize int64
+	if err := binary.Read(r, binary.LittleEndian, &windowSize); err != nil {
+		return fmt.Errorf("deserializing window size: %s", err)
 	}
 	ltp.identity.Identity()
+	ltp.windowSize = int(windowSize)
 	ltp.matrix = make([]bandersnatch.PointAffine, columnCount)
 	for i := range ltp.matrix {
 		ltp.matrix[i] = bandersnatch.ReadUncompressedPoint(r)
@@ -278,13 +291,12 @@ func newLagrangeTablePoints(point Element, num_rows int, base_int int) *Lagrange
 
 	base_row := compute_base_row(point, (base_int - 1))
 
-	var rows []Element
+	rows := make([]Element, 0, num_rows*(base_int-1))
 	rows = append(rows, base_row...)
 
 	scale := base
 	// TODO: we can do this in parallel
 	for i := 1; i < num_rows; i++ {
-
 		scaled_row := scale_row(base_row, scale)
 		rows = append(rows, scaled_row...)
 		scale.Mul(&scale, &base)
@@ -293,24 +305,17 @@ func newLagrangeTablePoints(point Element, num_rows int, base_int int) *Lagrange
 	var identity bandersnatch.PointAffine
 	identity.Identity()
 	return &LagrangeTablePoints{
-		identity: identity,
-		matrix:   rows_affine,
+		identity:   identity,
+		windowSize: base_int - 1, // Zero is not included.
+		matrix:     rows_affine,
 	}
 }
 
-func (ltp *LagrangeTablePoints) point(index int, value uint8) *bandersnatch.PointAffine {
+func (ltp *LagrangeTablePoints) point(index int, value uint16) *bandersnatch.PointAffine {
 	if value == 0 {
 		return &ltp.identity
 	}
-	return &ltp.matrix[uint(index*255)+uint(value-1)]
-}
-
-// TODO(jsign): try to unify with `point(...)` parametrizing index base offsets.
-func (ltp *LagrangeTablePoints) point2(index int, value uint16) *bandersnatch.PointAffine {
-	if value == 0 {
-		return &ltp.identity
-	}
-	return &ltp.matrix[uint(index*(1<<16-1))+uint(value-1)]
+	return &ltp.matrix[uint(index*ltp.windowSize)+uint(value-1)]
 }
 
 func compute_base_row(point Element, num_points int) []Element {
