@@ -19,11 +19,12 @@ type SRSPrecompPoints struct {
 	PrecompLag *banderwagon.PrecomputeLagrange
 }
 
+// NewSRSPrecomp returns an instance a SRS with the given number of points, and generates
+// a precomputed table for them.
 func NewSRSPrecomp(num_points uint) *SRSPrecompPoints {
-
 	srs := GenerateRandomPoints(uint64(num_points))
 	var Q banderwagon.Element = banderwagon.Generator
-	var preComp = banderwagon.NewPrecomputeLagrange(srs)
+	preComp := banderwagon.NewPrecomputeLagrange(srs)
 
 	return &SRSPrecompPoints{
 		SRS:        srs,
@@ -32,6 +33,9 @@ func NewSRSPrecomp(num_points uint) *SRSPrecompPoints {
 	}
 }
 
+// SerializeSRSPrecomp serializes the precomputed table into a byte slice.
+// The format is: [in64(len(SRS))] [SRS points (uncompressed)] [Precomp table]
+// To see the format of [Precomp table], refer to (*PrecomputeLagrange).SerializePrecomputedLagrange().
 func (spc *SRSPrecompPoints) SerializeSRSPrecomp() ([]byte, error) {
 	var buf bytes.Buffer
 
@@ -50,6 +54,7 @@ func (spc *SRSPrecompPoints) SerializeSRSPrecomp() ([]byte, error) {
 	}
 	return buf.Bytes(), nil
 }
+
 func DeserializeSRSPrecomp(serialized []byte) (*SRSPrecompPoints, error) {
 	var spc SRSPrecompPoints
 	reader := bytes.NewReader(serialized)
@@ -76,7 +81,6 @@ func DeserializeSRSPrecomp(serialized []byte) (*SRSPrecompPoints, error) {
 }
 
 func (spc SRSPrecompPoints) Equal(other SRSPrecompPoints) bool {
-
 	if len(spc.SRS) != len(other.SRS) {
 		return false
 	}
