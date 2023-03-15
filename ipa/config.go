@@ -14,6 +14,7 @@ import (
 )
 
 type IPAConfig struct {
+	// SRSPrecompPoints contains precomputed values for the SRS.
 	SRSPrecompPoints *SRSPrecompPoints
 
 	PrecomputedWeights *PrecomputedWeights
@@ -24,9 +25,9 @@ type IPAConfig struct {
 	num_ipa_rounds uint32
 }
 
-// This function creates 256 random generator points where the relative discrete log is
+// This function creates common.POLY_DEGREE random generator points where the relative discrete log is
 // not known between each generator and all of the other necessary information needed to verify
-// and create an IPA proof
+// and create an IPA proof.
 func NewIPASettings() *IPAConfig {
 	return &IPAConfig{
 		SRSPrecompPoints:   NewSRSPrecomp(common.POLY_DEGREE),
