@@ -101,7 +101,7 @@ func computeBarycentricWeightForElement(element uint64) fr.Element {
 // This can also be seen as the lagrange coefficients L_i(point)
 func (preComp *PrecomputedWeights) ComputeBarycentricCoefficients(point fr.Element) []fr.Element {
 
-	// Compute A(x_i) * point - x_i
+	// Compute A'(x_i) * (point - x_i)
 	lagrangeEvals := make([]fr.Element, DOMAIN_SIZE)
 	for i := uint64(0); i < DOMAIN_SIZE; i++ {
 		weight := preComp.barycentricWeights[i]
