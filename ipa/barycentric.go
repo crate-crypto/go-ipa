@@ -122,12 +122,8 @@ func (preComp *PrecomputedWeights) ComputeBarycentricCoefficients(point fr.Eleme
 		totalProd.Mul(&totalProd, &tmp)
 	}
 
+	lagrangeEvals = fr.BatchInvert(lagrangeEvals)
 	for i := uint64(0); i < DOMAIN_SIZE; i++ {
-		// TODO: there was no batch inversion API.
-		// TODO once we fully switch over to bandersnatch
-		// TODO we can switch to batch invert API
-
-		lagrangeEvals[i].Inverse(&lagrangeEvals[i])
 		lagrangeEvals[i].Mul(&lagrangeEvals[i], &totalProd)
 	}
 
