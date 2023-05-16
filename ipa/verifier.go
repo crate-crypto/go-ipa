@@ -32,7 +32,7 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 	commitment.Add(&commitment, &qy)
 
 	challenges := generateChallenges(transcript, &proof)
-	challenges_inv := make([]fr.Element, len(challenges))
+	challenges_inv := fr.BatchInvert(challenges)
 
 	// Compute expected commitment
 	for i := 0; i < len(challenges); i++ {
@@ -40,12 +40,7 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 		L := proof.L[i]
 		R := proof.R[i]
 
-		var xInv fr.Element
-		xInv.Inverse(&x)
-
-		challenges_inv[i] = xInv
-
-		commitment = commit([]banderwagon.Element{commitment, L, R}, []fr.Element{fr.One(), x, xInv})
+		commitment = commit([]banderwagon.Element{commitment, L, R}, []fr.Element{fr.One(), x, challenges_inv[i]})
 	}
 
 	current_basis := ic.SRSPrecompPoints.SRS
