@@ -146,12 +146,12 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 	// this is more readable, so will leave for now
 	helper_scalars := make([]fr.Element, num_queries)
 	for i := 0; i < num_queries; i++ {
-		r := powers_of_r[i]
-
-		// r^i / (t - z_i)
 		var z = domainToFr(zs[i])
 		helper_scalars[i].Sub(&t, &z)
-		helper_scalars[i].Inverse(&helper_scalars[i])
+	}
+	helper_scalars = fr.BatchInvert(helper_scalars)
+	for i := 0; i < num_queries; i++ {
+		r := powers_of_r[i]
 		helper_scalars[i].Mul(&helper_scalars[i], &r)
 	}
 
