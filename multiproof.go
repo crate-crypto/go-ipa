@@ -164,13 +164,11 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 	}
 
 	// Compute E = SUM C_i * (r^i / t - z_i) = SUM C_i * helper_scalars
-	var E banderwagon.Element
-	E.Identity()
-	for i := 0; i < num_queries; i++ {
-		var tmp banderwagon.Element
-		tmp.ScalarMul(Cs[i], &helper_scalars[i])
-		E.Add(&E, &tmp)
+	Csnp := make([]banderwagon.Element, len(Cs))
+	for i := 0; i < len(Cs); i++ {
+		Csnp[i] = *Cs[i]
 	}
+	E := ipa.MultiScalar(Csnp, helper_scalars)
 	transcript.AppendPoint(&E, "E")
 
 	var E_minus_D banderwagon.Element
