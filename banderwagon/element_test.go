@@ -11,6 +11,8 @@ import (
 )
 
 func TestEncodingFixedVectors(t *testing.T) {
+	t.Parallel()
+
 	expected_bit_strings := [16]string{
 		"4a2c7486fd924882bf02c6908de395122843e3e05264d7991e18e7985dad51e9",
 		"43aa74ef706605705989e8fd38df46873b7eae5921fbed115ac9d937399ce4d5",
@@ -62,6 +64,8 @@ func TestEncodingFixedVectors(t *testing.T) {
 }
 
 func TestTwoTorsionEqual(t *testing.T) {
+	t.Parallel()
+
 	// Points that differ by a two torsion point
 	// are equal, where the two torsion point is not the point at infinity
 	two_torsion := Element{
@@ -92,6 +96,8 @@ func TestTwoTorsionEqual(t *testing.T) {
 }
 
 func TestPointAtInfinityComponent(t *testing.T) {
+	t.Parallel()
+
 	// These are all points which will be shown to be on the curve
 	// but are not in the correct subgroup
 	bad_byte_strings := [16]string{
@@ -128,6 +134,8 @@ func TestPointAtInfinityComponent(t *testing.T) {
 }
 
 func TestAddSubDouble(t *testing.T) {
+	t.Parallel()
+
 	var A, B Element
 
 	A.Add(&Generator, &Generator)
@@ -148,6 +156,8 @@ func TestAddSubDouble(t *testing.T) {
 }
 
 func TestSerde(t *testing.T) {
+	t.Parallel()
+
 	var point Element
 	var point_aff bandersnatch.PointAffine
 
@@ -165,6 +175,8 @@ func TestSerde(t *testing.T) {
 }
 
 func TestBatchElementsToBytes(t *testing.T) {
+	t.Parallel()
+
 	var A, B Element
 
 	A.Add(&Generator, &Generator)
@@ -186,6 +198,8 @@ func TestBatchElementsToBytes(t *testing.T) {
 }
 
 func TestMultiMapToBaseField(t *testing.T) {
+	t.Parallel()
+
 	var A, B Element
 
 	A.Add(&Generator, &Generator)
