@@ -42,6 +42,24 @@ func (p Element) Bytes() [sizePointCompressed]byte {
 	return x.Bytes()
 }
 
+func BatchNormalize(elements []*Element) {
+	// Collect all z co-ordinates
+	zs := make([]fp.Element, len(elements))
+	for i := 0; i < int(len(elements)); i++ {
+		zs[i] = elements[i].inner.Z
+	}
+
+	// Invert z co-ordinates
+	zInvs := fp.BatchInvert(zs)
+
+	// Multiply x and y by zInv
+	for i, e := range elements {
+		e.inner.X.Mul(&e.inner.X, &zInvs[i])
+		e.inner.Y.Mul(&e.inner.Y, &zInvs[i])
+		e.inner.Z = fp.One()
+	}
+}
+
 // Serialises multiple group elements using a batch multi inversion
 func ElementsToBytes(elements []*Element) [][sizePointCompressed]byte {
 	// Collect all z co-ordinates
