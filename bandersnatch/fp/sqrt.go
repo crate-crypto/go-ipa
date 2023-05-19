@@ -111,22 +111,22 @@ func sqrtAlg_GetPrecomputedRootOfUnity(target *feType_SquareRoot, multiplier int
 // Note: accessed through sqrtAlg_getPrecomputedRootOfUnity
 var sqrtPrecomp_PrecomputedBlocks [sqrtParam_Blocks][1 << sqrtParam_BlockSize]feType_SquareRoot
 
-func (z *Element) SqrtPrecomp(x *Element) *Element {
+func SqrtPrecomp(x *Element) *Element {
+	res := Zero()
 	if x.IsZero() {
-		z.SetZero()
-		return z
+		return &res
 	}
 	var xCopy feType_SquareRoot = *x
 	var candidate, rootOfUnity feType_SquareRoot
-	xCopy.sqrtAlg_ComputeRelevantPowers(&candidate, &rootOfUnity)
-	if !rootOfUnity.invSqrtEqDyadic() {
+	sqrtAlg_ComputeRelevantPowers(&xCopy, &candidate, &rootOfUnity)
+	if !invSqrtEqDyadic(&rootOfUnity) {
 		return nil
 	}
-	z.Mul(&candidate, &rootOfUnity)
-	return z
+
+	return res.Mul(&candidate, &rootOfUnity)
 }
 
-func (z *Element) invSqrtEqDyadic() bool {
+func invSqrtEqDyadic(z *Element) bool {
 	// The algorithm works by essentially computing the dlog of z and then halving it.
 
 	// negExponent is intended to hold the negative of the dlog of z.
@@ -187,7 +187,7 @@ func (z *Element) invSqrtEqDyadic() bool {
 	return true
 }
 
-func (z *feType_SquareRoot) sqrtAlg_ComputeRelevantPowers(squareRootCandidate *feType_SquareRoot, rootOfUnity *feType_SquareRoot) {
+func sqrtAlg_ComputeRelevantPowers(z *Element, squareRootCandidate *feType_SquareRoot, rootOfUnity *feType_SquareRoot) {
 	SquareEqNTimes := func(z *feType_SquareRoot, n int) {
 		for i := 0; i < n; i++ {
 			z.Square(z)

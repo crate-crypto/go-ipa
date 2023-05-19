@@ -22,7 +22,8 @@ import (
 
 	"io"
 
-	"github.com/crate-crypto/go-ipa/bandersnatch/fp"
+	fpipa "github.com/crate-crypto/go-ipa/bandersnatch/fp"
+	fp "github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
 )
 
@@ -482,21 +483,21 @@ func computeY(x *fp.Element, choose_largest bool) *fp.Element {
 	num.Mul(&num, &edwards.A)   // ax^2
 	num.Sub(&num, &one) // ax^2 - 1
 	y.Div(&num, &den)
-	is_nil := y.SqrtPrecomp(&y)
+	sqrtY := fpipa.SqrtPrecomp(&y)
 
 	// If the square root does not exist, then the Sqrt method returns nil
 	// and leaves the receiver unchanged.
 	// Note the fact that it leaves the receiver unchanged, means we do not return &y
-	if is_nil == nil {
+	if sqrtY == nil {
 		return nil
 	}
 
 	// Choose between `y` and it's negation
-	is_largest := y.LexicographicallyLargest()
+	is_largest := sqrtY.LexicographicallyLargest()
 	if choose_largest == is_largest {
-		return &y
+		return sqrtY
 	} else {
-		return y.Neg(&y)
+		return sqrtY.Neg(sqrtY)
 	}
 
 }
