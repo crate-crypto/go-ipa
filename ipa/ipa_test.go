@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"os"
 	"testing"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
@@ -12,8 +13,16 @@ import (
 	"github.com/crate-crypto/go-ipa/test_helper"
 )
 
+var ipaConf *IPAConfig
+
+func TestMain(m *testing.M) {
+	ipaConf = NewIPASettings()
+	os.Exit(m.Run())
+}
+
 func TestIPAProofCreateVerify(t *testing.T) {
-	ipaConf := NewIPASettings()
+	t.Parallel()
+
 	// Shared View
 	var point fr.Element
 	point.SetUint64(123456789)
@@ -41,7 +50,8 @@ func TestIPAProofCreateVerify(t *testing.T) {
 }
 
 func TestIPAConsistencySimpleProof(t *testing.T) {
-	ipaConf := NewIPASettings()
+	t.Parallel()
+
 	// Shared View
 	var input_point fr.Element
 	input_point.SetUint64(2101)
@@ -104,6 +114,8 @@ func TestIPAConsistencySimpleProof(t *testing.T) {
 }
 
 func TestBasicInnerProduct(t *testing.T) {
+	t.Parallel()
+
 	var a []fr.Element
 	for i := 0; i < 10; i++ {
 		var tmp fr.Element
@@ -131,6 +143,8 @@ func TestBasicInnerProduct(t *testing.T) {
 }
 
 func TestBasicCommit(t *testing.T) {
+	t.Parallel()
+
 	gen := banderwagon.Generator
 
 	var generators []banderwagon.Element
@@ -163,6 +177,8 @@ func TestBasicCommit(t *testing.T) {
 }
 
 func TestCRSGeneration(t *testing.T) {
+	t.Parallel()
+
 	generator := banderwagon.Generator
 	points := GenerateRandomPoints(256)
 	for _, point := range points {

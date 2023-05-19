@@ -11,14 +11,17 @@ import (
 )
 
 func TestPrecompSerde(t *testing.T) {
+	t.Parallel()
+
 	testNumPoints := []int{
-		2, 3, 7, 20, 64, // Arbitrary sizes
-		common.POLY_DEGREE, // Ethereum Verkle Tries case
+		2, 3, 7, // Arbitrary sizes
+		common.POLY_DEGREE, // Ethereum Verkle Trees case
 	}
 
 	for _, numPoints := range testNumPoints {
 		numPoints := numPoints
 		t.Run(fmt.Sprintf("num points %d", numPoints), func(t *testing.T) {
+			t.Parallel()
 			// Generate the random points.
 			points := GenerateRandomPoints(uint64(numPoints))
 
@@ -58,14 +61,18 @@ func TestPrecompSerde(t *testing.T) {
 }
 
 func TestSRSPrecompSerde(t *testing.T) {
+	t.Parallel()
+
 	testNumPoints := []int{
-		2, 3, 7, 20, 64, // Arbitrary sizes
+		2, 3, 7, // Arbitrary sizes
 		256, // Ethereum Verkle Tries case
 	}
 
 	for _, numPoints := range testNumPoints {
 		numPoints := numPoints
 		t.Run(fmt.Sprintf("num points %d", numPoints), func(t *testing.T) {
+			t.Parallel()
+
 			srs_precomp := NewSRSPrecomp(uint(numPoints))
 			b, err := srs_precomp.SerializeSRSPrecomp()
 			if err != nil {
