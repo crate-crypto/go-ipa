@@ -3,6 +3,7 @@ package banderwagon
 import (
 	"errors"
 	"io"
+	"math/big"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fp"
@@ -123,9 +124,9 @@ func (p Element) mapToBaseField() fp.Element {
 
 func (p Element) MapToScalarField(res *fr.Element) {
 	basefield := p.mapToBaseField()
-	baseFieldBytes := fp.BytesLE(basefield)
+	baseFieldBytes := basefield.Bytes()
 
-	res.SetBytesLE(baseFieldBytes[:])
+	res.SetBytesCanonical(baseFieldBytes[:])
 }
 
 // Maps each point to a field element in the scalar field
@@ -148,8 +149,8 @@ func MultiMapToScalarField(result []*fr.Element, elements []*Element) {
 		var mappedElement fp.Element
 
 		mappedElement.Mul(&elements[i].inner.X, &yInvs[i])
-		byts := fp.BytesLE(mappedElement)
-		result[i].SetBytesLE(byts[:])
+		byts := mappedElement.Bytes()
+		result[i].SetBytes(byts[:])
 	}
 }
 
@@ -253,7 +254,9 @@ func (p *Element) Neg(p1 *Element) *Element {
 }
 
 func (p *Element) ScalarMul(p1 *Element, scalar_mont *fr.Element) *Element {
-	p.inner.ScalarMul(&p1.inner, scalar_mont)
+	var scalarBigInt big.Int
+	scalar_mont.BigInt(&scalarBigInt)
+	p.inner.ScalarMultiplication(&p1.inner, &scalarBigInt)
 	return p
 }
 
@@ -280,5 +283,5 @@ func (element *Element) UnsafeWriteUncompressedPoint(w io.Writer) (int, error) {
 	// Convert underlying point to affine representation
 	var p bandersnatch.PointAffine
 	p.FromProj(&element.inner)
-	return p.WriteUncompressedPoint(w)
+	return bandersnatch.WriteUncompressedPoint(&p, w)
 }

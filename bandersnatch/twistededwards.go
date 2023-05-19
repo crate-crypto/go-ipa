@@ -3,6 +3,7 @@ package bandersnatch
 import (
 	"math/big"
 
+	"github.com/consensys/gnark-crypto/ecc/bls12-381/bandersnatch"
 	fp "github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 )
 
@@ -11,7 +12,7 @@ type CurveParams struct {
 	A, D     fp.Element // in Montgomery form
 	Cofactor uint64     // not in Montgomery form
 	Order    big.Int
-	Base     PointAffine
+	Base     bandersnatch.PointAffine
 }
 
 var edwards CurveParams

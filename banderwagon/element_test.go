@@ -156,7 +156,7 @@ func TestSerde(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	point_aff.WriteUncompressedPoint(&buf)
+	bandersnatch.WriteUncompressedPoint(&point_aff, &buf)
 	got := bandersnatch.ReadUncompressedPoint(&buf)
 
 	if !point_aff.Equal(&got) {
