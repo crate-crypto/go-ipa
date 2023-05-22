@@ -43,20 +43,37 @@ func (p Element) Bytes() [sizePointCompressed]byte {
 }
 
 func BatchNormalize(elements []*Element) {
+	// The elements slice might contain duplicate pointers,
+	// dedupe them to avoid double work.
+	dedupedElements := make([]*Element, 0, len(elements))
+	for _, e := range elements {
+		found := false
+		for i := range dedupedElements {
+			if dedupedElements[i] == e {
+				found = true
+				break
+			}
+		}
+		if found {
+			continue
+		}
+		dedupedElements = append(dedupedElements, e)
+	}
+
 	// Collect all z co-ordinates
-	zs := make([]fp.Element, len(elements))
-	for i := 0; i < int(len(elements)); i++ {
-		zs[i] = elements[i].inner.Z
+	zs := make([]fp.Element, len(dedupedElements))
+	for i := 0; i < int(len(dedupedElements)); i++ {
+		zs[i] = dedupedElements[i].inner.Z
 	}
 
 	// Invert z co-ordinates
 	zInvs := fp.BatchInvert(zs)
 
 	// Multiply x and y by zInv
-	for i, e := range elements {
+	for i, e := range dedupedElements {
 		e.inner.X.Mul(&e.inner.X, &zInvs[i])
 		e.inner.Y.Mul(&e.inner.Y, &zInvs[i])
-		e.inner.Z = fp.One()
+		e.inner.Z.SetOne()
 	}
 }
 
