@@ -57,7 +57,7 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 		}
 		foldingScalars[i] = scalar
 	}
-	g0 := multiScalar(g, foldingScalars)
+	g0 := MultiScalar(g, foldingScalars)
 	b0 := InnerProd(b, foldingScalars)
 
 	var got banderwagon.Element
