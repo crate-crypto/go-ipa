@@ -72,21 +72,22 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 	// Compute h(X) = g_1(X)
 	h_x := make([]fr.Element, common.POLY_DEGREE)
 
+	den_inv := make([]fr.Element, num_queries)
+	for i := 0; i < num_queries; i++ {
+		var z = domainToFr(zs[i])
+		den_inv[i].Sub(&t, &z)
+	}
+	den_inv = fr.BatchInvert(den_inv)
 	for i := 0; i < num_queries; i++ {
 		r := powers_of_r[i]
 		f := fs[i]
-
-		var den_inv fr.Element
-		var z = domainToFr(zs[i])
-		den_inv.Sub(&t, &z)
-		den_inv.Inverse(&den_inv)
 
 		for k := 0; k < common.POLY_DEGREE; k++ {
 			f_k := f[k]
 
 			var tmp fr.Element
 			tmp.Mul(&r, &f_k)
-			tmp.Mul(&tmp, &den_inv)
+			tmp.Mul(&tmp, &den_inv[i])
 			h_x[k].Add(&h_x[k], &tmp)
 		}
 	}
