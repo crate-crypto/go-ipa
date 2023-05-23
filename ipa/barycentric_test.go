@@ -9,7 +9,9 @@ import (
 	"github.com/crate-crypto/go-ipa/test_helper"
 )
 
-func TestAbsInt(testing *testing.T) {
+func TestAbsInt(t *testing.T) {
+	t.Parallel()
+
 	abs, is_neg := absInt(-100)
 	if abs != 100 {
 		panic("absolute value should be 100")
@@ -33,7 +35,8 @@ func TestAbsInt(testing *testing.T) {
 // abstractly, you can think of it as getting the
 // associated polynomial in coefficient form
 // for a bunch of points
-func TestBasicInterpolate(testing *testing.T) {
+func TestBasicInterpolate(t *testing.T) {
+	t.Parallel()
 
 	// These two points define the polynomial y = X
 	// Once we interpolate the polynomial, any point
@@ -61,7 +64,9 @@ func TestBasicInterpolate(testing *testing.T) {
 	}
 }
 
-func TestPolyDiv(testing *testing.T) {
+func TestPolyDiv(t *testing.T) {
+	t.Parallel()
+
 	one := fr.One()
 	minus_one := fr.MinusOne()
 
@@ -107,7 +112,9 @@ func TestPolyDiv(testing *testing.T) {
 	}
 }
 
-func TestComputeBarycentricCoefficients(testing *testing.T) {
+func TestComputeBarycentricCoefficients(t *testing.T) {
+	t.Parallel()
+
 	var point_outside_domain fr.Element
 	point_outside_domain.SetUint64(3400)
 
@@ -178,7 +185,9 @@ func evalOutsideDomain(preComp *PrecomputedWeights, f []fr.Element, point fr.Ele
 	return a_z
 }
 
-func TestDivideOnDomain(testing *testing.T) {
+func TestDivideOnDomain(t *testing.T) {
+	t.Parallel()
+
 	// First lets define the polynomial (X-1)(X+1)(X)^253
 	eval_f := func(x fr.Element) fr.Element {
 		// f is (X-1)(X+1)(X^253)

@@ -3,6 +3,7 @@ package multiproof
 import (
 	"bytes"
 	"encoding/hex"
+	"os"
 	"testing"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
@@ -12,10 +13,15 @@ import (
 	"github.com/crate-crypto/go-ipa/test_helper"
 )
 
-func TestMultiProofCreateVerify(t *testing.T) {
+var ipaConf *ipa.IPAConfig
 
-	// Shared View
-	ipaConf := ipa.NewIPASettings()
+func TestMain(m *testing.M) {
+	ipaConf = ipa.NewIPASettings()
+	os.Exit(m.Run())
+}
+
+func TestMultiProofCreateVerify(t *testing.T) {
+	t.Parallel()
 
 	// Prover view
 	poly_1 := test_helper.TestPoly256(1, 1, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)
@@ -42,9 +48,7 @@ func TestMultiProofCreateVerify(t *testing.T) {
 
 }
 func TestMultiProofConsistency(t *testing.T) {
-
-	// Shared View
-	ipaConf := ipa.NewIPASettings()
+	t.Parallel()
 
 	// Prover view
 	poly_a := test_helper.TestPoly256(

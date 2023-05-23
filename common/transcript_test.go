@@ -9,6 +9,8 @@ import (
 )
 
 func TestVector0(t *testing.T) {
+	t.Parallel()
+
 	tr := NewTranscript("simple_protocol")
 	challenge_1 := tr.ChallengeScalar("simple_challenge")
 	challenge_2 := tr.ChallengeScalar("simple_challenge")
@@ -18,6 +20,8 @@ func TestVector0(t *testing.T) {
 	}
 }
 func TestVector1(t *testing.T) {
+	t.Parallel()
+
 	tr := NewTranscript("simple_protocol")
 	challenge := tr.ChallengeScalar("simple_challenge")
 	c_bytes := challenge.BytesLE()
@@ -29,6 +33,8 @@ func TestVector1(t *testing.T) {
 	}
 }
 func TestVector2(t *testing.T) {
+	t.Parallel()
+
 	tr := NewTranscript("simple_protocol")
 	five := fr.Element{}
 	five.SetUint64(5)
@@ -46,6 +52,8 @@ func TestVector2(t *testing.T) {
 	}
 }
 func TestVector3(t *testing.T) {
+	t.Parallel()
+
 	tr := NewTranscript("simple_protocol")
 	one := fr.One()
 	minus_one := fr.MinusOne()
@@ -66,6 +74,8 @@ func TestVector3(t *testing.T) {
 	}
 }
 func TestVector4(t *testing.T) {
+	t.Parallel()
+
 	tr := NewTranscript("simple_protocol")
 
 	gen := banderwagon.Generator
