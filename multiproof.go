@@ -141,9 +141,6 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 	t := transcript.ChallengeScalar("t")
 
 	// Compute helper_scalars. This is r^i / t - z_i
-	//
-	// There are more optimal ways to do this, but
-	// this is more readable, so will leave for now
 	helper_scalars := make([]fr.Element, num_queries)
 	for i := 0; i < num_queries; i++ {
 		var z = domainToFr(zs[i])
