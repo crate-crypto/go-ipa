@@ -224,3 +224,90 @@ func TestMultiMapToBaseField(t *testing.T) {
 		panic("expected scalar for point `A` is incorrect ")
 	}
 }
+
+func TestBatchNormalize(t *testing.T) {
+	t.Parallel()
+
+	t.Run("three points", func(t *testing.T) {
+		t.Parallel()
+
+		var A, B, C Element
+
+		// Generate some projective points.
+		A.Add(&Generator, &Generator)
+		B.Double(&A)
+		C.Double(&B)
+
+		// Get expected result by normalizing them independently (i.e: usual FromProj(..) method under the hood).
+		var expectedA, expectedB, expectedC Element
+		expectedA.Set(&A).Normalise()
+		expectedB.Set(&B).Normalise()
+		expectedC.Set(&C).Normalise()
+
+		BatchNormalize([]*Element{&A, &B, &C})
+
+		if !A.Equal(&expectedA) {
+			t.Fatal("expected point `A` is incorrect ")
+		}
+
+		if !B.Equal(&expectedB) {
+			t.Fatal("expected point `B` is incorrect ")
+		}
+
+		if !C.Equal(&expectedC) {
+			t.Fatal("expected point `C` is incorrect ")
+		}
+	})
+
+	t.Run("duplicated elements", func(t *testing.T) {
+		t.Parallel()
+
+		var A, B Element
+		A.Add(&Generator, &Generator)
+		B.Double(&A)
+
+		var expectedA, expectedB Element
+		expectedA.Set(&A).Normalise()
+		expectedB.Set(&B).Normalise()
+
+		BatchNormalize([]*Element{&A, &A, &B, &A})
+
+		if !A.Equal(&expectedA) {
+			t.Fatal("expected point `A` is incorrect ")
+		}
+		if !B.Equal(&expectedB) {
+			t.Fatal("expected point `B` is incorrect ")
+		}
+	})
+
+	t.Run("point at infinity", func(t *testing.T) {
+		t.Parallel()
+
+		var A, B Element
+
+		A.Add(&Generator, &Generator)
+		B = Element{
+			inner: bandersnatch.PointProj{
+				X: fp.Zero(),
+				Y: fp.One(),
+				Z: fp.Zero(),
+			},
+		}
+
+		var expectedA, expectedB Element
+		expectedA.Set(&A).Normalise()
+		expectedB.Set(&B).Normalise()
+
+		BatchNormalize([]*Element{&A, &B})
+
+		if !A.Equal(&expectedA) {
+			t.Fatal("expected point `A` is incorrect ")
+		}
+
+		if !B.inner.X.Equal(&expectedB.inner.X) ||
+			!B.inner.Y.Equal(&expectedB.inner.Y) ||
+			!B.inner.Z.Equal(&expectedB.inner.Z) {
+			t.Fatal("expected point `B` is incorrect ")
+		}
+	})
+}
