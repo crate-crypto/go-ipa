@@ -32,6 +32,7 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 		panic("cannot create a multiproof with 0 queries")
 	}
 
+	banderwagon.BatchNormalize(Cs)
 	for i := 0; i < num_queries; i++ {
 		transcript.AppendPoint(Cs[i], "C")
 		var z = domainToFr(zs[i])
