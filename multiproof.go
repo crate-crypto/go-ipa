@@ -172,39 +172,38 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 		groupedEvals[z].Add(&groupedEvals[z], &scaledEvaluation)
 	}
 
-	// Compute helper_scalars. This is 1 / t - z_i
-	helper_scalars := make([]fr.Element, common.POLY_DEGREE)
+	// Compute helper_scalar_den. This is 1 / t - z_i
+	helper_scalar_den := make([]fr.Element, common.POLY_DEGREE)
 	for i := 0; i < common.POLY_DEGREE; i++ {
 		if groupedEvals[i].IsZero() {
 			continue
 		}
 		// (t - z_i)
 		var z = domainToFr(uint8(i))
-		helper_scalars[i].Sub(&t, &z)
+		helper_scalar_den[i].Sub(&t, &z)
 	}
-	helper_scalars = fr.BatchInvert(helper_scalars)
+	helper_scalar_den = fr.BatchInvert(helper_scalar_den)
 
-	// Compute g_2(t) = SUM y_i * (r^i / t - z_i) = SUM y_i * helper_scalars
+	// Compute g_2(t) = SUM (y_i * r^i) / (t - z_i) = SUM (y_i * r) * helper_scalars_den
 	g_2_t := fr.Zero()
 	for i := 0; i < common.POLY_DEGREE; i++ {
 		if groupedEvals[i].IsZero() {
 			continue
 		}
 		var tmp fr.Element
-		tmp.Mul(&groupedEvals[i], &helper_scalars[i])
+		tmp.Mul(&groupedEvals[i], &helper_scalar_den[i])
 		g_2_t.Add(&g_2_t, &tmp)
 	}
 
-	// Compute E = SUM C_i * (r^i / t - z_i) = SUM C_i * helper_scalars
-	// msmScalars = [r^i / (t - z_i)]
-	msmScalars := make([]fr.Element, len(Cs))
+	// Compute E = SUM C_i * (r^i / t - z_i) = SUM C_i * msm_scalars
+	msm_scalars := make([]fr.Element, len(Cs))
 	Csnp := make([]banderwagon.Element, len(Cs))
 	for i := 0; i < len(Cs); i++ {
 		Csnp[i] = *Cs[i]
 
-		msmScalars[i].Mul(&powers_of_r[i], &helper_scalars[zs[i]])
+		msm_scalars[i].Mul(&powers_of_r[i], &helper_scalar_den[zs[i]])
 	}
-	E := ipa.MultiScalar(Csnp, msmScalars)
+	E := ipa.MultiScalar(Csnp, msm_scalars)
 	transcript.AppendPoint(&E, "E")
 
 	var E_minus_D banderwagon.Element
