@@ -24,6 +24,7 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 
 	w := transcript.ChallengeScalar("w")
 
+	// Rescaling of q.
 	var q banderwagon.Element
 	q.ScalarMul(&ic.SRSPrecompPoints.Q, &w)
 
