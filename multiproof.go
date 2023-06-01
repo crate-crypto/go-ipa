@@ -175,9 +175,6 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 	// Compute helper_scalar_den. This is 1 / t - z_i
 	helper_scalar_den := make([]fr.Element, common.POLY_DEGREE)
 	for i := 0; i < common.POLY_DEGREE; i++ {
-		if groupedEvals[i].IsZero() {
-			continue
-		}
 		// (t - z_i)
 		var z = domainToFr(uint8(i))
 		helper_scalar_den[i].Sub(&t, &z)
