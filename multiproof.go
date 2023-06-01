@@ -159,32 +159,51 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 	transcript.AppendPoint(&proof.D, "D")
 	t := transcript.ChallengeScalar("t")
 
-	// Compute helper_scalars. This is r^i / t - z_i
-	helper_scalars := make([]fr.Element, num_queries)
+	// Compute the polynomials in lagrange form grouped by evaluation point, and
+	// the needed helper scalars.
+	groupedEvals := make([]fr.Element, common.POLY_DEGREE)
 	for i := 0; i < num_queries; i++ {
-		var z = domainToFr(zs[i])
-		helper_scalars[i].Sub(&t, &z)
-	}
-	helper_scalars = fr.BatchInvert(helper_scalars)
-	for i := 0; i < num_queries; i++ {
+		z := zs[i]
+
+		// r * y_i
 		r := powers_of_r[i]
-		helper_scalars[i].Mul(&helper_scalars[i], &r)
+		var scaledEvaluation fr.Element
+		scaledEvaluation.Mul(&r, ys[i])
+		groupedEvals[z].Add(&groupedEvals[z], &scaledEvaluation)
 	}
 
-	// Compute g_2(t) = SUM y_i * (r^i / t - z_i) = SUM y_i * helper_scalars
+	// Compute helper_scalar_den. This is 1 / t - z_i
+	helper_scalar_den := make([]fr.Element, common.POLY_DEGREE)
+	for i := 0; i < common.POLY_DEGREE; i++ {
+		if groupedEvals[i].IsZero() {
+			continue
+		}
+		// (t - z_i)
+		var z = domainToFr(uint8(i))
+		helper_scalar_den[i].Sub(&t, &z)
+	}
+	helper_scalar_den = fr.BatchInvert(helper_scalar_den)
+
+	// Compute g_2(t) = SUM (y_i * r^i) / (t - z_i) = SUM (y_i * r) * helper_scalars_den
 	g_2_t := fr.Zero()
-	for i := 0; i < num_queries; i++ {
+	for i := 0; i < common.POLY_DEGREE; i++ {
+		if groupedEvals[i].IsZero() {
+			continue
+		}
 		var tmp fr.Element
-		tmp.Mul(ys[i], &helper_scalars[i])
+		tmp.Mul(&groupedEvals[i], &helper_scalar_den[i])
 		g_2_t.Add(&g_2_t, &tmp)
 	}
 
-	// Compute E = SUM C_i * (r^i / t - z_i) = SUM C_i * helper_scalars
+	// Compute E = SUM C_i * (r^i / t - z_i) = SUM C_i * msm_scalars
+	msm_scalars := make([]fr.Element, len(Cs))
 	Csnp := make([]banderwagon.Element, len(Cs))
 	for i := 0; i < len(Cs); i++ {
 		Csnp[i] = *Cs[i]
+
+		msm_scalars[i].Mul(&powers_of_r[i], &helper_scalar_den[zs[i]])
 	}
-	E := ipa.MultiScalar(Csnp, helper_scalars)
+	E := ipa.MultiScalar(Csnp, msm_scalars)
 	transcript.AppendPoint(&E, "E")
 
 	var E_minus_D banderwagon.Element
