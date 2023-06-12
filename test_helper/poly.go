@@ -34,7 +34,7 @@ func PointEqualHex(t *testing.T, point banderwagon.Element, expected string) {
 	}
 }
 func ScalarEqualHex(t *testing.T, scalar fr.Element, expected string) {
-	scalar_bytes := scalar.BytesLE()
+	scalar_bytes := fr.BytesLE(scalar)
 	got := hex.EncodeToString(scalar_bytes[:])
 	if got != expected {
 		t.Fatalf("scalar does not equal expected hex value, expected %s got %s", expected, got)

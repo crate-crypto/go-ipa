@@ -55,7 +55,7 @@ func ReadScalar(r io.Reader) *fr.Element {
 		panic("did not read enough bytes")
 	}
 	var scalar = &fr.Element{}
-	scalar.SetBytesLE(x)
+	fr.SetBytesLE(scalar, x)
 	if err != nil {
 		panic("could not deserialize point")
 	}

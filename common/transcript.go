@@ -8,8 +8,8 @@ import (
 	"github.com/crate-crypto/go-ipa/banderwagon"
 )
 
-/// The transcript is used to create challenge scalars.
-/// See: Fiat-Shamir
+// / The transcript is used to create challenge scalars.
+// / See: Fiat-Shamir
 type Transcript struct {
 	state hash.Hash
 }
@@ -35,7 +35,7 @@ func (t *Transcript) AppendMessage(message []byte, label string) {
 // Converts the scalar to 32 bytes, then appends it to
 // the state
 func (t *Transcript) AppendScalar(scalar *fr.Element, label string) {
-	tmpBytes := scalar.BytesLE()
+	tmpBytes := fr.BytesLE(*scalar)
 	t.AppendMessage(tmpBytes[:], label)
 
 }
@@ -68,7 +68,7 @@ func (t *Transcript) ChallengeScalar(label string) fr.Element {
 	bytes := t.state.Sum(nil)
 
 	var tmp fr.Element
-	tmp.SetBytesLE(bytes)
+	fr.SetBytesLE(&tmp, bytes)
 
 	// Clear the state
 	t.state.Reset()

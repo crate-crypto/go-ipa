@@ -89,7 +89,7 @@ func (ip *IPAProof) Write(w io.Writer) {
 	for _, ar := range ip.R {
 		binary.Write(w, binary.BigEndian, ar.Bytes())
 	}
-	binary.Write(w, binary.BigEndian, ip.A_scalar.BytesLE())
+	binary.Write(w, binary.BigEndian, fr.BytesLE(ip.A_scalar))
 }
 
 func (ip *IPAProof) Read(r io.Reader) {
