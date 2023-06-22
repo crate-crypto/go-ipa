@@ -11,11 +11,11 @@ import (
 
 const precompNumPoints = 256
 
-type MSMFixedBasis struct {
+type MSMPrecomp struct {
 	precompPoints [precompNumPoints]PrecompPoint
 }
 
-func NewPrecompMSM(points []Element) MSMFixedBasis {
+func NewPrecompMSM(points []Element) MSMPrecomp {
 	affPoints := getAffinePoints(points)
 	var precompPoints [precompNumPoints]PrecompPoint
 	for i := 0; i < precompNumPoints; i++ {
@@ -26,12 +26,12 @@ func NewPrecompMSM(points []Element) MSMFixedBasis {
 		}
 	}
 
-	return MSMFixedBasis{
+	return MSMPrecomp{
 		precompPoints: precompPoints,
 	}
 }
 
-func (msm *MSMFixedBasis) MSM(scalars []fr.Element) Element {
+func (msm *MSMPrecomp) MSM(scalars []fr.Element) Element {
 	var result bandersnatch.PointProj
 	result.Identity()
 

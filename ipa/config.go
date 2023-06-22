@@ -17,7 +17,7 @@ type IPAConfig struct {
 	SRS []banderwagon.Element
 	Q   banderwagon.Element
 
-	PrecompMSM         banderwagon.MSMFixedBasis
+	PrecompMSM         banderwagon.MSMPrecomp
 	PrecomputedWeights *PrecomputedWeights
 	// The number of rounds the prover and verifier must complete
 	// in the IPA argument, this will be log2 of the size of the input vectors
