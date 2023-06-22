@@ -54,21 +54,36 @@ func TestCorrectness(t *testing.T) {
 func BenchmarkPrecompMSM(b *testing.B) {
 	msmLength := []int{1, 2, 4, 8, 16, 32, 64, 128, 256}
 
-	points, _ := generateRandomPoints(256)
-	msmEngine := NewPrecompMSM(points)
-	// Generate random scalars.
-	scalars := make([]fr.Element, len(points))
-	for i := 0; i < len(scalars); i++ {
-		scalars[i].SetRandom()
-	}
+	pointsWagon, pointsAffine := generateRandomPoints(256)
+	msmEngine := NewPrecompMSM(pointsWagon)
 
 	for _, k := range msmLength {
 		b.Run(fmt.Sprintf("msm_length=%d", k), func(b *testing.B) {
-			b.ReportAllocs()
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				_ = msmEngine.MSM(scalars[:k])
+			// Generate random scalars.
+			scalars := make([]fr.Element, 256)
+			for i := 0; i < k; i++ {
+				scalars[i].SetRandom()
 			}
+
+			b.Run("precomp", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					_ = msmEngine.MSM(scalars)
+				}
+			})
+
+			b.Run("gnark", func(b *testing.B) {
+
+				var gnarkResult bandersnatch.PointProj
+
+				b.ReportAllocs()
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					_, _ = gnarkResult.MultiExp(pointsAffine, scalars, bandersnatch.MultiExpConfig{ScalarsMont: true})
+				}
+			})
+
 		})
 	}
 }
