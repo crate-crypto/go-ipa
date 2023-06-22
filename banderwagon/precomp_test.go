@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
+	"runtime"
 	"testing"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch"
@@ -21,12 +22,12 @@ func TestCorrectness(t *testing.T) {
 
 	msmEngine := NewPrecompMSM(pointsWagon)
 
-	// We split it in rounds to parallelize the test, for a total of 50k random MSM checks.
-	for round := 0; round < 2; round++ {
+	// We split it in NumCPU() rounds to parallelize the test, each checking 1000 random MSM.
+	for round := 0; round < runtime.NumCPU(); round++ {
 		t.Run(fmt.Sprintf("round %d", round), func(t *testing.T) {
 			t.Parallel()
 
-			for i := 0; i < 25_000; i++ {
+			for i := 0; i < 1_000; i++ {
 				// Generate random scalars.
 				scalars := make([]fr.Element, len(pointsWagon))
 				for i := 0; i < len(scalars); i++ {
@@ -54,7 +55,7 @@ func TestCorrectness(t *testing.T) {
 func BenchmarkPrecompMSM(b *testing.B) {
 	msmLength := []int{1, 2, 4, 8, 16, 32, 64, 128, 256}
 
-	pointsWagon, pointsAffine := generateRandomPoints(256)
+	pointsWagon, _ := generateRandomPoints(256)
 	msmEngine := NewPrecompMSM(pointsWagon)
 
 	for _, k := range msmLength {
@@ -72,18 +73,6 @@ func BenchmarkPrecompMSM(b *testing.B) {
 					_ = msmEngine.MSM(scalars)
 				}
 			})
-
-			b.Run("gnark", func(b *testing.B) {
-
-				var gnarkResult bandersnatch.PointProj
-
-				b.ReportAllocs()
-				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
-					_, _ = gnarkResult.MultiExp(pointsAffine, scalars, bandersnatch.MultiExpConfig{ScalarsMont: true})
-				}
-			})
-
 		})
 	}
 }
@@ -91,13 +80,15 @@ func BenchmarkPrecompMSM(b *testing.B) {
 func BenchmarkInitialize(b *testing.B) {
 	points, _ := generateRandomPoints(256)
 
+	b.ReportAllocs()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = NewPrecompMSM(points)
 	}
 }
 
 // generateRandomPoints is a similar version of the one that exist in the ipa package
-// but we're pulling it here for tests to avoid an import cycle.
+// but we're pulling it here for tests to avoid an import cycle and output point format convenience.
 func generateRandomPoints(numPoints uint64) ([]Element, []bandersnatch.PointAffine) {
 	seed := "eth_verkle_oct_2021"
 

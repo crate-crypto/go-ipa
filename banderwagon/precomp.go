@@ -44,83 +44,12 @@ func (msm *MSMPrecomp) MSM(scalars []fr.Element) Element {
 	var result bandersnatch.PointProj
 	result.Identity()
 
-	// We do some analysis on how many non-zero scalars are in the input.
-	// We'll parallelize work considering this to avoid uneven work distribution.
-	nonZeroScalars := bitset{}
 	for i := range scalars {
 		if !scalars[i].IsZero() {
-			nonZeroScalars.set(i)
+			msm.precompPoints[i].ScalarMul(scalars[i], &result)
 		}
 	}
-
-	// This is the minimum amount of scalars to compute per goroutine, to justify
-	// parallelization overhead.
-	minScalarsPerRoutine := 8
-	if nonZeroScalars.count <= minScalarsPerRoutine {
-		for i := range scalars {
-			if nonZeroScalars.test(i) {
-				msm.precompPoints[i].ScalarMul(scalars[i], &result)
-			}
-		}
-		return Element{inner: result}
-	}
-
-	// We parallelize the MSM computation in batches with similar number of non-zero scalars,
-	// so each goroutine has similar amount of work.
-	numBatches := (nonZeroScalars.count + minScalarsPerRoutine - 1) / minScalarsPerRoutine
-	if numBatches > runtime.NumCPU() {
-		numBatches = runtime.NumCPU()
-	}
-	batchSize := (nonZeroScalars.count + numBatches - 1) / numBatches
-
-	// Routines push results to this channel which is aggregated at the end.
-	results := make(chan bandersnatch.PointProj, numBatches)
-	start := 0
-	for i := 0; i < numBatches; i++ {
-		end := start
-		size := 0
-		for size < batchSize && end < len(scalars) {
-			if nonZeroScalars.test(end) {
-				size++
-			}
-			end++
-		}
-		go func(start, end int, nonZeroScalars bitset) {
-			var res bandersnatch.PointProj
-			res.Identity()
-			for i := start; i < end; i++ {
-				if nonZeroScalars.test(i) {
-					msm.precompPoints[i].ScalarMul(scalars[i], &res)
-				}
-			}
-			results <- res
-		}(start, end, nonZeroScalars)
-		start = end
-	}
-
-	// The main routine is capturing and aggregating results.
-	for i := 0; i < numBatches; i++ {
-		res := <-results
-		result.Add(&result, &res)
-	}
-
 	return Element{inner: result}
-}
-
-// bitset is a helper struct to have an efficient way of registering
-// which scalars are non-zero. It's carefully constructed so it doesn't heap allocate.
-type bitset struct {
-	words [4]uint64
-	count int
-}
-
-func (b *bitset) set(i int) {
-	b.words[i/64] |= 1 << (uint(i) % 64)
-	b.count++
-}
-
-func (b *bitset) test(i int) bool {
-	return b.words[i/64]&(1<<(uint(i)%64)) != 0
 }
 
 // PrecompPoint is a precomputed table for a single point.
@@ -198,7 +127,7 @@ func (pp *PrecompPoint) ScalarMul(scalar fr.Element, res *bandersnatch.PointProj
 }
 
 // TODO(jsign): this is pulled from gnark, but we must delete this file when we update our gnark dependency
-// to the latest version.
+// to the latest version since there's a similar method.
 func batchProjToAffine(points []bandersnatch.PointProj) []bandersnatch.PointAffine {
 	result := make([]bandersnatch.PointAffine, len(points))
 	zeroes := make([]bool, len(points))
