@@ -27,11 +27,11 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 	w := transcript.ChallengeScalar("w")
 
 	var q banderwagon.Element
-	q.ScalarMul(&ic.SRSPrecompPoints.Q, &w)
+	q.ScalarMul(&ic.Q, &w)
 
 	num_rounds := ic.num_ipa_rounds
 
-	current_basis := ic.SRSPrecompPoints.SRS
+	current_basis := ic.SRS
 
 	L := make([]banderwagon.Element, num_rounds)
 	R := make([]banderwagon.Element, num_rounds)
