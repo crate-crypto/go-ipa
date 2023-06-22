@@ -28,15 +28,19 @@ type IPAConfig struct {
 // This function creates common.POLY_DEGREE random generator points where the relative discrete log is
 // not known between each generator and all of the other necessary information needed to verify
 // and create an IPA proof.
-func NewIPASettings() *IPAConfig {
-	srs := GenerateRandomPoints(256)
+func NewIPASettings() (*IPAConfig, error) {
+	srs := GenerateRandomPoints(common.POLY_DEGREE)
+	precompMSM, err := banderwagon.NewPrecompMSM(srs)
+	if err != nil {
+		return nil, fmt.Errorf("creating precomputed MSM: %s", err)
+	}
 	return &IPAConfig{
 		SRS:                srs,
 		Q:                  banderwagon.Generator,
-		PrecompMSM:         banderwagon.NewPrecompMSM(srs),
+		PrecompMSM:         precompMSM,
 		PrecomputedWeights: NewPrecomputedWeights(),
 		num_ipa_rounds:     compute_num_rounds(common.POLY_DEGREE),
-	}
+	}, nil
 }
 
 func MultiScalar(points []banderwagon.Element, scalars []fr.Element) banderwagon.Element {

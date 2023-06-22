@@ -2,6 +2,7 @@ package banderwagon
 
 import (
 	"context"
+	"fmt"
 	"runtime"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch"
@@ -11,31 +12,50 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const precompNumPoints = 256
+const (
+	// supportedMSMLength is the number of points supported by the precomputed tables.
+	supportedMSMLength = 256
+
+	// window16vs8IndexLimit is the index of the first point that will use a 8-bit window instead of a 16-bit window.
+	window16vs8IndexLimit = 5
+)
 
 // MSMPrecomp is an engine to calculate 256-MSM on a fixed basis using precomputed tables.
+// This precomputed tables design are biased to support an efficient MSM for Verkle Trees.
+//
+// Their design involves 16-bit windows for the first window16vs8IndexLimit points, and 8-bit
+// windows for the rest. The motivation for this is that the first points are used to calculate
+// tree keys, which clients heavily rely on compared to "longer" MSMs. This provides a significant
+// boost to tree-key generation without exploding table sizes.
 type MSMPrecomp struct {
-	precompPoints [precompNumPoints]PrecompPoint
+	precompPoints [supportedMSMLength]PrecompPoint
 }
 
 // NewPrecompMSM creates a new MSMPrecomp.
-func NewPrecompMSM(points []Element) MSMPrecomp {
-	var precompPoints [precompNumPoints]PrecompPoint
+func NewPrecompMSM(points []Element) (MSMPrecomp, error) {
+	if len(points) != supportedMSMLength {
+		return MSMPrecomp{}, fmt.Errorf("the number of points must be %d", supportedMSMLength)
+	}
 
+	var err error
+	var precompPoints [supportedMSMLength]PrecompPoint
 	// We apply the current strategy of:
-	// - Use a 16-bit window for the first 5 points.
-	// - Use an 8-bit window for the remaining points.
-	for i := 0; i < precompNumPoints; i++ {
-		if i <= 4 {
-			precompPoints[i] = NewPrecompPoint(points[i], 16)
-		} else {
-			precompPoints[i] = NewPrecompPoint(points[i], 8)
+	// - Use a 16-bit window for the first window16vs8IndexLimit points.
+	// - Use an 8-bit window for the rest.
+	for i := 0; i < supportedMSMLength; i++ {
+		windowSize := 8
+		if i < window16vs8IndexLimit {
+			windowSize = 16
+		}
+		precompPoints[i], err = NewPrecompPoint(points[i], windowSize)
+		if err != nil {
+			return MSMPrecomp{}, fmt.Errorf("creating precomputed table for point: %s", err)
 		}
 	}
 
 	return MSMPrecomp{
 		precompPoints: precompPoints,
-	}
+	}, nil
 }
 
 // MSM calculates the 256-MSM of the given scalars on the fixed basis.
@@ -59,7 +79,11 @@ type PrecompPoint struct {
 }
 
 // NewPrecompPoint creates a new PrecompPoint for the given point and window size.
-func NewPrecompPoint(point Element, windowSize int) PrecompPoint {
+func NewPrecompPoint(point Element, windowSize int) (PrecompPoint, error) {
+	if windowSize&(windowSize-1) != 0 {
+		return PrecompPoint{}, fmt.Errorf("window size must be a power of 2")
+	}
+
 	var specialWindow fr.Element
 	specialWindow.SetUint64(1 << windowSize)
 
@@ -92,7 +116,7 @@ func NewPrecompPoint(point Element, windowSize int) PrecompPoint {
 	}
 	_ = group.Wait()
 
-	return res
+	return res, nil
 }
 
 // ScalarMul multiplies the point by the given scalar using the precomputed points.

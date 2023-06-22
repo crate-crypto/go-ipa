@@ -16,7 +16,11 @@ import (
 var ipaConf *ipa.IPAConfig
 
 func TestMain(m *testing.M) {
-	ipaConf = ipa.NewIPASettings()
+	var err error
+	ipaConf, err = ipa.NewIPASettings()
+	if err != nil {
+		panic(err)
+	}
 	os.Exit(m.Run())
 }
 

@@ -12,7 +12,7 @@ import (
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
 )
 
-func TestCorrectness(t *testing.T) {
+func TestPrecompCorrectness(t *testing.T) {
 	t.Parallel()
 
 	// Generate a 256-basis. It returns the same points as Banderwagon points and affine points.
@@ -20,7 +20,10 @@ func TestCorrectness(t *testing.T) {
 	// points.
 	pointsWagon, pointsAffine := generateRandomPoints(256)
 
-	msmEngine := NewPrecompMSM(pointsWagon)
+	msmEngine, err := NewPrecompMSM(pointsWagon)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// We split it in NumCPU() rounds to parallelize the test, each checking 1000 random MSM.
 	for round := 0; round < runtime.NumCPU(); round++ {
@@ -35,7 +38,7 @@ func TestCorrectness(t *testing.T) {
 				}
 
 				// Calculate the MSM with our precomputed tables.
-				result := msmEngine.MSM(scalars)
+				precompResult := msmEngine.MSM(scalars)
 
 				// Calculate the same MSM with gnark.
 				var gnarkResult bandersnatch.PointProj
@@ -44,7 +47,7 @@ func TestCorrectness(t *testing.T) {
 				}
 
 				// Test that both results are equal.
-				if !result.inner.Equal(&gnarkResult) {
+				if !precompResult.inner.Equal(&gnarkResult) {
 					t.Fatalf("msm result does not match gnark result (%s)", scalars[0].String())
 				}
 			}
@@ -56,7 +59,10 @@ func BenchmarkPrecompMSM(b *testing.B) {
 	msmLength := []int{1, 2, 4, 8, 16, 32, 64, 128, 256}
 
 	pointsWagon, _ := generateRandomPoints(256)
-	msmEngine := NewPrecompMSM(pointsWagon)
+	msmEngine, err := NewPrecompMSM(pointsWagon)
+	if err != nil {
+		b.Fatal(err)
+	}
 
 	for _, k := range msmLength {
 		b.Run(fmt.Sprintf("msm_length=%d", k), func(b *testing.B) {
@@ -77,13 +83,13 @@ func BenchmarkPrecompMSM(b *testing.B) {
 	}
 }
 
-func BenchmarkInitialize(b *testing.B) {
+func BenchmarkPrecompInitialize(b *testing.B) {
 	points, _ := generateRandomPoints(256)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = NewPrecompMSM(points)
+		_, _ = NewPrecompMSM(points)
 	}
 }
 
