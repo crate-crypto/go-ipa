@@ -5,24 +5,31 @@ import (
 	"runtime"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch"
+	"github.com/crate-crypto/go-ipa/bandersnatch/fp"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
+	"github.com/crate-crypto/go-ipa/common/parallel"
 	"golang.org/x/sync/errgroup"
 )
 
 const precompNumPoints = 256
 
+// MSMPrecomp is an engine to calculate 256-MSM on a fixed basis using precomputed tables.
 type MSMPrecomp struct {
 	precompPoints [precompNumPoints]PrecompPoint
 }
 
+// NewPrecompMSM creates a new MSMPrecomp.
 func NewPrecompMSM(points []Element) MSMPrecomp {
-	affPoints := getAffinePoints(points)
 	var precompPoints [precompNumPoints]PrecompPoint
+
+	// We apply the current strategy of:
+	// - Use a 16-bit window for the first 5 points.
+	// - Use an 8-bit window for the remaining points.
 	for i := 0; i < precompNumPoints; i++ {
 		if i <= 4 {
-			precompPoints[i] = NewPrecompPoint(affPoints[i], 16)
+			precompPoints[i] = NewPrecompPoint(points[i], 16)
 		} else {
-			precompPoints[i] = NewPrecompPoint(affPoints[i], 8)
+			precompPoints[i] = NewPrecompPoint(points[i], 8)
 		}
 	}
 
@@ -31,10 +38,14 @@ func NewPrecompMSM(points []Element) MSMPrecomp {
 	}
 }
 
+// MSM calculates the 256-MSM of the given scalars on the fixed basis.
+// It automatically detects how many non-zero scalars there are and parallelizes the computation.
 func (msm *MSMPrecomp) MSM(scalars []fr.Element) Element {
 	var result bandersnatch.PointProj
 	result.Identity()
 
+	// We do some analysis on how many non-zero scalars are in the input.
+	// We'll parallelize work considering this to avoid uneven work distribution.
 	nonZeroScalars := bitset{}
 	for i := range scalars {
 		if !scalars[i].IsZero() {
@@ -42,6 +53,8 @@ func (msm *MSMPrecomp) MSM(scalars []fr.Element) Element {
 		}
 	}
 
+	// This is the minimum amount of scalars to compute per goroutine, to justify
+	// parallelization overhead.
 	minScalarsPerRoutine := 8
 	if nonZeroScalars.count <= minScalarsPerRoutine {
 		for i := range scalars {
@@ -52,12 +65,15 @@ func (msm *MSMPrecomp) MSM(scalars []fr.Element) Element {
 		return Element{inner: result}
 	}
 
+	// We parallelize the MSM computation in batches with similar number of non-zero scalars,
+	// so each goroutine has similar amount of work.
 	numBatches := (nonZeroScalars.count + minScalarsPerRoutine - 1) / minScalarsPerRoutine
 	if numBatches > runtime.NumCPU() {
 		numBatches = runtime.NumCPU()
 	}
 	batchSize := (nonZeroScalars.count + numBatches - 1) / numBatches
 
+	// Routines push results to this channel which is aggregated at the end.
 	results := make(chan bandersnatch.PointProj, numBatches)
 	start := 0
 	for i := 0; i < numBatches; i++ {
@@ -82,6 +98,7 @@ func (msm *MSMPrecomp) MSM(scalars []fr.Element) Element {
 		start = end
 	}
 
+	// The main routine is capturing and aggregating results.
 	for i := 0; i < numBatches; i++ {
 		res := <-results
 		result.Add(&result, &res)
@@ -90,6 +107,8 @@ func (msm *MSMPrecomp) MSM(scalars []fr.Element) Element {
 	return Element{inner: result}
 }
 
+// bitset is a helper struct to have an efficient way of registering
+// which scalars are non-zero. It's carefully constructed so it doesn't heap allocate.
 type bitset struct {
 	words [4]uint64
 	count int
@@ -104,24 +123,14 @@ func (b *bitset) test(i int) bool {
 	return b.words[i/64]&(1<<(uint(i)%64)) != 0
 }
 
-func getAffinePoints(points []Element) []bandersnatch.PointAffine {
-	affine_points := make([]bandersnatch.PointAffine, len(points))
-
-	for index, point := range points {
-		var affine bandersnatch.PointAffine
-		affine.FromProj(&point.inner)
-		affine_points[index] = affine
-	}
-
-	return affine_points
-}
-
+// PrecompPoint is a precomputed table for a single point.
 type PrecompPoint struct {
 	windowSize int
 	windows    [][]bandersnatch.PointAffine
 }
 
-func NewPrecompPoint(point bandersnatch.PointAffine, windowSize int) PrecompPoint {
+// NewPrecompPoint creates a new PrecompPoint for the given point and window size.
+func NewPrecompPoint(point Element, windowSize int) PrecompPoint {
 	var specialWindow fr.Element
 	specialWindow.SetUint64(1 << windowSize)
 
@@ -135,8 +144,7 @@ func NewPrecompPoint(point bandersnatch.PointAffine, windowSize int) PrecompPoin
 	group.SetLimit(runtime.NumCPU())
 	for i := 0; i < len(res.windows); i++ {
 		i := i
-		var base bandersnatch.PointProj
-		base.FromAffine(&point)
+		base := point.inner
 		group.Go(func() error {
 			windows[i] = make([]bandersnatch.PointProj, 1<<(windowSize-1))
 			curr := base
@@ -144,7 +152,7 @@ func NewPrecompPoint(point bandersnatch.PointAffine, windowSize int) PrecompPoin
 				windows[i][j] = curr
 				curr.Add(&curr, &base)
 			}
-			// BatchJacobianToAffineG1(windows[i])
+			batchProjToAffine(windows[i])
 			res.windows[i] = make([]bandersnatch.PointAffine, 1<<(windowSize-1))
 			for j := range windows[i] {
 				res.windows[i][j].FromProj(&windows[i][j])
@@ -158,6 +166,9 @@ func NewPrecompPoint(point bandersnatch.PointAffine, windowSize int) PrecompPoin
 	return res
 }
 
+// ScalarMul multiplies the point by the given scalar using the precomputed points.
+// It applies a trick to push a carry between windows since our precomputed tables
+// avoid storing point inverses.
 func (pp *PrecompPoint) ScalarMul(scalar fr.Element, res *bandersnatch.PointProj) {
 	numWindowsInLimb := 64 / pp.windowSize
 
@@ -184,4 +195,53 @@ func (pp *PrecompPoint) ScalarMul(scalar fr.Element, res *bandersnatch.PointProj
 			}
 		}
 	}
+}
+
+// TODO(jsign): this is pulled from gnark, but we must delete this file when we update our gnark dependency
+// to the latest version.
+func batchProjToAffine(points []bandersnatch.PointProj) []bandersnatch.PointAffine {
+	result := make([]bandersnatch.PointAffine, len(points))
+	zeroes := make([]bool, len(points))
+	accumulator := fp.One()
+
+	// batch invert all points[].Z coordinates with Montgomery batch inversion trick
+	// (stores points[].Z^-1 in result[i].X to avoid allocating a slice of fr.Elements)
+	for i := 0; i < len(points); i++ {
+		if points[i].Z.IsZero() {
+			zeroes[i] = true
+			continue
+		}
+		result[i].X = accumulator
+		accumulator.Mul(&accumulator, &points[i].Z)
+	}
+
+	var accInverse fp.Element
+	accInverse.Inverse(&accumulator)
+
+	for i := len(points) - 1; i >= 0; i-- {
+		if zeroes[i] {
+			// do nothing, (X=0, Y=0) is infinity point in affine
+			continue
+		}
+		result[i].X.Mul(&result[i].X, &accInverse)
+		accInverse.Mul(&accInverse, &points[i].Z)
+	}
+
+	// batch convert to affine.
+	parallel.Execute(len(points), func(start, end int) {
+		for i := start; i < end; i++ {
+			if zeroes[i] {
+				// do nothing, (X=0, Y=0) is infinity point in affine
+				continue
+			}
+			var a, b fp.Element
+			a = result[i].X
+			b.Square(&a)
+			result[i].X.Mul(&points[i].X, &b)
+			result[i].Y.Mul(&points[i].Y, &b).
+				Mul(&result[i].Y, &a)
+		}
+	})
+
+	return result
 }
