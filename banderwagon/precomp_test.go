@@ -88,6 +88,14 @@ func BenchmarkPrecompMSM(b *testing.B) {
 	}
 }
 
+func BenchmarkInitialize(b *testing.B) {
+	points, _ := generateRandomPoints(256)
+
+	for i := 0; i < b.N; i++ {
+		_ = NewPrecompMSM(points)
+	}
+}
+
 // generateRandomPoints is a similar version of the one that exist in the ipa package
 // but we're pulling it here for tests to avoid an import cycle.
 func generateRandomPoints(numPoints uint64) ([]Element, []bandersnatch.PointAffine) {
