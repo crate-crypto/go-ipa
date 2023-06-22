@@ -51,6 +51,28 @@ func TestCorrectness(t *testing.T) {
 	}
 }
 
+func BenchmarkPrecompMSM(b *testing.B) {
+	msmLength := []int{1, 2, 4, 8, 16, 32, 64, 128, 256}
+
+	points, _ := generateRandomPoints(256)
+	msmEngine := NewPrecompMSM(points)
+	// Generate random scalars.
+	scalars := make([]fr.Element, len(points))
+	for i := 0; i < len(scalars); i++ {
+		scalars[i].SetRandom()
+	}
+
+	for _, k := range msmLength {
+		b.Run(fmt.Sprintf("msm_length=%d", k), func(b *testing.B) {
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_ = msmEngine.MSM(scalars[:k])
+			}
+		})
+	}
+}
+
 // generateRandomPoints is a similar version of the one that exist in the ipa package
 // but we're pulling it here for tests to avoid an import cycle.
 func generateRandomPoints(numPoints uint64) ([]Element, []bandersnatch.PointAffine) {
