@@ -463,7 +463,6 @@ func (p PointAffine) IsInPrimeSubgroup() bool {
 }
 
 func GetPointFromX(x *fp.Element, choose_largest bool) *PointAffine {
-
 	y := computeY(x, choose_largest)
 	if y == nil { // not a square
 		return nil
@@ -476,7 +475,6 @@ func GetPointFromX(x *fp.Element, choose_largest bool) *PointAffine {
 // ax^2 -1 = y^2(dx^2 -1)
 // ax^2 - 1 / (dx^2 - 1) = y^2
 func computeY(x *fp.Element, choose_largest bool) *fp.Element {
-
 	var one, num, den, y fp.Element
 	one.SetOne()
 	num.Square(x)       // x^2
@@ -486,21 +484,20 @@ func computeY(x *fp.Element, choose_largest bool) *fp.Element {
 	num.Mul(&num, &edwards.A)   // ax^2
 	num.Sub(&num, &one) // ax^2 - 1
 	y.Div(&num, &den)
-	is_nil := y.SqrtPrecomp(&y)
+	sqrtY := fp.SqrtPrecomp(&y)
 
 	// If the square root does not exist, then the Sqrt method returns nil
 	// and leaves the receiver unchanged.
 	// Note the fact that it leaves the receiver unchanged, means we do not return &y
-	if is_nil == nil {
+	if sqrtY == nil {
 		return nil
 	}
 
 	// Choose between `y` and it's negation
-	is_largest := y.LexicographicallyLargest()
+	is_largest := sqrtY.LexicographicallyLargest()
 	if choose_largest == is_largest {
-		return &y
+		return sqrtY
 	} else {
-		return y.Neg(&y)
+		return sqrtY.Neg(sqrtY)
 	}
-
 }

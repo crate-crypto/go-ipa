@@ -9,7 +9,7 @@ import (
 // CurveParams curve parameters: ax^2 + y^2 = 1 + d*x^2*y^2
 type CurveParams struct {
 	A, D     fp.Element // in Montgomery form
-	Cofactor fp.Element // not in Montgomery form
+	Cofactor uint64
 	Order    big.Int
 	Base     PointAffine
 }
@@ -24,7 +24,7 @@ func GetEdwardsCurve() CurveParams {
 
 	res.A.Set(&edwards.A)
 	res.D.Set(&edwards.D)
-	res.Cofactor.Set(&edwards.Cofactor)
+	res.Cofactor = edwards.Cofactor
 	res.Order.Set(&edwards.Order)
 	res.Base.Set(&edwards.Base)
 
@@ -41,7 +41,7 @@ func init() {
 	edwards.A.SetUint64(5).Neg(&edwards.A)
 
 	edwards.D.SetString("45022363124591815672509500913686876175488063829319466900776701791074614335719")
-	edwards.Cofactor.SetUint64(4).FromMont()
+	edwards.Cofactor = 4
 	edwards.Order.SetString("13108968793781547619861935127046491459309155893440570251786403306729687672801", 10)
 
 	edwards.Base.X.SetString("18886178867200960497001835917649091219057080094937609519140440539760939937304")

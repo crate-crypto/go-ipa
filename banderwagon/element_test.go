@@ -45,7 +45,6 @@ func TestEncodingFixedVectors(t *testing.T) {
 
 	// Decode each bit string
 	for i, bit_string := range expected_bit_strings {
-
 		bytes, err := hex.DecodeString(bit_string)
 		if err != nil {
 			panic("could not decode bit string")
@@ -216,11 +215,11 @@ func TestMultiMapToBaseField(t *testing.T) {
 
 	got_a := scalars[0]
 	got_b := scalars[1]
-	if expected_a != *got_a {
+	if expected_a.Equal(got_a) {
 		panic("expected scalar for point `A` is incorrect ")
 	}
 
-	if expected_b != *got_b {
+	if expected_b.Equal(got_b) {
 		panic("expected scalar for point `A` is incorrect ")
 	}
 }
