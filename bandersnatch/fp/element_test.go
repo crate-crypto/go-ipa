@@ -194,6 +194,38 @@ func BenchmarkElementMul(b *testing.B) {
 	}
 }
 
+func benchmarkNMul(b *testing.B, length int) {
+	x := make([]Element, length)
+	y := make([]Element, length)
+	for i := range x {
+		y[i].SetRandom()
+		x[i].SetRandom()
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < len(x); j++ {
+			benchResElement.Mul(&x[j], &y[j])
+		}
+	}
+}
+
+func Benchmark1kMul(b *testing.B) {
+	benchmarkNMul(b, 1000)
+}
+
+func Benchmark10kMul(b *testing.B) {
+	benchmarkNMul(b, 10000)
+}
+
+func Benchmark100kMul(b *testing.B) {
+	benchmarkNMul(b, 100000)
+}
+
+func Benchmark1MMul(b *testing.B) {
+	benchmarkNMul(b, 1000000)
+}
+
 func BenchmarkElementCmp(b *testing.B) {
 	x := Element{
 		14526898881837571181,
