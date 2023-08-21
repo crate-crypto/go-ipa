@@ -188,6 +188,10 @@ func (p *PointProj) Identity() *PointProj {
 	return p
 }
 
+func (p *PointProj) IsIdentity() bool {
+	return p.X.IsZero() && p.Y.IsOne() && p.Z.IsOne()
+}
+
 // Equal returns true if p=p1 false otherwise
 func (p *PointAffine) Equal(p1 *PointAffine) bool {
 	return p.X.Equal(&p1.X) && p.Y.Equal(&p1.Y)

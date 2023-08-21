@@ -26,7 +26,7 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 
 	// Rescaling of q.
 	var q banderwagon.Element
-	q.ScalarMul(&ic.SRSPrecompPoints.Q, &w)
+	q.ScalarMul(&ic.Q, &w)
 
 	var qy banderwagon.Element
 	qy.ScalarMul(&q, &inner_prod)
@@ -44,7 +44,7 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 		commitment = commit([]banderwagon.Element{commitment, L, R}, []fr.Element{fr.One(), x, challenges_inv[i]})
 	}
 
-	g := ic.SRSPrecompPoints.SRS
+	g := ic.SRS
 
 	// We compute the folding-scalars for g and b.
 	foldingScalars := make([]fr.Element, len(g))

@@ -14,11 +14,11 @@ import (
 )
 
 type IPAConfig struct {
-	// SRSPrecompPoints contains precomputed values for the SRS.
-	SRSPrecompPoints *SRSPrecompPoints
+	SRS []banderwagon.Element
+	Q   banderwagon.Element
 
+	PrecompMSM         banderwagon.MSMPrecomp
 	PrecomputedWeights *PrecomputedWeights
-
 	// The number of rounds the prover and verifier must complete
 	// in the IPA argument, this will be log2 of the size of the input vectors
 	// since the vector is halved on each round
@@ -28,20 +28,19 @@ type IPAConfig struct {
 // This function creates common.POLY_DEGREE random generator points where the relative discrete log is
 // not known between each generator and all of the other necessary information needed to verify
 // and create an IPA proof.
-func NewIPASettings() *IPAConfig {
+func NewIPASettings() (*IPAConfig, error) {
+	srs := GenerateRandomPoints(common.POLY_DEGREE)
+	precompMSM, err := banderwagon.NewPrecompMSM(srs)
+	if err != nil {
+		return nil, fmt.Errorf("creating precomputed MSM: %s", err)
+	}
 	return &IPAConfig{
-		SRSPrecompPoints:   NewSRSPrecomp(common.POLY_DEGREE),
+		SRS:                srs,
+		Q:                  banderwagon.Generator,
+		PrecompMSM:         precompMSM,
 		PrecomputedWeights: NewPrecomputedWeights(),
 		num_ipa_rounds:     compute_num_rounds(common.POLY_DEGREE),
-	}
-}
-
-func NewIPASettingsWithSRSPrecomp(srs_precomp *SRSPrecompPoints) *IPAConfig {
-	return &IPAConfig{
-		SRSPrecompPoints:   srs_precomp,
-		PrecomputedWeights: NewPrecomputedWeights(),
-		num_ipa_rounds:     compute_num_rounds(common.POLY_DEGREE),
-	}
+	}, nil
 }
 
 func MultiScalar(points []banderwagon.Element, scalars []fr.Element) banderwagon.Element {
@@ -59,7 +58,7 @@ func MultiScalar(points []banderwagon.Element, scalars []fr.Element) banderwagon
 // Commits to a polynomial using the SRS
 // panics if the length of the SRS does not equal the number of polynomial coefficients
 func (ic *IPAConfig) Commit(polynomial []fr.Element) banderwagon.Element {
-	return ic.SRSPrecompPoints.PrecompLag.Commit(polynomial)
+	return ic.PrecompMSM.MSM(polynomial)
 }
 
 // Commits to a polynomial using the input group elements
