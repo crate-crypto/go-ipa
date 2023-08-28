@@ -1,6 +1,6 @@
 module github.com/crate-crypto/go-ipa
 
-go 1.15
+go 1.19
 
 require (
 	github.com/consensys/gnark-crypto v0.11.2
