@@ -215,11 +215,11 @@ func TestMultiMapToBaseField(t *testing.T) {
 
 	got_a := scalars[0]
 	got_b := scalars[1]
-	if expected_a.Equal(got_a) {
+	if !expected_a.Equal(got_a) {
 		panic("expected scalar for point `A` is incorrect ")
 	}
 
-	if expected_b.Equal(got_b) {
+	if !expected_b.Equal(got_b) {
 		panic("expected scalar for point `A` is incorrect ")
 	}
 }

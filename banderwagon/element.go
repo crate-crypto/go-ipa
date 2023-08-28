@@ -232,7 +232,7 @@ func (p Element) mapToBaseField() fp.Element {
 
 func (p Element) MapToScalarField(res *fr.Element) {
 	basefield := p.mapToBaseField()
-	baseFieldBytes := basefield.Bytes()
+	baseFieldBytes := fp.BytesLE(basefield)
 
 	res.SetBytesLE(baseFieldBytes[:])
 }
