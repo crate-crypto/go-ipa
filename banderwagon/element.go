@@ -362,7 +362,7 @@ func (p *Element) Neg(p1 *Element) *Element {
 	return p
 }
 
-func (p *Element) ScalarMul(p1 *Element, scalar_mont *fr.Element) *Element { // TODO(jsign): reconsider the API.
+func (p *Element) ScalarMul(p1 *Element, scalar_mont *fr.Element) *Element {
 	var bigScalar big.Int
 	scalar_mont.ToBigIntRegular(&bigScalar)
 	p.inner.ScalarMultiplication(&p1.inner, &bigScalar)
