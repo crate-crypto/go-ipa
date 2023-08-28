@@ -410,7 +410,7 @@ func msmProcessChunkPointAffineDMA(chunk uint64,
 	msbWindow := uint64(1 << (c - 1))
 
 	for i := 0; i < len(buckets); i++ {
-		buckets[i] = GetIdentityProj()
+		buckets[i] = Identity
 	}
 
 	jc := uint64(chunk * c)
@@ -454,7 +454,7 @@ func msmProcessChunkPointAffineDMA(chunk uint64,
 	// reduce buckets into total
 	// total =  bucket[0] + 2*bucket[1] + 3*bucket[2] ... + n*bucket[n-1]
 
-	runningSum, total := GetIdentityProj(), GetIdentityProj()
+	runningSum, total := Identity, Identity
 	for k := len(buckets) - 1; k >= 0; k-- {
 
 		runningSum.Add(&runningSum, &buckets[k])

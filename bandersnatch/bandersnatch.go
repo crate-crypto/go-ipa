@@ -12,6 +12,12 @@ var CurveParams = gnarkbandersnatch.GetEdwardsCurve()
 type PointAffine = gnarkbandersnatch.PointAffine
 type PointProj = gnarkbandersnatch.PointProj
 
+var Identity = PointProj{
+	X: fp.Zero(),
+	Y: fp.One(),
+	Z: fp.One(),
+}
+
 // Reads an uncompressed affine point
 // Point is not guaranteed to be in the prime subgroup
 func ReadUncompressedPoint(r io.Reader) PointAffine {
@@ -95,13 +101,5 @@ func computeY(x *fp.Element, choose_largest bool) *fp.Element {
 		return sqrtY
 	} else {
 		return sqrtY.Neg(sqrtY)
-	}
-}
-
-func GetIdentityProj() PointProj {
-	return PointProj{
-		X: fp.Zero(),
-		Y: fp.One(),
-		Z: fp.One(),
 	}
 }

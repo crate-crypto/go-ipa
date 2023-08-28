@@ -61,7 +61,7 @@ func NewPrecompMSM(points []Element) (MSMPrecomp, error) {
 // MSM calculates the 256-MSM of the given scalars on the fixed basis.
 // It automatically detects how many non-zero scalars there are and parallelizes the computation.
 func (msm *MSMPrecomp) MSM(scalars []fr.Element) Element {
-	result := bandersnatch.GetIdentityProj()
+	result := Identity.inner
 
 	for i := range scalars {
 		if !scalars[i].IsZero() {
