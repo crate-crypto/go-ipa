@@ -9,7 +9,7 @@ import "math/big"
 // - The type `feType_SquareRoot` was aliased to `Element` so everything looks the same. These types didn't have the exact
 //   same underlying representation, so it leaded to some minor adjustements. (e.g: accessing the limbs)
 // - Original APIs regarding finite-field multiplications (e.g: MulEq) were adjusted to use gnark Mul APIs.
-// - The original code had to explicitely do `Normalize()` after field element operations, but this isn't needed in gnark.
+// - The original code had to explicitly do `Normalize()` after field element operations, but this isn't needed in gnark.
 // - The primitive 2^32-root-of unity value (see init()) was pulled from gnark FFT domain code.
 // - The original code used anonymous functions to define global vars, but we changed to use a init() function.
 //   This was required since we have other init() in the package that configure other globals (e.g: _modulus).
@@ -49,7 +49,7 @@ func init() {
 		}
 		// 31th one must be -1. We check that here.
 		x := big.NewInt(0)
-		ret[BaseField2Adicity-1].ToBigIntRegular(x)
+		ret[BaseField2Adicity-1].BigInt(x)
 		if ret[BaseField2Adicity-1].String() != "-1" {
 			panic("something is wrong with the dyadic roots of unity")
 		}
@@ -87,7 +87,7 @@ func init() {
 	}() // immediately invoked lambda
 }
 
-// sqrtAlg_NegDlogInSmallDyadicSubgroup takes a (not neccessarily primitive) root of unity x of order 2^sqrtParam_BlockSize.
+// sqrtAlg_NegDlogInSmallDyadicSubgroup takes a (not necessarily primitive) root of unity x of order 2^sqrtParam_BlockSize.
 // x has the form sqrtPrecomp_ReconstructionDyadicRoot^a and returns its negative dlog -a.
 //
 // The returned value is only meaningful modulo 1<<sqrtParam_BlockSize and is fully reduced, i.e. in [0, 1<<sqrtParam_BlockSize )

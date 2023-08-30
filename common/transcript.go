@@ -8,8 +8,8 @@ import (
 	"github.com/crate-crypto/go-ipa/banderwagon"
 )
 
-/// The transcript is used to create challenge scalars.
-/// See: Fiat-Shamir
+// The transcript is used to create challenge scalars.
+// See: Fiat-Shamir
 type Transcript struct {
 	state hash.Hash
 }
