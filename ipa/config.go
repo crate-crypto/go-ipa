@@ -45,7 +45,7 @@ func NewIPASettings() (*IPAConfig, error) {
 
 func MultiScalar(points []banderwagon.Element, scalars []fr.Element) banderwagon.Element {
 	var result banderwagon.Element
-	result.Identity()
+	result.SetIdentity()
 
 	res, err := result.MultiExp(points, scalars, banderwagon.MultiExpConfig{NbTasks: runtime.NumCPU(), ScalarsMont: true})
 	if err != nil {
