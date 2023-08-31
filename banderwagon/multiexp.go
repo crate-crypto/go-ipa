@@ -25,7 +25,7 @@ func (p *Element) MultiExp(points []Element, scalars []fr.Element, _config Multi
 		ScalarsMont: _config.ScalarsMont,
 	}
 	// NOTE: This is fine as long MultiExp does not use Equal functionality
-	_, err := p.inner.MultiExp(pointsAffs, scalars, config)
+	_, err := bandersnatch.MultiExp(&p.inner, pointsAffs, scalars, config)
 
 	return p, err
 }

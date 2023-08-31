@@ -42,7 +42,7 @@ func TestPrecompCorrectness(t *testing.T) {
 
 				// Calculate the same MSM with gnark.
 				var gnarkResult bandersnatch.PointProj
-				if _, err := gnarkResult.MultiExp(pointsAffine, scalars, bandersnatch.MultiExpConfig{ScalarsMont: true}); err != nil {
+				if _, err := bandersnatch.MultiExp(&gnarkResult, pointsAffine, scalars, bandersnatch.MultiExpConfig{ScalarsMont: true}); err != nil {
 					t.Fatalf("error in gnark multiexp: %v", err)
 				}
 

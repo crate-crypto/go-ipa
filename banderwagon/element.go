@@ -3,6 +3,7 @@ package banderwagon
 import (
 	"errors"
 	"io"
+	"math/big"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fp"
@@ -16,8 +17,8 @@ const (
 )
 
 var Generator = Element{inner: bandersnatch.PointProj{
-	X: bandersnatch.GetEdwardsCurve().Base.X,
-	Y: bandersnatch.GetEdwardsCurve().Base.Y,
+	X: bandersnatch.CurveParams.Base.X,
+	Y: bandersnatch.CurveParams.Base.Y,
 	Z: fp.One(),
 }}
 
@@ -292,7 +293,7 @@ func (p *Element) Equal(other *Element) bool {
 func subgroup_check(x fp.Element) error {
 	var res, one, ax_sq fp.Element
 	one.SetOne()
-	A := bandersnatch.GetEdwardsCurve().A
+	A := bandersnatch.CurveParams.A
 
 	// 1 - ax^2
 	ax_sq.Square(&x)
@@ -362,7 +363,9 @@ func (p *Element) Neg(p1 *Element) *Element {
 }
 
 func (p *Element) ScalarMul(p1 *Element, scalar_mont *fr.Element) *Element {
-	p.inner.ScalarMul(&p1.inner, scalar_mont)
+	var bigScalar big.Int
+	scalar_mont.ToBigIntRegular(&bigScalar)
+	p.inner.ScalarMultiplication(&p1.inner, &bigScalar)
 	return p
 }
 
@@ -389,5 +392,5 @@ func (element *Element) UnsafeWriteUncompressedPoint(w io.Writer) (int, error) {
 	// Convert underlying point to affine representation
 	var p bandersnatch.PointAffine
 	p.FromProj(&element.inner)
-	return p.WriteUncompressedPoint(w)
+	return bandersnatch.WriteUncompressedPoint(w, &p)
 }

@@ -29,6 +29,7 @@ import (
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
 	"github.com/leanovate/gopter"
 	"github.com/leanovate/gopter/prop"
+	gnarkbandersnatch "github.com/consensys/gnark-crypto/ecc/bls12-381/bandersnatch"
 )
 
 // GenFr generates an Fr element
@@ -99,10 +100,10 @@ func TestMultiExpPointAffine(t *testing.T) {
 			}
 
 			scalars16, _ := partitionScalars(sampleScalars[:], 16, false, runtime.NumCPU())
-			r16.msmC16(samplePoints[:], scalars16, true)
+			msmC16(&r16,samplePoints[:], scalars16, true)
 
-			splitted1.MultiExp(samplePointsLarge[:], sampleScalars[:], MultiExpConfig{NbTasks: 128})
-			splitted2.MultiExp(samplePointsLarge[:], sampleScalars[:], MultiExpConfig{NbTasks: 51})
+			MultiExp(&splitted1, samplePointsLarge[:], sampleScalars[:], MultiExpConfig{NbTasks: 128})
+			MultiExp(&splitted2,samplePointsLarge[:], sampleScalars[:], MultiExpConfig{NbTasks: 51})
 			return r16.Equal(&splitted1) && r16.Equal(&splitted2)
 		},
 		genScalar,
@@ -119,9 +120,7 @@ func TestMultiExpPointAffine(t *testing.T) {
 				// compute expected result with double and add
 				var finalScalar, mixerBigInt big.Int
 				finalScalar.Mul(&scalar, mixer.ToBigIntRegular(&mixerBigInt))
-				var finalScalarFr fr.Element
-				finalScalarFr.SetBigInt(&finalScalar)
-				expected.ScalarMul(&Generator, &finalScalarFr)
+				expected.ScalarMultiplication(&Generator, &finalScalar)
 
 				// mixer ensures that all the words of a fpElement are set
 				var sampleScalars [nbSamples]fr.Element
@@ -136,8 +135,8 @@ func TestMultiExpPointAffine(t *testing.T) {
 				scalars16, _ := partitionScalars(sampleScalars[:], 16, false, runtime.NumCPU())
 
 				var r5, r16 PointProj
-				r5.msmC5(samplePoints[:], scalars5, false)
-				r16.msmC16(samplePoints[:], scalars16, true)
+				msmC5(&r5,samplePoints[:], scalars5, false)
+				msmC16(&r16,samplePoints[:], scalars16, true)
 				return (r5.Equal(&expected) && r16.Equal(&expected))
 			},
 			genScalar,
@@ -159,14 +158,12 @@ func TestMultiExpPointAffine(t *testing.T) {
 				}
 
 				scalars, _ := partitionScalars(sampleScalars[:], 4, false, runtime.NumCPU())
-				result.msmC4(samplePoints[:], scalars, false)
+				msmC4(&result,samplePoints[:], scalars, false)
 
 				// compute expected result with double and add
 				var finalScalar, mixerBigInt big.Int
 				finalScalar.Mul(&scalar, mixer.ToBigIntRegular(&mixerBigInt))
-				var finalScalarFr fr.Element
-				finalScalarFr.SetBigInt(&finalScalar)
-				expected.ScalarMul(&Generator, &finalScalarFr)
+				expected.ScalarMultiplication(&Generator, &finalScalar)
 
 				return result.Equal(&expected)
 			},
@@ -188,14 +185,12 @@ func TestMultiExpPointAffine(t *testing.T) {
 				}
 
 				scalars, _ := partitionScalars(sampleScalars[:], 5, false, runtime.NumCPU())
-				result.msmC5(samplePoints[:], scalars, false)
+				msmC5(&result,samplePoints[:], scalars, false)
 
 				// compute expected result with double and add
 				var finalScalar, mixerBigInt big.Int
 				finalScalar.Mul(&scalar, mixer.ToBigIntRegular(&mixerBigInt))
-				var finalScalarFr fr.Element
-				finalScalarFr.SetBigInt(&finalScalar)
-				expected.ScalarMul(&Generator, &finalScalarFr)
+				expected.ScalarMultiplication(&Generator, &finalScalar)
 
 				return result.Equal(&expected)
 			},
@@ -217,14 +212,12 @@ func TestMultiExpPointAffine(t *testing.T) {
 				}
 
 				scalars, _ := partitionScalars(sampleScalars[:], 6, false, runtime.NumCPU())
-				result.msmC6(samplePoints[:], scalars, false)
+				msmC6(&result,samplePoints[:], scalars, false)
 
 				// compute expected result with double and add
 				var finalScalar, mixerBigInt big.Int
 				finalScalar.Mul(&scalar, mixer.ToBigIntRegular(&mixerBigInt))
-				var finalScalarFr fr.Element
-				finalScalarFr.SetBigInt(&finalScalar)
-				expected.ScalarMul(&Generator, &finalScalarFr)
+				expected.ScalarMultiplication(&Generator, &finalScalar)
 
 				return result.Equal(&expected)
 			},
@@ -246,14 +239,12 @@ func TestMultiExpPointAffine(t *testing.T) {
 				}
 
 				scalars, _ := partitionScalars(sampleScalars[:], 7, false, runtime.NumCPU())
-				result.msmC7(samplePoints[:], scalars, false)
+				msmC7(&result,samplePoints[:], scalars, false)
 
 				// compute expected result with double and add
 				var finalScalar, mixerBigInt big.Int
 				finalScalar.Mul(&scalar, mixer.ToBigIntRegular(&mixerBigInt))
-				var finalScalarFr fr.Element
-				finalScalarFr.SetBigInt(&finalScalar)
-				expected.ScalarMul(&Generator, &finalScalarFr)
+				expected.ScalarMultiplication(&Generator, &finalScalar)
 
 				return result.Equal(&expected)
 			},
@@ -275,14 +266,12 @@ func TestMultiExpPointAffine(t *testing.T) {
 				}
 
 				scalars, _ := partitionScalars(sampleScalars[:], 8, false, runtime.NumCPU())
-				result.msmC8(samplePoints[:], scalars, false)
+				msmC8(&result,samplePoints[:], scalars, false)
 
 				// compute expected result with double and add
 				var finalScalar, mixerBigInt big.Int
 				finalScalar.Mul(&scalar, mixer.ToBigIntRegular(&mixerBigInt))
-				var finalScalarFr fr.Element
-				finalScalarFr.SetBigInt(&finalScalar)
-				expected.ScalarMul(&Generator, &finalScalarFr)
+				expected.ScalarMultiplication(&Generator, &finalScalar)
 
 				return result.Equal(&expected)
 			},
@@ -304,14 +293,12 @@ func TestMultiExpPointAffine(t *testing.T) {
 				}
 
 				scalars, _ := partitionScalars(sampleScalars[:], 9, false, runtime.NumCPU())
-				result.msmC9(samplePoints[:], scalars, false)
+				msmC9(&result,samplePoints[:], scalars, false)
 
 				// compute expected result with double and add
 				var finalScalar, mixerBigInt big.Int
 				finalScalar.Mul(&scalar, mixer.ToBigIntRegular(&mixerBigInt))
-				var finalScalarFr fr.Element
-				finalScalarFr.SetBigInt(&finalScalar)
-				expected.ScalarMul(&Generator, &finalScalarFr)
+				expected.ScalarMultiplication(&Generator, &finalScalar)
 
 				return result.Equal(&expected)
 			},
@@ -333,14 +320,12 @@ func TestMultiExpPointAffine(t *testing.T) {
 				}
 
 				scalars, _ := partitionScalars(sampleScalars[:], 10, false, runtime.NumCPU())
-				result.msmC10(samplePoints[:], scalars, false)
+				msmC10(&result,samplePoints[:], scalars, false)
 
 				// compute expected result with double and add
 				var finalScalar, mixerBigInt big.Int
 				finalScalar.Mul(&scalar, mixer.ToBigIntRegular(&mixerBigInt))
-				var finalScalarFr fr.Element
-				finalScalarFr.SetBigInt(&finalScalar)
-				expected.ScalarMul(&Generator, &finalScalarFr)
+				expected.ScalarMultiplication(&Generator, &finalScalar)
 
 				return result.Equal(&expected)
 			},
@@ -362,14 +347,12 @@ func TestMultiExpPointAffine(t *testing.T) {
 				}
 
 				scalars, _ := partitionScalars(sampleScalars[:], 11, false, runtime.NumCPU())
-				result.msmC11(samplePoints[:], scalars, false)
+				msmC11(&result,samplePoints[:], scalars, false)
 
 				// compute expected result with double and add
 				var finalScalar, mixerBigInt big.Int
 				finalScalar.Mul(&scalar, mixer.ToBigIntRegular(&mixerBigInt))
-				var finalScalarFr fr.Element
-				finalScalarFr.SetBigInt(&finalScalar)
-				expected.ScalarMul(&Generator, &finalScalarFr)
+				expected.ScalarMultiplication(&Generator, &finalScalar)
 
 				return result.Equal(&expected)
 			},
@@ -391,14 +374,12 @@ func TestMultiExpPointAffine(t *testing.T) {
 				}
 
 				scalars, _ := partitionScalars(sampleScalars[:], 12, false, runtime.NumCPU())
-				result.msmC12(samplePoints[:], scalars, false)
+				msmC12(&result,samplePoints[:], scalars, false)
 
 				// compute expected result with double and add
 				var finalScalar, mixerBigInt big.Int
 				finalScalar.Mul(&scalar, mixer.ToBigIntRegular(&mixerBigInt))
-				var finalScalarFr fr.Element
-				finalScalarFr.SetBigInt(&finalScalar)
-				expected.ScalarMul(&Generator, &finalScalarFr)
+				expected.ScalarMultiplication(&Generator, &finalScalar)
 
 				return result.Equal(&expected)
 			},
@@ -420,14 +401,12 @@ func TestMultiExpPointAffine(t *testing.T) {
 				}
 
 				scalars, _ := partitionScalars(sampleScalars[:], 13, false, runtime.NumCPU())
-				result.msmC13(samplePoints[:], scalars, false)
+				msmC13(&result,samplePoints[:], scalars, false)
 
 				// compute expected result with double and add
 				var finalScalar, mixerBigInt big.Int
 				finalScalar.Mul(&scalar, mixer.ToBigIntRegular(&mixerBigInt))
-				var finalScalarFr fr.Element
-				finalScalarFr.SetBigInt(&finalScalar)
-				expected.ScalarMul(&Generator, &finalScalarFr)
+				expected.ScalarMultiplication(&Generator, &finalScalar)
 
 				return result.Equal(&expected)
 			},
@@ -449,14 +428,12 @@ func TestMultiExpPointAffine(t *testing.T) {
 				}
 
 				scalars, _ := partitionScalars(sampleScalars[:], 14, false, runtime.NumCPU())
-				result.msmC14(samplePoints[:], scalars, false)
+				msmC14(&result,samplePoints[:], scalars, false)
 
 				// compute expected result with double and add
 				var finalScalar, mixerBigInt big.Int
 				finalScalar.Mul(&scalar, mixer.ToBigIntRegular(&mixerBigInt))
-				var finalScalarFr fr.Element
-				finalScalarFr.SetBigInt(&finalScalar)
-				expected.ScalarMul(&Generator, &finalScalarFr)
+				expected.ScalarMultiplication(&Generator, &finalScalar)
 
 				return result.Equal(&expected)
 			},
@@ -478,14 +455,12 @@ func TestMultiExpPointAffine(t *testing.T) {
 				}
 
 				scalars, _ := partitionScalars(sampleScalars[:], 15, false, runtime.NumCPU())
-				result.msmC15(samplePoints[:], scalars, false)
+				msmC15(&result,samplePoints[:], scalars, false)
 
 				// compute expected result with double and add
 				var finalScalar, mixerBigInt big.Int
 				finalScalar.Mul(&scalar, mixer.ToBigIntRegular(&mixerBigInt))
-				var finalScalarFr fr.Element
-				finalScalarFr.SetBigInt(&finalScalar)
-				expected.ScalarMul(&Generator, &finalScalarFr)
+				expected.ScalarMultiplication(&Generator, &finalScalar)
 
 				return result.Equal(&expected)
 			},
@@ -507,14 +482,12 @@ func TestMultiExpPointAffine(t *testing.T) {
 				}
 
 				scalars, _ := partitionScalars(sampleScalars[:], 16, false, runtime.NumCPU())
-				result.msmC16(samplePoints[:], scalars, false)
+				msmC16(&result,samplePoints[:], scalars, false)
 
 				// compute expected result with double and add
 				var finalScalar, mixerBigInt big.Int
 				finalScalar.Mul(&scalar, mixer.ToBigIntRegular(&mixerBigInt))
-				var finalScalarFr fr.Element
-				finalScalarFr.SetBigInt(&finalScalar)
-				expected.ScalarMul(&Generator, &finalScalarFr)
+				expected.ScalarMultiplication(&Generator, &finalScalar)
 
 				return result.Equal(&expected)
 			},
@@ -536,14 +509,12 @@ func TestMultiExpPointAffine(t *testing.T) {
 				}
 
 				scalars, _ := partitionScalars(sampleScalars[:], 20, false, runtime.NumCPU())
-				result.msmC20(samplePoints[:], scalars, false)
+				msmC20(&result,samplePoints[:], scalars, false)
 
 				// compute expected result with double and add
 				var finalScalar, mixerBigInt big.Int
 				finalScalar.Mul(&scalar, mixer.ToBigIntRegular(&mixerBigInt))
-				var finalScalarFr fr.Element
-				finalScalarFr.SetBigInt(&finalScalar)
-				expected.ScalarMul(&Generator, &finalScalarFr)
+				expected.ScalarMultiplication(&Generator, &finalScalar)
 
 				return result.Equal(&expected)
 			},
@@ -565,14 +536,12 @@ func TestMultiExpPointAffine(t *testing.T) {
 				}
 
 				scalars, _ := partitionScalars(sampleScalars[:], 21, false, runtime.NumCPU())
-				result.msmC21(samplePoints[:], scalars, false)
+				msmC21(&result, samplePoints[:], scalars, false)
 
 				// compute expected result with double and add
 				var finalScalar, mixerBigInt big.Int
 				finalScalar.Mul(&scalar, mixer.ToBigIntRegular(&mixerBigInt))
-				var finalScalarFr fr.Element
-				finalScalarFr.SetBigInt(&finalScalar)
-				expected.ScalarMul(&Generator, &finalScalarFr)
+				expected.ScalarMultiplication(&Generator, &finalScalar)
 
 				return result.Equal(&expected)
 			},
@@ -594,14 +563,12 @@ func TestMultiExpPointAffine(t *testing.T) {
 				}
 
 				scalars, _ := partitionScalars(sampleScalars[:], 22, false, runtime.NumCPU())
-				result.msmC22(samplePoints[:], scalars, false)
+				msmC22(&result,samplePoints[:], scalars, false)
 
 				// compute expected result with double and add
 				var finalScalar, mixerBigInt big.Int
 				finalScalar.Mul(&scalar, mixer.ToBigIntRegular(&mixerBigInt))
-				var finalScalarFr fr.Element
-				finalScalarFr.SetBigInt(&finalScalar)
-				expected.ScalarMul(&Generator, &finalScalarFr)
+				expected.ScalarMultiplication(&Generator, &finalScalar)
 
 				return result.Equal(&expected)
 			},
@@ -633,17 +600,14 @@ func TestMultiExpPointAffine(t *testing.T) {
 				g.Add(&g, &Generator)
 			}
 
-			var op1MultiExp PointAffine
-			op1MultiExp.MultiExp(samplePoints, sampleScalars, MultiExpConfig{})
+			 op1MultiExp, _ := MultiExpAffine(samplePoints, sampleScalars, MultiExpConfig{})
 
 			var finalBigScalar fr.Element
 			var finalBigScalarBi big.Int
 			var op1ScalarMul PointAffine
 			finalBigScalar.SetString("9455").Mul(&finalBigScalar, &mixer)
 			finalBigScalar.ToBigIntRegular(&finalBigScalarBi)
-				var finalBigScalarFr fr.Element
-				finalBigScalarFr.SetBigInt(&finalBigScalarBi)
-			op1ScalarMul.ScalarMul(&GeneratorAff, &finalBigScalarFr)
+			op1ScalarMul.ScalarMultiplication(&GeneratorAff, &finalBigScalarBi)
 
 			return op1ScalarMul.Equal(&op1MultiExp)
 		},
@@ -673,15 +637,13 @@ func BenchmarkMultiExpG1(b *testing.B) {
 		samplePoints[i-1] = GeneratorAff
 	}
 
-	var testPoint PointAffine
-
 	for i := 5; i <= pow; i++ {
 		using := 1 << i
 
 		b.Run(fmt.Sprintf("%d points", using), func(b *testing.B) {
 			b.ResetTimer()
 			for j := 0; j < b.N; j++ {
-				testPoint.MultiExp(samplePoints[:using], sampleScalars[:using], MultiExpConfig{})
+				_, _ = MultiExpAffine(samplePoints[:using], sampleScalars[:using], MultiExpConfig{})
 			}
 		})
 	}
@@ -708,11 +670,9 @@ func BenchmarkMultiExpG1Reference(b *testing.B) {
 		samplePoints[i-1] = GeneratorAff
 	}
 
-	var testPoint PointAffine
-
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
-		testPoint.MultiExp(samplePoints[:], sampleScalars[:], MultiExpConfig{})
+		_, _ = MultiExpAffine(samplePoints[:], sampleScalars[:], MultiExpConfig{})
 	}
 }
 
@@ -737,23 +697,26 @@ func BenchmarkManyMultiExpG1Reference(b *testing.B) {
 		samplePoints[i-1] = GeneratorAff
 	}
 
-	var t1, t2, t3 PointAffine
 	b.ResetTimer()
 	for j := 0; j < b.N; j++ {
 		var wg sync.WaitGroup
 		wg.Add(3)
 		go func() {
-			t1.MultiExp(samplePoints[:], sampleScalars[:], MultiExpConfig{})
+			_, _ = MultiExpAffine(samplePoints[:], sampleScalars[:], MultiExpConfig{})
 			wg.Done()
 		}()
 		go func() {
-			t2.MultiExp(samplePoints[:], sampleScalars[:], MultiExpConfig{})
+			_,_ = MultiExpAffine(samplePoints[:], sampleScalars[:], MultiExpConfig{})
 			wg.Done()
 		}()
 		go func() {
-			t3.MultiExp(samplePoints[:], sampleScalars[:], MultiExpConfig{})
+			_, _ = MultiExpAffine(samplePoints[:], sampleScalars[:], MultiExpConfig{})
 			wg.Done()
 		}()
 		wg.Wait()
 	}
+}
+
+func GetEdwardsCurve() gnarkbandersnatch.CurveParams {
+	return CurveParams
 }
