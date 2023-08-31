@@ -11,11 +11,15 @@ import (
 	"github.com/crate-crypto/go-ipa/ipa"
 )
 
+// MultiProof is a multi-proof for several polynomials in evaluation form.
 type MultiProof struct {
 	IPA ipa.IPAProof
 	D   banderwagon.Element
 }
 
+// CreateMultiProof creates a multi-proof for several polynomials in evaluation form.
+// The list of triplets (C, Fs, Z) represents each polynomial commitment, evaluations in the domain, and evaluation
+// point respectively.
 func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs []*banderwagon.Element, fs [][]fr.Element, zs []uint8) *MultiProof {
 	transcript.DomainSep("multiproof")
 
@@ -130,6 +134,9 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 	}
 }
 
+// CheckMultiProof verifies a multi-proof for several polynomials in evaluation form.
+// The list of triplets (C, Y, Z) represents each polynomial commitment, evaluation
+// result, and evaluation point in the domain.
 func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proof *MultiProof, Cs []*banderwagon.Element, ys []*fr.Element, zs []uint8) bool {
 	transcript.DomainSep("multiproof")
 
@@ -215,16 +222,20 @@ func domainToFr(in uint8) fr.Element {
 	return x
 }
 
+// Write serializes a multi-proof to a writer.
 func (mp *MultiProof) Write(w io.Writer) {
 	binary.Write(w, binary.BigEndian, mp.D.Bytes())
 	mp.IPA.Write(w)
 }
 
+// Read deserializes a multi-proof from a reader.
 func (mp *MultiProof) Read(r io.Reader) {
 	D := common.ReadPoint(r)
 	mp.D = *D
 	mp.IPA.Read(r)
 }
+
+// Equal checks if two multi-proofs are equal.
 func (mp MultiProof) Equal(other MultiProof) bool {
 	if !mp.IPA.Equal(other.IPA) {
 		return false

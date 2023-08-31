@@ -9,20 +9,24 @@ import (
 	"github.com/crate-crypto/go-ipa/common"
 )
 
+// IPAProof is an inner product argument proof.
 type IPAProof struct {
 	L        []banderwagon.Element
 	R        []banderwagon.Element
 	A_scalar fr.Element
 }
 
-func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment banderwagon.Element, a []fr.Element, eval_point fr.Element) IPAProof {
+// CreateIPAProof creates an IPA proof for a committed polynomial in evaluation form.
+// `a` are the evaluation of the polynomial in the domain, and `evalPoint` represents the
+// evaluation point. The evaluation of the polynomial at such point is computed automatically.
+func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment banderwagon.Element, a []fr.Element, evalPoint fr.Element) IPAProof {
 	transcript.DomainSep("ipa")
 
-	b := ic.PrecomputedWeights.ComputeBarycentricCoefficients(eval_point)
+	b := ic.PrecomputedWeights.ComputeBarycentricCoefficients(evalPoint)
 	inner_prod := InnerProd(a, b)
 
 	transcript.AppendPoint(&commitment, "C")
-	transcript.AppendScalar(&eval_point, "input point")
+	transcript.AppendScalar(&evalPoint, "input point")
 	transcript.AppendScalar(&inner_prod, "output point")
 	w := transcript.ChallengeScalar("w")
 
@@ -82,6 +86,7 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 	}
 }
 
+// Write serializes the IPA proof to the given writer.
 func (ip *IPAProof) Write(w io.Writer) {
 	for _, el := range ip.L {
 		binary.Write(w, binary.BigEndian, el.Bytes())
@@ -92,6 +97,7 @@ func (ip *IPAProof) Write(w io.Writer) {
 	binary.Write(w, binary.BigEndian, ip.A_scalar.BytesLE())
 }
 
+// Read deserializes the IPA proof from the given reader.
 func (ip *IPAProof) Read(r io.Reader) {
 	var L []banderwagon.Element
 	for i := 0; i < 8; i++ {
@@ -110,6 +116,7 @@ func (ip *IPAProof) Read(r io.Reader) {
 	ip.A_scalar = *A_Scalar
 }
 
+// Equal checks if two IPA proofs are equal.
 func (ip IPAProof) Equal(other IPAProof) bool {
 	num_rounds := 8
 	if len(ip.L) != len(other.L) {
