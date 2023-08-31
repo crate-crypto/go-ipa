@@ -13,6 +13,8 @@ import (
 	"github.com/crate-crypto/go-ipa/common"
 )
 
+// IPAConfig contains all the necessary information to create an IPA related proofs,
+// such as the SRS, Q, and precomputed weights for the barycentric formula.
 type IPAConfig struct {
 	SRS []banderwagon.Element
 	Q   banderwagon.Element
@@ -22,14 +24,14 @@ type IPAConfig struct {
 	// The number of rounds the prover and verifier must complete
 	// in the IPA argument, this will be log2 of the size of the input vectors
 	// since the vector is halved on each round
-	num_ipa_rounds uint32
+	numRounds uint32
 }
 
-// This function creates common.POLY_DEGREE random generator points where the relative discrete log is
-// not known between each generator and all of the other necessary information needed to verify
-// and create an IPA proof.
+// NewIPASettings generates the SRS, Q and precomputed weights for the barycentric formula.
+// The SRS is generated as common.VectorLength random points where the relative discrete log is
+// not known between each generator.
 func NewIPASettings() (*IPAConfig, error) {
-	srs := GenerateRandomPoints(common.POLY_DEGREE)
+	srs := GenerateRandomPoints(common.VectorLength)
 	precompMSM, err := banderwagon.NewPrecompMSM(srs)
 	if err != nil {
 		return nil, fmt.Errorf("creating precomputed MSM: %s", err)
@@ -39,10 +41,11 @@ func NewIPASettings() (*IPAConfig, error) {
 		Q:                  banderwagon.Generator,
 		PrecompMSM:         precompMSM,
 		PrecomputedWeights: NewPrecomputedWeights(),
-		num_ipa_rounds:     compute_num_rounds(common.POLY_DEGREE),
+		numRounds:          compute_num_rounds(common.VectorLength),
 	}, nil
 }
 
+// MultiScalar computes the multi scalar multiplication of points and scalars.
 func MultiScalar(points []banderwagon.Element, scalars []fr.Element) banderwagon.Element {
 	var result banderwagon.Element
 	result.SetIdentity()
@@ -55,13 +58,14 @@ func MultiScalar(points []banderwagon.Element, scalars []fr.Element) banderwagon
 	return *res
 }
 
-// Commits to a polynomial using the SRS
-// panics if the length of the SRS does not equal the number of polynomial coefficients
+// Commit calculates the Pedersen Commitment of a polynomial polynomial
+// in evaluation form using the SRS.
+// It panics if the length of the SRS does not equal the number of polynomial coefficients.
 func (ic *IPAConfig) Commit(polynomial []fr.Element) banderwagon.Element {
 	return ic.PrecompMSM.MSM(polynomial)
 }
 
-// Commits to a polynomial using the input group elements
+// commit commits to a polynomial using the input group elements
 // panics if the number of group elements does not equal the number of polynomial coefficients
 // This is used when the generators are not fixed
 func commit(group_elements []banderwagon.Element, polynomial []fr.Element) banderwagon.Element {
@@ -71,8 +75,8 @@ func commit(group_elements []banderwagon.Element, polynomial []fr.Element) bande
 	return MultiScalar(group_elements, polynomial)
 }
 
-// Computes the inner product of a and b
-// panics if len(a) != len(b)
+// InnerProd computes the inner product of a and b.
+// It panics if len(a) != len(b).
 func InnerProd(a []fr.Element, b []fr.Element) fr.Element {
 	if len(a) != len(b) {
 		panic("two vectors must have the same lengths")
@@ -173,8 +177,10 @@ func compute_num_rounds(vector_size uint32) uint32 {
 	return uint32(res)
 }
 
+// GenerateRandomPoints generates numPoints random points on the curve using
+// hardcoded seed.
 func GenerateRandomPoints(numPoints uint64) []banderwagon.Element {
-	seed := "eth_verkle_oct_2021" // incase it changes or needs updating, we can use eth_verkle_month_year
+	seed := "eth_verkle_oct_2021"
 
 	points := []banderwagon.Element{}
 

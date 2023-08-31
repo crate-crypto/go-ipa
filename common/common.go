@@ -7,9 +7,9 @@ import (
 	"github.com/crate-crypto/go-ipa/banderwagon"
 )
 
-// TODO: This is not entirely correct, the degree is 255. We can change this to VECTOR_LENGTH or NUM_EVAL_POINTS?
-// note: degree 255, means 256 evaluation points
-const POLY_DEGREE = 256
+// VectorLength is the number of elements in the vector. This value is fixed.
+// Note that this means that the degree of the polynomial is one less than this value.
+const VectorLength = 256
 
 // Returns powers of x from 0 to degree-1
 // <1, x, x^2, x^3, x^4,...,x^(degree-1)>

@@ -12,7 +12,7 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 	if len(proof.L) != len(proof.R) {
 		panic("L and R should be the same size")
 	}
-	if len(proof.L) != int(ic.num_ipa_rounds) {
+	if len(proof.L) != int(ic.numRounds) {
 		panic("The number of points for L or R should be equal to the number of rounds")
 	}
 

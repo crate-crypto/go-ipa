@@ -152,8 +152,8 @@ func TestComputeBarycentricCoefficients(t *testing.T) {
 // TODO, we can probably remove this and just interpolate and evaluate in tests
 func evalOutsideDomain(preComp *PrecomputedWeights, f []fr.Element, point fr.Element) fr.Element {
 
-	pointMinusDomain := make([]fr.Element, DOMAIN_SIZE)
-	for i := 0; i < DOMAIN_SIZE; i++ {
+	pointMinusDomain := make([]fr.Element, domainSize)
+	for i := 0; i < domainSize; i++ {
 
 		var i_fr fr.Element
 		i_fr.SetUint64(uint64(i))
@@ -171,7 +171,7 @@ func evalOutsideDomain(preComp *PrecomputedWeights, f []fr.Element, point fr.Ele
 	}
 
 	a_z := fr.One()
-	for i := 0; i < DOMAIN_SIZE; i++ {
+	for i := 0; i < domainSize; i++ {
 
 		var i_fr fr.Element
 		i_fr.SetUint64(uint64(i))

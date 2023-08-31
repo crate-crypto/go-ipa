@@ -29,7 +29,7 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 	var q banderwagon.Element
 	q.ScalarMul(&ic.Q, &w)
 
-	num_rounds := ic.num_ipa_rounds
+	num_rounds := ic.numRounds
 
 	current_basis := ic.SRS
 
