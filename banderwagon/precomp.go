@@ -186,12 +186,9 @@ func batchProjToAffine(points []bandersnatch.PointProj) []bandersnatch.PointAffi
 				// do nothing, (X=0, Y=0) is infinity point in affine
 				continue
 			}
-			var a, b fp.Element
-			a = result[i].X
-			b.Square(&a)
-			result[i].X.Mul(&points[i].X, &b)
-			result[i].Y.Mul(&points[i].Y, &b).
-				Mul(&result[i].Y, &a)
+			a := result[i].X
+			result[i].X.Mul(&points[i].X, &a)
+			result[i].Y.Mul(&points[i].Y, &a)
 		}
 	})
 
