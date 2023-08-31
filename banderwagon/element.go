@@ -171,8 +171,6 @@ func (p *Element) setBytes(buf []byte, trusted bool) error {
 	var x fp.Element
 	x.SetBytes(buf)
 
-	// *REVIEW COMMENT*: Wouldn't y=sqrt(1-ax^2)/(1-dx^2) be faster considering
-	// that we can leverage the calculated 1-ax^2 for the subgroup check if !trusted.
 	point := bandersnatch.GetPointFromX(&x, true)
 	if point == nil {
 		return errors.New("point is not on the curve")

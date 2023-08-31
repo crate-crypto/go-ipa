@@ -149,8 +149,6 @@ func (pp *PrecompPoint) ScalarMul(scalar fr.Element, res *bandersnatch.PointProj
 	}
 }
 
-// TODO(jsign): this is pulled from gnark, but we must delete this file when we update our gnark dependency
-// to the latest version since there's a similar method.
 func batchProjToAffine(points []bandersnatch.PointProj) []bandersnatch.PointAffine {
 	result := make([]bandersnatch.PointAffine, len(points))
 	zeroes := make([]bool, len(points))
