@@ -11,14 +11,14 @@ func TestCustomSqrt(t *testing.T) {
 		a.SetUint64(uint64(i))
 
 		// Calculate the square root with thew optimized algorithm.
-		var sqrtNew Element
-		if sqrtNew.SqrtPrecomp(&a) == nil {
+		sqrtNew := SqrtPrecomp(&a)
+		if sqrtNew == nil {
 			continue // Doesn't exist? Skip.
 		}
 
 		// Recalculate the original element using the calculated sqrt.
 		var regenNew Element
-		regenNew.Mul(&sqrtNew, &sqrtNew)
+		regenNew.Mul(sqrtNew, sqrtNew)
 
 		// Check the obvious: regenNew should be equal to the original element.
 		if !regenNew.Equal(&a) {
@@ -37,7 +37,7 @@ func TestCustomSqrt(t *testing.T) {
 		// Check that both sqrt's are equal, *considering* the case that they have opposite signs.
 		// We need to do that since both algorithm can return either the positive or negative sqrt,
 		// which is fine.
-		if !sqrtNew.Equal(&sqrtOld) && !sqrtNew.Neg(&sqrtNew).Equal(&sqrtOld) {
+		if !sqrtNew.Equal(&sqrtOld) && !sqrtNew.Neg(sqrtNew).Equal(&sqrtOld) {
 			t.Fatalf("sqrtNew != sqrtOld for %d", i)
 		}
 	}
