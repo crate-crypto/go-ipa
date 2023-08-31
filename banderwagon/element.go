@@ -15,6 +15,9 @@ const (
 	UncompressedSize = 2 * coordinateSize
 )
 
+// Fr is the scalar field underlying the group.
+type Fr = fr.Element
+
 // Generator is the generator of the group.
 var Generator = Element{inner: bandersnatch.PointProj{
 	X: bandersnatch.CurveParams.Base.X,
