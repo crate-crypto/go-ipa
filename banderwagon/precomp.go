@@ -149,6 +149,9 @@ func (pp *PrecompPoint) ScalarMul(scalar fr.Element, res *bandersnatch.PointProj
 	}
 }
 
+// batchProjToAffine converts a slice of points in projective coordinates to affine coordinates.
+// This code was pulled from gnark-crypto which unfortunately doesn't have a variant for bandersnatch
+// since it's a secondary curve in the generated code.
 func batchProjToAffine(points []bandersnatch.PointProj) []bandersnatch.PointAffine {
 	result := make([]bandersnatch.PointAffine, len(points))
 	zeroes := make([]bool, len(points))
