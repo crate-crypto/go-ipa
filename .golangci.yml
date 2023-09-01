@@ -3,7 +3,11 @@ linters:
   enable:
     - gofmt
     - staticcheck
+    - unused
+    - goconst
+    - goimports
     - gosimple
     - govet
     - ineffassign
     - misspell
+    - unconvert

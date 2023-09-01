@@ -88,7 +88,7 @@ func BatchNormalize(elements []*Element) {
 
 	// Collect all z co-ordinates
 	zs := make([]fp.Element, len(dedupedElements))
-	for i := 0; i < int(len(dedupedElements)); i++ {
+	for i := 0; i < len(dedupedElements); i++ {
 		zs[i] = dedupedElements[i].inner.Z
 	}
 
@@ -107,7 +107,7 @@ func BatchNormalize(elements []*Element) {
 func ElementsToBytes(elements ...*Element) [][CompressedSize]byte {
 	// Collect all z co-ordinates
 	zs := make([]fp.Element, len(elements))
-	for i := 0; i < int(len(elements)); i++ {
+	for i := 0; i < len(elements); i++ {
 		zs[i] = elements[i].inner.Z
 	}
 
@@ -117,7 +117,7 @@ func ElementsToBytes(elements ...*Element) [][CompressedSize]byte {
 	serialised_points := make([][CompressedSize]byte, len(elements))
 
 	// Multiply x and y by zInv
-	for i := 0; i < int(len(elements)); i++ {
+	for i := 0; i < len(elements); i++ {
 		var X fp.Element
 		var Y fp.Element
 
@@ -141,7 +141,7 @@ func ElementsToBytes(elements ...*Element) [][CompressedSize]byte {
 func BatchToBytesUncompressed(elements ...*Element) [][UncompressedSize]byte {
 	// Collect all z co-ordinates
 	zs := make([]fp.Element, len(elements))
-	for i := 0; i < int(len(elements)); i++ {
+	for i := 0; i < len(elements); i++ {
 		zs[i] = elements[i].inner.Z
 	}
 
@@ -151,7 +151,7 @@ func BatchToBytesUncompressed(elements ...*Element) [][UncompressedSize]byte {
 	uncompressedPoints := make([][UncompressedSize]byte, len(elements))
 
 	// Multiply x and y by zInv
-	for i := 0; i < int(len(elements)); i++ {
+	for i := 0; i < len(elements); i++ {
 		var X fp.Element
 		var Y fp.Element
 
@@ -260,7 +260,7 @@ func BatchMapToScalarField(result []*fr.Element, elements []*Element) {
 
 	// Collect all y co-ordinates
 	ys := make([]fp.Element, len(elements))
-	for i := 0; i < int(len(elements)); i++ {
+	for i := 0; i < len(elements); i++ {
 		ys[i] = elements[i].inner.Y
 	}
 
@@ -268,7 +268,7 @@ func BatchMapToScalarField(result []*fr.Element, elements []*Element) {
 	yInvs := fp.BatchInvert(ys)
 
 	// Multiply x by yInv
-	for i := 0; i < int(len(elements)); i++ {
+	for i := 0; i < len(elements); i++ {
 		var mappedElement fp.Element
 
 		mappedElement.Mul(&elements[i].inner.X, &yInvs[i])
