@@ -19,20 +19,6 @@ func (p *Element) MultiExp(points []Element, scalars []fr.Element, config MultiE
 	}
 	affinePoints := batchProjToAffine(projPoints)
 
-	var aff2 = make([]bandersnatch.PointAffine, len(points))
-	for i := 0; i < len(points); i++ {
-		// TODO: improve speed by using Montgomery batch normalisation algorithm
-		var AffRepr bandersnatch.PointAffine
-		AffRepr.FromProj(&points[i].inner)
-		aff2[i] = AffRepr
-	}
-
-	for i := range affinePoints {
-		if !affinePoints[i].Equal(&aff2[i]) {
-			panic(i)
-		}
-	}
-
 	// NOTE: This is fine as long MultiExp does not use Equal functionality
 	_, err := bandersnatch.MultiExp(&p.inner, affinePoints, scalars, bandersnatch.MultiExpConfig{
 		NbTasks:     config.NbTasks,
