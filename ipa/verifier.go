@@ -6,21 +6,24 @@ import (
 	"github.com/crate-crypto/go-ipa/common"
 )
 
-func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment banderwagon.Element, proof IPAProof, eval_point fr.Element, inner_prod fr.Element) bool {
+// CheckIPAProof verifies an IPA proof for a committed polynomial in evaluation form.
+// It verifies that `proof` is a valid proof for the polynomial at the evaluation
+// point `evalPoint` with result `result`
+func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment banderwagon.Element, proof IPAProof, evalPoint fr.Element, result fr.Element) bool {
 	transcript.DomainSep("ipa")
 
 	if len(proof.L) != len(proof.R) {
 		panic("L and R should be the same size")
 	}
-	if len(proof.L) != int(ic.num_ipa_rounds) {
+	if len(proof.L) != int(ic.numRounds) {
 		panic("The number of points for L or R should be equal to the number of rounds")
 	}
 
-	b := ic.PrecomputedWeights.ComputeBarycentricCoefficients(eval_point)
+	b := ic.PrecomputedWeights.ComputeBarycentricCoefficients(evalPoint)
 
 	transcript.AppendPoint(&commitment, "C")
-	transcript.AppendScalar(&eval_point, "input point")
-	transcript.AppendScalar(&inner_prod, "output point")
+	transcript.AppendScalar(&evalPoint, "input point")
+	transcript.AppendScalar(&result, "output point")
 
 	w := transcript.ChallengeScalar("w")
 
@@ -29,7 +32,7 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 	q.ScalarMul(&ic.Q, &w)
 
 	var qy banderwagon.Element
-	qy.ScalarMul(&q, &inner_prod)
+	qy.ScalarMul(&q, &result)
 	commitment.Add(&commitment, &qy)
 
 	challenges := generateChallenges(transcript, &proof)

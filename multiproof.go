@@ -11,11 +11,15 @@ import (
 	"github.com/crate-crypto/go-ipa/ipa"
 )
 
+// MultiProof is a multi-proof for several polynomials in evaluation form.
 type MultiProof struct {
 	IPA ipa.IPAProof
 	D   banderwagon.Element
 }
 
+// CreateMultiProof creates a multi-proof for several polynomials in evaluation form.
+// The list of triplets (C, Fs, Z) represents each polynomial commitment, evaluations in the domain, and evaluation
+// point respectively.
 func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs []*banderwagon.Element, fs [][]fr.Element, zs []uint8) *MultiProof {
 	transcript.DomainSep("multiproof")
 
@@ -51,28 +55,28 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 	// We first compute the polynomials in lagrange form grouped by evaluation point, and
 	// then we compute g(X). This limit the numbers of DivideOnDomain() calls up to
 	// the domain size.
-	groupedFs := make([][]fr.Element, common.POLY_DEGREE)
+	groupedFs := make([][]fr.Element, common.VectorLength)
 	for i := 0; i < num_queries; i++ {
 		z := zs[i]
 		if len(groupedFs[z]) == 0 {
-			groupedFs[z] = make([]fr.Element, common.POLY_DEGREE)
+			groupedFs[z] = make([]fr.Element, common.VectorLength)
 		}
 
 		r := powers_of_r[i]
-		for j := 0; j < common.POLY_DEGREE; j++ {
+		for j := 0; j < common.VectorLength; j++ {
 			var scaledEvaluation fr.Element
 			scaledEvaluation.Mul(&r, &fs[i][j])
 			groupedFs[z][j].Add(&groupedFs[z][j], &scaledEvaluation)
 		}
 	}
-	g_x := make([]fr.Element, common.POLY_DEGREE)
+	g_x := make([]fr.Element, common.VectorLength)
 	for index, f := range groupedFs {
 		// If there is no polynomial for this evaluation point, we skip it.
 		if len(f) == 0 {
 			continue
 		}
 		quotient := ipaConf.PrecomputedWeights.DivideOnDomain(uint8(index), f)
-		for j := 0; j < common.POLY_DEGREE; j++ {
+		for j := 0; j < common.VectorLength; j++ {
 			g_x[j].Add(&g_x[j], &quotient[j])
 		}
 	}
@@ -83,7 +87,7 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 	t := transcript.ChallengeScalar("t")
 
 	// Calculate the denominator inverses only for referenced evaluation points.
-	den_inv := make([]fr.Element, 0, common.POLY_DEGREE)
+	den_inv := make([]fr.Element, 0, common.VectorLength)
 	for z, f := range groupedFs {
 		if len(f) == 0 {
 			continue
@@ -96,13 +100,13 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 	den_inv = fr.BatchInvert(den_inv)
 
 	// Compute h(X) = g_1(X)
-	h_x := make([]fr.Element, common.POLY_DEGREE)
+	h_x := make([]fr.Element, common.VectorLength)
 	denInvIdx := 0
 	for _, f := range groupedFs {
 		if len(f) == 0 {
 			continue
 		}
-		for k := 0; k < common.POLY_DEGREE; k++ {
+		for k := 0; k < common.VectorLength; k++ {
 			var tmp fr.Element
 			tmp.Mul(&f[k], &den_inv[denInvIdx])
 			h_x[k].Add(&h_x[k], &tmp)
@@ -110,8 +114,8 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 		denInvIdx++
 	}
 
-	h_minus_g := make([]fr.Element, common.POLY_DEGREE)
-	for i := 0; i < common.POLY_DEGREE; i++ {
+	h_minus_g := make([]fr.Element, common.VectorLength)
+	for i := 0; i < common.VectorLength; i++ {
 		h_minus_g[i].Sub(&h_x[i], &g_x[i])
 	}
 
@@ -130,6 +134,9 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 	}
 }
 
+// CheckMultiProof verifies a multi-proof for several polynomials in evaluation form.
+// The list of triplets (C, Y, Z) represents each polynomial commitment, evaluation
+// result, and evaluation point in the domain.
 func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proof *MultiProof, Cs []*banderwagon.Element, ys []*fr.Element, zs []uint8) bool {
 	transcript.DomainSep("multiproof")
 
@@ -161,7 +168,7 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 
 	// Compute the polynomials in lagrange form grouped by evaluation point, and
 	// the needed helper scalars.
-	groupedEvals := make([]fr.Element, common.POLY_DEGREE)
+	groupedEvals := make([]fr.Element, common.VectorLength)
 	for i := 0; i < num_queries; i++ {
 		z := zs[i]
 
@@ -173,8 +180,8 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 	}
 
 	// Compute helper_scalar_den. This is 1 / t - z_i
-	helper_scalar_den := make([]fr.Element, common.POLY_DEGREE)
-	for i := 0; i < common.POLY_DEGREE; i++ {
+	helper_scalar_den := make([]fr.Element, common.VectorLength)
+	for i := 0; i < common.VectorLength; i++ {
 		// (t - z_i)
 		var z = domainToFr(uint8(i))
 		helper_scalar_den[i].Sub(&t, &z)
@@ -183,7 +190,7 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 
 	// Compute g_2(t) = SUM (y_i * r^i) / (t - z_i) = SUM (y_i * r) * helper_scalars_den
 	g_2_t := fr.Zero()
-	for i := 0; i < common.POLY_DEGREE; i++ {
+	for i := 0; i < common.VectorLength; i++ {
 		if groupedEvals[i].IsZero() {
 			continue
 		}
@@ -215,16 +222,20 @@ func domainToFr(in uint8) fr.Element {
 	return x
 }
 
+// Write serializes a multi-proof to a writer.
 func (mp *MultiProof) Write(w io.Writer) {
 	binary.Write(w, binary.BigEndian, mp.D.Bytes())
 	mp.IPA.Write(w)
 }
 
+// Read deserializes a multi-proof from a reader.
 func (mp *MultiProof) Read(r io.Reader) {
 	D := common.ReadPoint(r)
 	mp.D = *D
 	mp.IPA.Read(r)
 }
+
+// Equal checks if two multi-proofs are equal.
 func (mp MultiProof) Equal(other MultiProof) bool {
 	if !mp.IPA.Equal(other.IPA) {
 		return false

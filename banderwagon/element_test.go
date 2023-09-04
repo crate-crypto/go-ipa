@@ -184,7 +184,7 @@ func TestBatchElementsToBytes(t *testing.T) {
 	expected_serialised_a := A.Bytes()
 	expected_serialised_b := B.Bytes()
 
-	serialised_points := ElementsToBytes([]*Element{&A, &B})
+	serialised_points := ElementsToBytes(&A, &B)
 
 	got_serialised_a := serialised_points[0]
 	got_serialised_b := serialised_points[1]
@@ -211,7 +211,7 @@ func TestMultiMapToBaseField(t *testing.T) {
 
 	var ARes, BRes fr.Element
 	scalars := []*fr.Element{&ARes, &BRes}
-	MultiMapToScalarField(scalars, []*Element{&A, &B})
+	BatchMapToScalarField(scalars, []*Element{&A, &B})
 
 	got_a := scalars[0]
 	got_b := scalars[1]

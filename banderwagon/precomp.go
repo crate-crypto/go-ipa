@@ -149,8 +149,9 @@ func (pp *PrecompPoint) ScalarMul(scalar fr.Element, res *bandersnatch.PointProj
 	}
 }
 
-// TODO(jsign): this is pulled from gnark, but we must delete this file when we update our gnark dependency
-// to the latest version since there's a similar method.
+// batchProjToAffine converts a slice of points in projective coordinates to affine coordinates.
+// This code was pulled from gnark-crypto which unfortunately doesn't have a variant for bandersnatch
+// since it's a secondary curve in the generated code.
 func batchProjToAffine(points []bandersnatch.PointProj) []bandersnatch.PointAffine {
 	result := make([]bandersnatch.PointAffine, len(points))
 	zeroes := make([]bool, len(points))
@@ -186,12 +187,9 @@ func batchProjToAffine(points []bandersnatch.PointProj) []bandersnatch.PointAffi
 				// do nothing, (X=0, Y=0) is infinity point in affine
 				continue
 			}
-			var a, b fp.Element
-			a = result[i].X
-			b.Square(&a)
-			result[i].X.Mul(&points[i].X, &b)
-			result[i].Y.Mul(&points[i].Y, &b).
-				Mul(&result[i].Y, &a)
+			a := result[i].X
+			result[i].X.Mul(&points[i].X, &a)
+			result[i].Y.Mul(&points[i].Y, &a)
 		}
 	})
 
