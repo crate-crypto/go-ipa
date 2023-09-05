@@ -2,6 +2,7 @@ package multiproof
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 
@@ -20,20 +21,19 @@ type MultiProof struct {
 // CreateMultiProof creates a multi-proof for several polynomials in evaluation form.
 // The list of triplets (C, Fs, Z) represents each polynomial commitment, evaluations in the domain, and evaluation
 // point respectively.
-func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs []*banderwagon.Element, fs [][]fr.Element, zs []uint8) *MultiProof {
+func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs []*banderwagon.Element, fs [][]fr.Element, zs []uint8) (*MultiProof, error) {
 	transcript.DomainSep("multiproof")
 
 	if len(Cs) != len(fs) {
-		panic(fmt.Sprintf("number of commitments = %d, while number of functions = %d", len(Cs), len(fs)))
+		return nil, fmt.Errorf("number of commitments = %d, while number of functions = %d", len(Cs), len(fs))
 	}
 	if len(Cs) != len(zs) {
-		panic(fmt.Sprintf("number of commitments = %d, while number of points = %d", len(Cs), len(zs)))
+		return nil, fmt.Errorf("number of commitments = %d, while number of points = %d", len(Cs), len(zs))
 	}
 
 	num_queries := len(Cs)
 	if num_queries == 0 {
-		// TODO does this need to be a panic? no
-		panic("cannot create a multiproof with 0 queries")
+		return nil, errors.New("cannot create a multiproof with 0 queries")
 	}
 
 	banderwagon.BatchNormalize(Cs)
@@ -131,27 +131,25 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 	return &MultiProof{
 		IPA: ipa_proof,
 		D:   D,
-	}
+	}, nil
 }
 
 // CheckMultiProof verifies a multi-proof for several polynomials in evaluation form.
 // The list of triplets (C, Y, Z) represents each polynomial commitment, evaluation
 // result, and evaluation point in the domain.
-func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proof *MultiProof, Cs []*banderwagon.Element, ys []*fr.Element, zs []uint8) bool {
+func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proof *MultiProof, Cs []*banderwagon.Element, ys []*fr.Element, zs []uint8) (bool, error) {
 	transcript.DomainSep("multiproof")
 
 	if len(Cs) != len(ys) {
-		panic(fmt.Sprintf("number of commitments = %d, while number of output points = %d", len(Cs), len(ys)))
+		return false, fmt.Errorf("number of commitments = %d, while number of output points = %d", len(Cs), len(ys))
 	}
 	if len(Cs) != len(zs) {
-		panic(fmt.Sprintf("number of commitments = %d, while number of input points = %d", len(Cs), len(zs)))
+		return false, fmt.Errorf("number of commitments = %d, while number of input points = %d", len(Cs), len(zs))
 	}
 
 	num_queries := len(Cs)
 	if num_queries == 0 {
-		// XXX does this need to be a panic?
-		// XXX: this comment is also in CreateMultiProof
-		panic("cannot create a multiproof with no data")
+		return false, errors.New("number of queries is zero")
 	}
 
 	for i := 0; i < num_queries; i++ {
@@ -213,7 +211,7 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 	var E_minus_D banderwagon.Element
 	E_minus_D.Sub(&E, &proof.D)
 
-	return ipa.CheckIPAProof(transcript, ipaConf, E_minus_D, proof.IPA, t, g_2_t)
+	return ipa.CheckIPAProof(transcript, ipaConf, E_minus_D, proof.IPA, t, g_2_t), nil
 }
 
 func domainToFr(in uint8) fr.Element {
