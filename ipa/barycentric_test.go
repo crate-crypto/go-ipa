@@ -122,7 +122,10 @@ func TestComputeBarycentricCoefficients(t *testing.T) {
 
 	preComp := NewPrecomputedWeights()
 	bar_coeffs := preComp.ComputeBarycentricCoefficients(point_outside_domain)
-	got := InnerProd(lagrange_values, bar_coeffs)
+	got, err := InnerProd(lagrange_values, bar_coeffs)
+	if err != nil {
+		t.Fatalf("inner product failed: %v", err)
+	}
 	expected := evalOutsideDomain(preComp, lagrange_values, point_outside_domain)
 
 	points := Points{}

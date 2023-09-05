@@ -37,9 +37,16 @@ func TestIPAProofCreateVerify(t *testing.T) {
 
 	prover_transcript := common.NewTranscript("ipa")
 
-	proof := CreateIPAProof(prover_transcript, ipaConf, prover_comm, poly, point)
+	proof, err := CreateIPAProof(prover_transcript, ipaConf, prover_comm, poly, point)
+	if err != nil {
+		t.Fatalf("could not create proof: %s", err)
+	}
+
 	lagrange_coeffs := ipaConf.PrecomputedWeights.ComputeBarycentricCoefficients(point)
-	inner_product := InnerProd(poly, lagrange_coeffs)
+	inner_product, err := InnerProd(poly, lagrange_coeffs)
+	if err != nil {
+		t.Fatalf("could not compute inner product: %s", err)
+	}
 
 	test_serialize_deserialize_proof(t, proof)
 
@@ -47,7 +54,10 @@ func TestIPAProofCreateVerify(t *testing.T) {
 	verifier_comm := prover_comm // In reality, the verifier will rebuild this themselves
 	verifier_transcript := common.NewTranscript("ipa")
 
-	ok := CheckIPAProof(verifier_transcript, ipaConf, verifier_comm, proof, point, inner_product)
+	ok, err := CheckIPAProof(verifier_transcript, ipaConf, verifier_comm, proof, point, inner_product)
+	if err != nil {
+		t.Fatalf("could not check proof: %s", err)
+	}
 	if !ok {
 		t.Fatal("inner product proof failed")
 	}
@@ -77,10 +87,16 @@ func TestIPAConsistencySimpleProof(t *testing.T) {
 	test_helper.PointEqualHex(t, prover_comm, "1b9dff8f5ebbac250d291dfe90e36283a227c64b113c37f1bfb9e7a743cdb128")
 
 	prover_transcript := common.NewTranscript("test")
-	proof := CreateIPAProof(prover_transcript, ipaConf, prover_comm, poly, input_point)
+	proof, err := CreateIPAProof(prover_transcript, ipaConf, prover_comm, poly, input_point)
+	if err != nil {
+		t.Fatalf("could not create proof: %s", err)
+	}
 
 	lagrange_coeffs := ipaConf.PrecomputedWeights.ComputeBarycentricCoefficients(input_point)
-	output_point := InnerProd(poly, lagrange_coeffs)
+	output_point, err := InnerProd(poly, lagrange_coeffs)
+	if err != nil {
+		t.Fatalf("could not compute inner product: %s", err)
+	}
 	test_helper.ScalarEqualHex(t, output_point, "4a353e70b03c89f161de002e8713beec0d740a5e20722fd5bd68b30540a33208")
 
 	// Lets check the state of the transcript, by squeezing out a challenge
@@ -95,7 +111,10 @@ func TestIPAConsistencySimpleProof(t *testing.T) {
 	verifier_comm := prover_comm // In reality, the verifier will rebuild this themselves
 	verifier_transcript := common.NewTranscript("test")
 
-	ok := CheckIPAProof(verifier_transcript, ipaConf, verifier_comm, proof, input_point, output_point)
+	ok, err := CheckIPAProof(verifier_transcript, ipaConf, verifier_comm, proof, input_point, output_point)
+	if err != nil {
+		t.Fatalf("could not check proof: %s", err)
+	}
 	if !ok {
 		t.Fatal("inner product proof failed")
 	}
@@ -133,7 +152,10 @@ func TestBasicInnerProduct(t *testing.T) {
 		b = append(b, tmp)
 	}
 
-	got := InnerProd(a, b)
+	got, err := InnerProd(a, b)
+	if err != nil {
+		t.Fatalf("could not compute inner product: %s", err)
+	}
 	expected := fr.Zero()
 
 	for i := 0; i < 10; i++ {
@@ -165,7 +187,10 @@ func TestBasicCommit(t *testing.T) {
 		}
 		a = append(a, tmp)
 	}
-	got := commit(generators, a)
+	got, err := commit(generators, a)
+	if err != nil {
+		t.Fatalf("could not compute inner product: %s", err)
+	}
 
 	total := fr.Zero()
 	for i := 0; i < 5; i++ {

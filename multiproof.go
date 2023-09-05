@@ -122,14 +122,17 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 	E := ipaConf.Commit(h_x)
 	transcript.AppendPoint(&E, "E")
 
-	var E_minus_D banderwagon.Element
+	var EminusD banderwagon.Element
 
-	E_minus_D.Sub(&E, &D)
+	EminusD.Sub(&E, &D)
 
-	ipa_proof := ipa.CreateIPAProof(transcript, ipaConf, E_minus_D, h_minus_g, t)
+	ipaProof, err := ipa.CreateIPAProof(transcript, ipaConf, EminusD, h_minus_g, t)
+	if err != nil {
+		return nil, fmt.Errorf("could not create IPA proof: %w", err)
+	}
 
 	return &MultiProof{
-		IPA: ipa_proof,
+		IPA: ipaProof,
 		D:   D,
 	}, nil
 }
@@ -205,13 +208,21 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 
 		msm_scalars[i].Mul(&powers_of_r[i], &helper_scalar_den[zs[i]])
 	}
-	E := ipa.MultiScalar(Csnp, msm_scalars)
+	E, err := ipa.MultiScalar(Csnp, msm_scalars)
+	if err != nil {
+		return false, fmt.Errorf("could not compute E: %w", err)
+	}
 	transcript.AppendPoint(&E, "E")
 
 	var E_minus_D banderwagon.Element
 	E_minus_D.Sub(&E, &proof.D)
 
-	return ipa.CheckIPAProof(transcript, ipaConf, E_minus_D, proof.IPA, t, g_2_t), nil
+	ok, err := ipa.CheckIPAProof(transcript, ipaConf, E_minus_D, proof.IPA, t, g_2_t)
+	if err != nil {
+		return false, fmt.Errorf("could not check IPA proof: %w", err)
+	}
+
+	return ok, nil
 }
 
 func domainToFr(in uint8) fr.Element {

@@ -793,6 +793,9 @@ func (z *Element) SetString(s string) *Element {
 	vv := bigIntPool.Get().(*big.Int)
 
 	if _, ok := vv.SetString(s, 10); !ok {
+		// TODO: reevaluate this `panic`. Since it's from generated code
+		// is still on-hold to be removed depending if we regenerate Fr again
+		// with gnark-goff.
 		panic("Element.SetString failed -> can't parse number in base10 into a big.Int")
 	}
 	z.SetBigInt(vv)
