@@ -47,9 +47,6 @@ func NewIPASettings() (*IPAConfig, error) {
 
 // MultiScalar computes the multi scalar multiplication of points and scalars.
 func MultiScalar(points []banderwagon.Element, scalars []fr.Element) (banderwagon.Element, error) {
-	if len(points) != len(scalars) {
-		return banderwagon.Element{}, fmt.Errorf("points and scalars length does not match, %d != %d", len(points), len(scalars))
-	}
 	var result banderwagon.Element
 	result.SetIdentity()
 
@@ -65,6 +62,14 @@ func MultiScalar(points []banderwagon.Element, scalars []fr.Element) (banderwago
 // in evaluation form using the SRS.
 func (ic *IPAConfig) Commit(polynomial []fr.Element) banderwagon.Element {
 	return ic.PrecompMSM.MSM(polynomial)
+}
+
+// commit commits to a polynomial using the input group elements
+func commit(groupElements []banderwagon.Element, polynomial []fr.Element) (banderwagon.Element, error) {
+	if len(groupElements) != len(polynomial) {
+		return banderwagon.Element{}, fmt.Errorf("group elements and polynomial are different sizes, %d != %d", len(groupElements), len(polynomial))
+	}
+	return MultiScalar(groupElements, polynomial)
 }
 
 // InnerProd computes the inner product of a and b.

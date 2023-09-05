@@ -47,7 +47,7 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 		L := proof.L[i]
 		R := proof.R[i]
 
-		commitment, err = MultiScalar([]banderwagon.Element{commitment, L, R}, []fr.Element{fr.One(), x, challengesInv[i]})
+		commitment, err = commit([]banderwagon.Element{commitment, L, R}, []fr.Element{fr.One(), x, challengesInv[i]})
 		if err != nil {
 			return false, fmt.Errorf("could not compute commitment+x*L+x^-1*R: %w", err)
 		}
