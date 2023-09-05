@@ -1,6 +1,7 @@
 package bandersnatch
 
 import (
+	"fmt"
 	"io"
 
 	gnarkbandersnatch "github.com/consensys/gnark-crypto/ecc/bls12-381/bandersnatch"
@@ -20,32 +21,20 @@ var Identity = PointProj{
 
 // Reads an uncompressed affine point
 // Point is not guaranteed to be in the prime subgroup
-func ReadUncompressedPoint(r io.Reader) PointAffine {
+func ReadUncompressedPoint(r io.Reader) (PointAffine, error) {
 	var xy = make([]byte, 64)
-	n, err := r.Read(xy[:32])
-	if err != nil {
-		panic("error reading bytes")
-	}
-	if n != 32 {
-		panic("did not read enough bytes")
-	}
-	n, err = r.Read(xy[32:])
-	if err != nil {
-		panic("error reading bytes")
-	}
-	if n != 32 {
-		panic("did not read enough bytes")
+	if _, err := io.ReadAtLeast(r, xy, 64); err != nil {
+		return PointAffine{}, fmt.Errorf("reading bytes: %s", err)
 	}
 
-	var x_fp = fp.Element{}
+	var x_fp, y_fp fp.Element
 	x_fp.SetBytes(xy[:32])
-	var y_fp = fp.Element{}
 	y_fp.SetBytes(xy[32:])
 
 	return PointAffine{
 		X: x_fp,
 		Y: y_fp,
-	}
+	}, nil
 }
 
 // Writes an uncompressed affine point to an io.Writer
