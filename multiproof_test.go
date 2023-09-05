@@ -38,16 +38,21 @@ func TestMultiProofCreateVerify(t *testing.T) {
 	fs := [][]fr.Element{poly_1}
 	zs := []uint8{0}
 	ys := []*fr.Element{&one}
-	proof := CreateMultiProof(prover_transcript, ipaConf, Cs, fs, zs)
+	proof, err := CreateMultiProof(prover_transcript, ipaConf, Cs, fs, zs)
+	if err != nil {
+		t.Fatalf("failed to create multiproof: %s", err)
+	}
 
-	test_serialize_deserialize_proof(*proof)
+	test_serialize_deserialize_proof(t, *proof)
 
 	// Verifier view
 	verifier_transcript := common.NewTranscript("multiproof")
-	ok := CheckMultiProof(verifier_transcript, ipaConf, proof, Cs, ys, zs)
-
+	ok, err := CheckMultiProof(verifier_transcript, ipaConf, proof, Cs, ys, zs)
+	if err != nil {
+		t.Fatalf("failed to verify multiproof: %s", err)
+	}
 	if !ok {
-		panic("multi product proof failed")
+		t.Fatalf("failed to verify multiproof")
 	}
 
 }
@@ -88,7 +93,10 @@ func TestMultiProofConsistency(t *testing.T) {
 	zs := []uint8{0, 0}
 	ys := []*fr.Element{&one, &thirty_two}
 
-	proof := CreateMultiProof(prover_transcript, ipaConf, Cs, fs, zs)
+	proof, err := CreateMultiProof(prover_transcript, ipaConf, Cs, fs, zs)
+	if err != nil {
+		t.Fatalf("failed to create multiproof: %s", err)
+	}
 
 	// Lets check the state of the transcript, by squeezing out a challenge
 	p_challenge := prover_transcript.ChallengeScalar("state")
@@ -96,10 +104,13 @@ func TestMultiProofConsistency(t *testing.T) {
 
 	// Verifier view
 	verifier_transcript := common.NewTranscript("test")
-	ok := CheckMultiProof(verifier_transcript, ipaConf, proof, Cs, ys, zs)
+	ok, err := CheckMultiProof(verifier_transcript, ipaConf, proof, Cs, ys, zs)
+	if err != nil {
+		t.Fatalf("failed to verify multiproof: %s", err)
+	}
 
 	if !ok {
-		panic("multi product proof failed")
+		t.Fatal("failed to verify multiproof")
 	}
 
 	// Check serialised bytes are consistent with other implementations
@@ -110,11 +121,11 @@ func TestMultiProofConsistency(t *testing.T) {
 
 	bytes := buf.Bytes()
 	if expected != hex.EncodeToString(bytes) {
-		panic("expected serialised proof is different from the other implementations")
+		t.Fatalf("expected serialised proof is different from the other implementations")
 	}
 }
 
-func test_serialize_deserialize_proof(proof MultiProof) {
+func test_serialize_deserialize_proof(t *testing.T, proof MultiProof) {
 	var buf = new(bytes.Buffer)
 	proof.Write(buf)
 
@@ -122,7 +133,7 @@ func test_serialize_deserialize_proof(proof MultiProof) {
 	got_proof.Read(buf)
 
 	if !got_proof.Equal(proof) {
-		panic("proof serialization does not match deserialization for Multiproof")
+		t.Fatal("proof serialization does not match deserialization for Multiproof")
 	}
 
 }

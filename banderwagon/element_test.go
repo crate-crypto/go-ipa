@@ -37,7 +37,7 @@ func TestEncodingFixedVectors(t *testing.T) {
 	for i := 0; i < 16; i++ {
 		byts := point.Bytes()
 		if expected_bit_strings[i] != hex.EncodeToString(byts[:]) {
-			panic("bit string does not match expected")
+			t.Fatal("bit string does not match expected")
 		}
 		points = append(points, point)
 		point.Double(&point)
@@ -47,17 +47,17 @@ func TestEncodingFixedVectors(t *testing.T) {
 	for i, bit_string := range expected_bit_strings {
 		bytes, err := hex.DecodeString(bit_string)
 		if err != nil {
-			panic("could not decode bit string")
+			t.Fatal("could not decode bit string")
 		}
 
 		var element Element
 		err = element.SetBytes(bytes)
 		if err != nil {
-			panic("point was decoded as invalid")
+			t.Fatal("could not decode bit string")
 		}
 
 		if !element.Equal(&points[i]) {
-			panic("decoded element is different to expected element")
+			t.Fatal("decoded element is different to expected element")
 		}
 	}
 }
@@ -81,13 +81,13 @@ func TestTwoTorsionEqual(t *testing.T) {
 		point_plus_torsion.Add(&point, &two_torsion)
 
 		if !point.Equal(&point_plus_torsion) {
-			panic("points that differ by an order-2 point should be equal")
+			t.Fatal("points that differ by an order-2 point should be equal")
 		}
 
 		expected_bit_string := point.Bytes()
 		got_bit_string := point_plus_torsion.Bytes()
 		if expected_bit_string != got_bit_string {
-			panic("points that differ by an order-2 point should produce the same bit string")
+			t.Fatal("points that differ by an order-2 point should produce the same bit string")
 		}
 
 		point.Double(&point)
@@ -122,12 +122,12 @@ func TestPointAtInfinityComponent(t *testing.T) {
 		var element Element
 		byts, err := hex.DecodeString(bad_byte_string)
 		if err != nil {
-			panic("malformed byte string")
+			t.Fatal("could not decode bit string")
 		}
 
 		err = element.SetBytes(byts)
 		if err == nil {
-			panic("point should not be in the correct subgroup as it has an infinity component")
+			t.Fatal("point should not be in the correct subgroup as it has an infinity component")
 		}
 	}
 }
@@ -141,16 +141,16 @@ func TestAddSubDouble(t *testing.T) {
 	B.Double(&Generator)
 
 	if A.Equal(&Generator) {
-		panic("The generator should not have order < 2 ")
+		t.Fatal("The generator should not have order < 2")
 	}
 
 	if !A.Equal(&B) {
-		panic("doubling formula does not match Add formula")
+		t.Fatal("Add and Double formulae do not match")
 	}
 
 	A.Sub(&A, &B)
 	if !A.Equal(&Identity) {
-		panic("sub formula is incorrect; any point minus itself should give the identity point")
+		t.Fatal("Sub formula is incorrect; any point minus itself should give the identity point")
 	}
 }
 
@@ -166,10 +166,13 @@ func TestSerde(t *testing.T) {
 	var buf bytes.Buffer
 
 	bandersnatch.WriteUncompressedPoint(&buf, &point_aff)
-	got := bandersnatch.ReadUncompressedPoint(&buf)
+	got, err := bandersnatch.ReadUncompressedPoint(&buf)
+	if err != nil {
+		t.Fatal("could not read uncompressed point")
+	}
 
 	if !point_aff.Equal(&got) {
-		panic("deserialised point does not equal serialised point ")
+		t.Fatal("deserialised point does not equal serialised point ")
 	}
 }
 
@@ -189,10 +192,10 @@ func TestBatchElementsToBytes(t *testing.T) {
 	got_serialised_a := serialised_points[0]
 	got_serialised_b := serialised_points[1]
 	if expected_serialised_a != got_serialised_a {
-		panic("expected serialised point of A is incorrect ")
+		t.Fatal("expected serialised point of A is incorrect ")
 	}
 	if expected_serialised_b != got_serialised_b {
-		panic("expected serialised point of B is incorrect ")
+		t.Fatal("expected serialised point of B is incorrect ")
 	}
 }
 
@@ -216,11 +219,11 @@ func TestMultiMapToBaseField(t *testing.T) {
 	got_a := scalars[0]
 	got_b := scalars[1]
 	if !expected_a.Equal(got_a) {
-		panic("expected scalar for point `A` is incorrect ")
+		t.Fatal("expected scalar for point `A` is incorrect ")
 	}
 
 	if !expected_b.Equal(got_b) {
-		panic("expected scalar for point `A` is incorrect ")
+		t.Fatal("expected scalar for point `A` is incorrect ")
 	}
 }
 

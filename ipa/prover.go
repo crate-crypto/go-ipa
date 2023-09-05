@@ -2,6 +2,7 @@ package ipa
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
@@ -19,11 +20,14 @@ type IPAProof struct {
 // CreateIPAProof creates an IPA proof for a committed polynomial in evaluation form.
 // `a` are the evaluation of the polynomial in the domain, and `evalPoint` represents the
 // evaluation point. The evaluation of the polynomial at such point is computed automatically.
-func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment banderwagon.Element, a []fr.Element, evalPoint fr.Element) IPAProof {
+func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment banderwagon.Element, a []fr.Element, evalPoint fr.Element) (IPAProof, error) {
 	transcript.DomainSep("ipa")
 
 	b := ic.PrecomputedWeights.ComputeBarycentricCoefficients(evalPoint)
-	inner_prod := InnerProd(a, b)
+	inner_prod, err := InnerProd(a, b)
+	if err != nil {
+		return IPAProof{}, fmt.Errorf("could not compute inner product: %w", err)
+	}
 
 	transcript.AppendPoint(&commitment, "C")
 	transcript.AppendScalar(&evalPoint, "input point")
@@ -42,20 +46,47 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 
 	for i := 0; i < int(num_rounds); i++ {
 
-		a_L, a_R := splitScalars(a)
+		a_L, a_R, err := splitScalars(a)
+		if err != nil {
+			return IPAProof{}, fmt.Errorf("could not split a scalars: %w", err)
+		}
 
-		b_L, b_R := splitScalars(b)
+		b_L, b_R, err := splitScalars(b)
+		if err != nil {
+			return IPAProof{}, fmt.Errorf("could not split b scalars: %w", err)
+		}
 
-		G_L, G_R := splitPoints(current_basis)
+		G_L, G_R, err := splitPoints(current_basis)
+		if err != nil {
+			return IPAProof{}, fmt.Errorf("could not split G points: %w", err)
+		}
 
-		z_L := InnerProd(a_R, b_L)
-		z_R := InnerProd(a_L, b_R)
+		z_L, err := InnerProd(a_R, b_L)
+		if err != nil {
+			return IPAProof{}, fmt.Errorf("could not compute a_r*b_L inner product: %w", err)
+		}
+		z_R, err := InnerProd(a_L, b_R)
+		if err != nil {
+			return IPAProof{}, fmt.Errorf("could not compute a_L*b_R inner product: %w", err)
+		}
 
-		C_L_1 := commit(G_L, a_R)
-		C_L := commit([]banderwagon.Element{C_L_1, q}, []fr.Element{fr.One(), z_L})
+		C_L_1, err := commit(G_L, a_R)
+		if err != nil {
+			return IPAProof{}, fmt.Errorf("could not do G_L*a_R MSM: %w", err)
+		}
+		C_L, err := commit([]banderwagon.Element{C_L_1, q}, []fr.Element{fr.One(), z_L})
+		if err != nil {
+			return IPAProof{}, fmt.Errorf("could not do C_L_1+z_L*q MSM: %w", err)
+		}
 
-		C_R_1 := commit(G_R, a_L)
-		C_R := commit([]banderwagon.Element{C_R_1, q}, []fr.Element{fr.One(), z_R})
+		C_R_1, err := commit(G_R, a_L)
+		if err != nil {
+			return IPAProof{}, fmt.Errorf("could not do G_R*a_L MSM: %w", err)
+		}
+		C_R, err := commit([]banderwagon.Element{C_R_1, q}, []fr.Element{fr.One(), z_R})
+		if err != nil {
+			return IPAProof{}, fmt.Errorf("could not do C_R_1+z_R*q MSM: %w", err)
+		}
 
 		L[i] = C_L
 		R[i] = C_R
@@ -68,22 +99,31 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 		xInv.Inverse(&x)
 
 		// TODO: We could use a for loop here like in the Rust code
-		a = foldScalars(a_L, a_R, x)
-		b = foldScalars(b_L, b_R, xInv)
+		a, err = foldScalars(a_L, a_R, x)
+		if err != nil {
+			return IPAProof{}, fmt.Errorf("could not fold a scalars a_L and a_R with x: %w", err)
+		}
+		b, err = foldScalars(b_L, b_R, xInv)
+		if err != nil {
+			return IPAProof{}, fmt.Errorf("could not fold b scalars b_L and b_R with xInv: %w", err)
+		}
 
-		current_basis = foldPoints(G_L, G_R, xInv)
+		current_basis, err = foldPoints(G_L, G_R, xInv)
+		if err != nil {
+			return IPAProof{}, fmt.Errorf("could not fold points G_L and G_R with xInv: %w", err)
+		}
 
 	}
 
 	if len(a) != 1 {
-		panic("length of `a` should be 1 at the end of the reduction")
+		return IPAProof{}, fmt.Errorf("length of `a` should be 1 at the end of the reduction")
 	}
 
 	return IPAProof{
 		L:        L,
 		R:        R,
 		A_scalar: a[0],
-	}
+	}, nil
 }
 
 // Write serializes the IPA proof to the given writer.
@@ -98,22 +138,33 @@ func (ip *IPAProof) Write(w io.Writer) {
 }
 
 // Read deserializes the IPA proof from the given reader.
-func (ip *IPAProof) Read(r io.Reader) {
+func (ip *IPAProof) Read(r io.Reader) error {
 	var L []banderwagon.Element
 	for i := 0; i < 8; i++ {
-		L_i := common.ReadPoint(r)
+		L_i, err := common.ReadPoint(r)
+		if err != nil {
+			return fmt.Errorf("failed to read L[%d]: %w", i, err)
+		}
 		L = append(L, *L_i)
 	}
 	ip.L = L
 	var R []banderwagon.Element
 	for i := 0; i < 8; i++ {
-		R_i := common.ReadPoint(r)
+		R_i, err := common.ReadPoint(r)
+		if err != nil {
+			return fmt.Errorf("failed to read R[%d]: %w", i, err)
+		}
 		R = append(R, *R_i)
 	}
 	ip.R = R
 
-	A_Scalar := common.ReadScalar(r)
+	A_Scalar, err := common.ReadScalar(r)
+	if err != nil {
+		return fmt.Errorf("failed to read A_scalar: %w", err)
+	}
 	ip.A_scalar = *A_Scalar
+
+	return nil
 }
 
 // Equal checks if two IPA proofs are equal.

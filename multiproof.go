@@ -2,6 +2,7 @@ package multiproof
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 
@@ -20,20 +21,19 @@ type MultiProof struct {
 // CreateMultiProof creates a multi-proof for several polynomials in evaluation form.
 // The list of triplets (C, Fs, Z) represents each polynomial commitment, evaluations in the domain, and evaluation
 // point respectively.
-func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs []*banderwagon.Element, fs [][]fr.Element, zs []uint8) *MultiProof {
+func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs []*banderwagon.Element, fs [][]fr.Element, zs []uint8) (*MultiProof, error) {
 	transcript.DomainSep("multiproof")
 
 	if len(Cs) != len(fs) {
-		panic(fmt.Sprintf("number of commitments = %d, while number of functions = %d", len(Cs), len(fs)))
+		return nil, fmt.Errorf("number of commitments = %d, while number of functions = %d", len(Cs), len(fs))
 	}
 	if len(Cs) != len(zs) {
-		panic(fmt.Sprintf("number of commitments = %d, while number of points = %d", len(Cs), len(zs)))
+		return nil, fmt.Errorf("number of commitments = %d, while number of points = %d", len(Cs), len(zs))
 	}
 
 	num_queries := len(Cs)
 	if num_queries == 0 {
-		// TODO does this need to be a panic? no
-		panic("cannot create a multiproof with 0 queries")
+		return nil, errors.New("cannot create a multiproof with 0 queries")
 	}
 
 	banderwagon.BatchNormalize(Cs)
@@ -122,36 +122,37 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 	E := ipaConf.Commit(h_x)
 	transcript.AppendPoint(&E, "E")
 
-	var E_minus_D banderwagon.Element
+	var EminusD banderwagon.Element
 
-	E_minus_D.Sub(&E, &D)
+	EminusD.Sub(&E, &D)
 
-	ipa_proof := ipa.CreateIPAProof(transcript, ipaConf, E_minus_D, h_minus_g, t)
+	ipaProof, err := ipa.CreateIPAProof(transcript, ipaConf, EminusD, h_minus_g, t)
+	if err != nil {
+		return nil, fmt.Errorf("could not create IPA proof: %w", err)
+	}
 
 	return &MultiProof{
-		IPA: ipa_proof,
+		IPA: ipaProof,
 		D:   D,
-	}
+	}, nil
 }
 
 // CheckMultiProof verifies a multi-proof for several polynomials in evaluation form.
 // The list of triplets (C, Y, Z) represents each polynomial commitment, evaluation
 // result, and evaluation point in the domain.
-func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proof *MultiProof, Cs []*banderwagon.Element, ys []*fr.Element, zs []uint8) bool {
+func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proof *MultiProof, Cs []*banderwagon.Element, ys []*fr.Element, zs []uint8) (bool, error) {
 	transcript.DomainSep("multiproof")
 
 	if len(Cs) != len(ys) {
-		panic(fmt.Sprintf("number of commitments = %d, while number of output points = %d", len(Cs), len(ys)))
+		return false, fmt.Errorf("number of commitments = %d, while number of output points = %d", len(Cs), len(ys))
 	}
 	if len(Cs) != len(zs) {
-		panic(fmt.Sprintf("number of commitments = %d, while number of input points = %d", len(Cs), len(zs)))
+		return false, fmt.Errorf("number of commitments = %d, while number of input points = %d", len(Cs), len(zs))
 	}
 
 	num_queries := len(Cs)
 	if num_queries == 0 {
-		// XXX does this need to be a panic?
-		// XXX: this comment is also in CreateMultiProof
-		panic("cannot create a multiproof with no data")
+		return false, errors.New("number of queries is zero")
 	}
 
 	for i := 0; i < num_queries; i++ {
@@ -207,13 +208,21 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 
 		msm_scalars[i].Mul(&powers_of_r[i], &helper_scalar_den[zs[i]])
 	}
-	E := ipa.MultiScalar(Csnp, msm_scalars)
+	E, err := ipa.MultiScalar(Csnp, msm_scalars)
+	if err != nil {
+		return false, fmt.Errorf("could not compute E: %w", err)
+	}
 	transcript.AppendPoint(&E, "E")
 
 	var E_minus_D banderwagon.Element
 	E_minus_D.Sub(&E, &proof.D)
 
-	return ipa.CheckIPAProof(transcript, ipaConf, E_minus_D, proof.IPA, t, g_2_t)
+	ok, err := ipa.CheckIPAProof(transcript, ipaConf, E_minus_D, proof.IPA, t, g_2_t)
+	if err != nil {
+		return false, fmt.Errorf("could not check IPA proof: %w", err)
+	}
+
+	return ok, nil
 }
 
 func domainToFr(in uint8) fr.Element {
@@ -229,10 +238,15 @@ func (mp *MultiProof) Write(w io.Writer) {
 }
 
 // Read deserializes a multi-proof from a reader.
-func (mp *MultiProof) Read(r io.Reader) {
-	D := common.ReadPoint(r)
+func (mp *MultiProof) Read(r io.Reader) error {
+	D, err := common.ReadPoint(r)
+	if err != nil {
+		return fmt.Errorf("failed to read D: %w", err)
+	}
 	mp.D = *D
 	mp.IPA.Read(r)
+
+	return nil
 }
 
 // Equal checks if two multi-proofs are equal.

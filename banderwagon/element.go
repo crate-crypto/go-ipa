@@ -253,9 +253,9 @@ func (p Element) MapToScalarField(res *fr.Element) {
 }
 
 // BatchMapToScalarField maps a slice of group elements to the scalar field.
-func BatchMapToScalarField(result []*fr.Element, elements []*Element) {
+func BatchMapToScalarField(result []*fr.Element, elements []*Element) error {
 	if len(result) != len(elements) {
-		panic("MultiMapToScalarField expects the result slice to be the same length of elements")
+		return errors.New("result and elements slices must be the same length")
 	}
 
 	// Collect all y co-ordinates
@@ -275,6 +275,8 @@ func BatchMapToScalarField(result []*fr.Element, elements []*Element) {
 		byts := fp.BytesLE(mappedElement)
 		result[i].SetBytesLE(byts[:])
 	}
+
+	return nil
 }
 
 // Equal returns true if p and other represent the same point.

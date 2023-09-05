@@ -14,18 +14,18 @@ func TestAbsInt(t *testing.T) {
 
 	abs, is_neg := absInt(-100)
 	if abs != 100 {
-		panic("absolute value should be 100")
+		t.Fatal("absolute value should be 100")
 	}
 	if !is_neg {
-		panic("input value was negative")
+		t.Fatal("input value was negative")
 	}
 
 	abs, is_neg = absInt(250)
 	if abs != 250 {
-		panic("absolute value should be 250")
+		t.Fatal("absolute value should be 250")
 	}
 	if is_neg {
-		panic("input value was positive")
+		t.Fatal("input value was positive")
 	}
 
 }
@@ -50,17 +50,17 @@ func TestBasicInterpolate(t *testing.T) {
 		y: fr.One(),
 	}
 	points := Points{point_a, point_b}
-	poly := points.interpolate()
+	poly := points.interpolate(t)
 
 	var rand_fr fr.Element
 	_, err := rand_fr.SetRandom()
 	if err != nil {
-		panic("could not generate a random element")
+		t.Fatal("could not generate a random element")
 	}
 	result := poly.evaluate(rand_fr)
 
 	if !result.Equal(&rand_fr) {
-		panic("result should be rand_fr, because the polynomial should be the identity polynomial")
+		t.Fatal("result should be rand_fr, because the polynomial should be the identity polynomial")
 	}
 }
 
@@ -86,13 +86,13 @@ func TestPolyDiv(t *testing.T) {
 	poly_coeff_denominator := []fr.Element{minus_one, one}
 	quotient, rem, ok := pld(poly_coeff_numerator, poly_coeff_denominator)
 	if !ok {
-		panic("poly div failed")
+		t.Fatal("poly div failed")
 	}
 
 	for _, x := range rem {
 		if !x.IsZero() {
 			fmt.Printf("%v", x)
-			panic("remainder should be zero")
+			t.Fatal("remainder should be zero")
 		}
 	}
 
@@ -100,7 +100,7 @@ func TestPolyDiv(t *testing.T) {
 	var rand_fr fr.Element
 	_, err := rand_fr.SetRandom()
 	if err != nil {
-		panic("could not get randomness")
+		t.Fatal("could not get randomness")
 	}
 	got := Poly(quotient).evaluate(rand_fr)
 
@@ -108,7 +108,7 @@ func TestPolyDiv(t *testing.T) {
 	expected.Add(&rand_fr, &minus_two)
 
 	if !expected.Equal(&got) {
-		panic("quotient is not correct")
+		t.Fatal("quotient is not correct")
 	}
 }
 
@@ -122,7 +122,10 @@ func TestComputeBarycentricCoefficients(t *testing.T) {
 
 	preComp := NewPrecomputedWeights()
 	bar_coeffs := preComp.ComputeBarycentricCoefficients(point_outside_domain)
-	got := InnerProd(lagrange_values, bar_coeffs)
+	got, err := InnerProd(lagrange_values, bar_coeffs)
+	if err != nil {
+		t.Fatalf("inner product failed: %v", err)
+	}
 	expected := evalOutsideDomain(preComp, lagrange_values, point_outside_domain)
 
 	points := Points{}
@@ -136,15 +139,15 @@ func TestComputeBarycentricCoefficients(t *testing.T) {
 		}
 		points = append(points, point)
 	}
-	poly_coeff := points.interpolate()
+	poly_coeff := points.interpolate(t)
 	expected2 := poly_coeff.evaluate(point_outside_domain)
 
 	if !expected2.Equal(&expected) {
-		panic("problem with barycentric weights")
+		t.Fatal("problem with barycentric weights")
 	}
 
 	if !expected2.Equal(&got) {
-		panic("problem with inner product")
+		t.Fatal("problem with inner product")
 	}
 }
 
@@ -222,7 +225,7 @@ func TestDivideOnDomain(t *testing.T) {
 		points = append(points, point)
 	}
 
-	numerator_poly_coeff := points.interpolate()
+	numerator_poly_coeff := points.interpolate(t)
 
 	// X - 1 (This is chosen because we know it divides perfectly into the numerator)
 	denom_poly_coeff := Poly{fr.MinusOne(), fr.One()}
@@ -236,7 +239,7 @@ func TestDivideOnDomain(t *testing.T) {
 		evaluations[i] = p.y
 	}
 	if !evaluations[index].IsZero() {
-		panic("dividing on the domain with `index` will not have a remainder of zero")
+		t.Fatal("dividing on the domain with `index` will not have a remainder of zero")
 	}
 	quotientLag := preComp.DivideOnDomain(index, evaluations)
 
@@ -245,13 +248,13 @@ func TestDivideOnDomain(t *testing.T) {
 
 	expected_quotient_coeff, rem, ok := pld(numerator_poly_coeff, denom_poly_coeff)
 	if !ok {
-		panic("polynomial division failed")
+		t.Fatal("polynomial division failed")
 	}
 
 	// Remainder should be zero
 	for _, r := range rem {
 		if !r.IsZero() {
-			panic("remainder should be zero")
+			t.Fatal("remainder should be zero")
 		}
 	}
 
@@ -260,15 +263,15 @@ func TestDivideOnDomain(t *testing.T) {
 	// (X+1)(X^253)
 	should_be_zero := Poly(expected_quotient_coeff).evaluate(fr.MinusOne())
 	if !should_be_zero.IsZero() {
-		panic("-1 is not a root, but it should be")
+		t.Fatal("-1 is not a root, but it should be")
 	}
 	should_be_zero = Poly(expected_quotient_coeff).evaluate(fr.One())
 	if should_be_zero.IsZero() {
-		panic("1 is a root, but it should not be, because we just divided by X - 1")
+		t.Fatal("1 is a root, but it should not be, because we just divided by X - 1")
 	}
 	should_be_zero = Poly(expected_quotient_coeff).evaluate(fr.Zero())
 	if !should_be_zero.IsZero() {
-		panic("0 is not a root, but it should be")
+		t.Fatal("0 is not a root, but it should be")
 	}
 
 	// Lets convert quotientLag to coefficient form
@@ -283,34 +286,34 @@ func TestDivideOnDomain(t *testing.T) {
 		}
 		quotientLagEvaluations = append(quotientLagEvaluations, point)
 	}
-	got_quotient_coeff := quotientLagEvaluations.interpolate()
+	got_quotient_coeff := quotientLagEvaluations.interpolate(t)
 
 	var rand_fr fr.Element
 	_, err := rand_fr.SetRandom()
 	if err != nil {
-		panic("could not get randomness")
+		t.Fatal("could not get randomness")
 	}
 	got_res := got_quotient_coeff.evaluate(rand_fr)
 	expected_res := Poly(expected_quotient_coeff).evaluate(rand_fr)
 
 	if !expected_res.Equal(&got_res) {
-		panic("polynomials are different")
+		t.Fatal("polynomials are different")
 	}
 
 	top_term := got_quotient_coeff[len(got_quotient_coeff)-1]
 	if !top_term.IsZero() {
-		panic("top term is not zero, degree is incorrect")
+		t.Fatal("top term is not zero, degree is incorrect")
 	}
 	got_quotient_coeff = got_quotient_coeff[:len(got_quotient_coeff)-1]
 
 	if len(expected_quotient_coeff) != len(got_quotient_coeff) {
-		panic(fmt.Sprintf("%d %d", len(expected_quotient_coeff), len(got_quotient_coeff)))
+		t.Fatalf("expected quotiend coefficients %d != got quotiend coefficients %d", len(expected_quotient_coeff), len(got_quotient_coeff))
 	}
 
 	for i := 0; i < len(expected_quotient_coeff); i++ {
 
 		if !got_quotient_coeff[i].Equal(&expected_quotient_coeff[i]) {
-			panic("polynomials are not the same")
+			t.Fatal("polynomials are not the same")
 		}
 	}
 }
@@ -334,13 +337,13 @@ func (poly Poly) evaluate(point fr.Element) fr.Element {
 	}
 	return total
 }
-func (points Points) interpolate() Poly {
+func (points Points) interpolate(t *testing.T) Poly {
 	one := fr.One()
 	zero := fr.Zero()
 
 	max_degree_plus_one := len(points)
 	if max_degree_plus_one < 2 {
-		panic("should interpolate for degree >= 1")
+		t.Fatal("should interpolate for degree >= 1")
 	}
 	coeffs := make([]fr.Element, max_degree_plus_one)
 
@@ -379,7 +382,7 @@ func (points Points) interpolate() Poly {
 				contribution = append([]fr.Element{zero}, contribution...)
 				contribution = truncate(contribution, max_degree_plus_one)
 				if max_degree_plus_one != len(mul_by_minus_x_j) {
-					panic("malformed mul_by_minus_x_j")
+					t.Fatal("malformed mul_by_minus_x_j")
 				}
 				for i := 0; i < len(contribution); i++ {
 					other := mul_by_minus_x_j[i]
@@ -391,7 +394,7 @@ func (points Points) interpolate() Poly {
 		}
 		denominator.Inverse(&denominator)
 		if denominator.IsZero() {
-			panic("denominator should not be zero")
+			t.Fatal("denominator should not be zero")
 		}
 		for i := 0; i < len(contribution); i++ {
 			tmp := contribution[i]

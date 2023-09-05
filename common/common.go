@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
@@ -28,36 +29,25 @@ func PowersOf(x fr.Element, degree int) []fr.Element {
 	return result
 }
 
-func ReadPoint(r io.Reader) *banderwagon.Element {
+func ReadPoint(r io.Reader) (*banderwagon.Element, error) {
 	var x = make([]byte, 32)
-	n, err := r.Read(x)
-	if err != nil {
-		panic("error reading bytes")
-	}
-	if n != 32 {
-		panic("did not read enough bytes")
+	if _, err := io.ReadAtLeast(r, x, 32); err != nil {
+		return nil, fmt.Errorf("reading x coordinate: %w", err)
 	}
 	var p = &banderwagon.Element{}
-	err = p.SetBytes(x)
-	if err != nil {
-		panic("could not deserialize point")
+	if err := p.SetBytes(x); err != nil {
+		return nil, fmt.Errorf("deserializing point: %w", err)
 	}
-	return p
+	return p, nil
 }
 
-func ReadScalar(r io.Reader) *fr.Element {
+func ReadScalar(r io.Reader) (*fr.Element, error) {
 	var x = make([]byte, 32)
-	n, err := r.Read(x)
-	if err != nil {
-		panic("error reading bytes")
-	}
-	if n != 32 {
-		panic("did not read enough bytes")
+	if _, err := io.ReadAtLeast(r, x, 32); err != nil {
+		return nil, fmt.Errorf("reading scalar: %w", err)
 	}
 	var scalar = &fr.Element{}
 	scalar.SetBytesLE(x)
-	if err != nil {
-		panic("could not deserialize point")
-	}
-	return scalar
+
+	return scalar, nil
 }

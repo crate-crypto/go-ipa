@@ -1,6 +1,8 @@
 package ipa
 
 import (
+	"fmt"
+
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
 	"github.com/crate-crypto/go-ipa/banderwagon"
 	"github.com/crate-crypto/go-ipa/common"
@@ -9,14 +11,14 @@ import (
 // CheckIPAProof verifies an IPA proof for a committed polynomial in evaluation form.
 // It verifies that `proof` is a valid proof for the polynomial at the evaluation
 // point `evalPoint` with result `result`
-func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment banderwagon.Element, proof IPAProof, evalPoint fr.Element, result fr.Element) bool {
+func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment banderwagon.Element, proof IPAProof, evalPoint fr.Element, result fr.Element) (bool, error) {
 	transcript.DomainSep("ipa")
 
 	if len(proof.L) != len(proof.R) {
-		panic("L and R should be the same size")
+		return false, fmt.Errorf("vectors L and R should be the same size")
 	}
 	if len(proof.L) != int(ic.numRounds) {
-		panic("The number of points for L or R should be equal to the number of rounds")
+		return false, fmt.Errorf("the number of points for L and R should be equal to the number of rounds")
 	}
 
 	b := ic.PrecomputedWeights.ComputeBarycentricCoefficients(evalPoint)
@@ -36,15 +38,19 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 	commitment.Add(&commitment, &qy)
 
 	challenges := generateChallenges(transcript, &proof)
-	challenges_inv := fr.BatchInvert(challenges)
+	challengesInv := fr.BatchInvert(challenges)
 
 	// Compute expected commitment
+	var err error
 	for i := 0; i < len(challenges); i++ {
 		x := challenges[i]
 		L := proof.L[i]
 		R := proof.R[i]
 
-		commitment = commit([]banderwagon.Element{commitment, L, R}, []fr.Element{fr.One(), x, challenges_inv[i]})
+		commitment, err = commit([]banderwagon.Element{commitment, L, R}, []fr.Element{fr.One(), x, challengesInv[i]})
+		if err != nil {
+			return false, fmt.Errorf("could not compute commitment+x*L+x^-1*R: %w", err)
+		}
 	}
 
 	g := ic.SRS
@@ -56,13 +62,19 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 
 		for challengeIdx := 0; challengeIdx < len(challenges); challengeIdx++ {
 			if i&(1<<(7-challengeIdx)) > 0 {
-				scalar.Mul(&scalar, &challenges_inv[challengeIdx])
+				scalar.Mul(&scalar, &challengesInv[challengeIdx])
 			}
 		}
 		foldingScalars[i] = scalar
 	}
-	g0 := MultiScalar(g, foldingScalars)
-	b0 := InnerProd(b, foldingScalars)
+	g0, err := MultiScalar(g, foldingScalars)
+	if err != nil {
+		return false, fmt.Errorf("could not compute g0: %w", err)
+	}
+	b0, err := InnerProd(b, foldingScalars)
+	if err != nil {
+		return false, fmt.Errorf("could not compute b0: %w", err)
+	}
 
 	var got banderwagon.Element
 	//  g0 * a + (a * b) * Q;
@@ -77,7 +89,7 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 
 	got.Add(&part_1, &part_2)
 
-	return got.Equal(&commitment)
+	return got.Equal(&commitment), nil
 }
 
 func generateChallenges(transcript *common.Transcript, proof *IPAProof) []fr.Element {
