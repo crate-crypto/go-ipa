@@ -227,10 +227,15 @@ func (mp *MultiProof) Write(w io.Writer) {
 }
 
 // Read deserializes a multi-proof from a reader.
-func (mp *MultiProof) Read(r io.Reader) {
-	D := common.ReadPoint(r)
+func (mp *MultiProof) Read(r io.Reader) error {
+	D, err := common.ReadPoint(r)
+	if err != nil {
+		return fmt.Errorf("failed to read D: %w", err)
+	}
 	mp.D = *D
 	mp.IPA.Read(r)
+
+	return nil
 }
 
 // Equal checks if two multi-proofs are equal.

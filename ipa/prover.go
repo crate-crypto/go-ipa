@@ -2,6 +2,7 @@ package ipa
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
@@ -98,22 +99,33 @@ func (ip *IPAProof) Write(w io.Writer) {
 }
 
 // Read deserializes the IPA proof from the given reader.
-func (ip *IPAProof) Read(r io.Reader) {
+func (ip *IPAProof) Read(r io.Reader) error {
 	var L []banderwagon.Element
 	for i := 0; i < 8; i++ {
-		L_i := common.ReadPoint(r)
+		L_i, err := common.ReadPoint(r)
+		if err != nil {
+			return fmt.Errorf("failed to read L[%d]: %w", i, err)
+		}
 		L = append(L, *L_i)
 	}
 	ip.L = L
 	var R []banderwagon.Element
 	for i := 0; i < 8; i++ {
-		R_i := common.ReadPoint(r)
+		R_i, err := common.ReadPoint(r)
+		if err != nil {
+			return fmt.Errorf("failed to read R[%d]: %w", i, err)
+		}
 		R = append(R, *R_i)
 	}
 	ip.R = R
 
-	A_Scalar := common.ReadScalar(r)
+	A_Scalar, err := common.ReadScalar(r)
+	if err != nil {
+		return fmt.Errorf("failed to read A_scalar: %w", err)
+	}
 	ip.A_scalar = *A_Scalar
+
+	return nil
 }
 
 // Equal checks if two IPA proofs are equal.
