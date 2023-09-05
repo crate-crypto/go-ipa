@@ -41,7 +41,7 @@ func TestIPAProofCreateVerify(t *testing.T) {
 	lagrange_coeffs := ipaConf.PrecomputedWeights.ComputeBarycentricCoefficients(point)
 	inner_product := InnerProd(poly, lagrange_coeffs)
 
-	test_serialize_deserialize_proof(proof)
+	test_serialize_deserialize_proof(t, proof)
 
 	// Verifier view
 	verifier_comm := prover_comm // In reality, the verifier will rebuild this themselves
@@ -49,7 +49,7 @@ func TestIPAProofCreateVerify(t *testing.T) {
 
 	ok := CheckIPAProof(verifier_transcript, ipaConf, verifier_comm, proof, point, inner_product)
 	if !ok {
-		panic("inner product proof failed")
+		t.Fatal("inner product proof failed")
 	}
 }
 
@@ -97,12 +97,12 @@ func TestIPAConsistencySimpleProof(t *testing.T) {
 
 	ok := CheckIPAProof(verifier_transcript, ipaConf, verifier_comm, proof, input_point, output_point)
 	if !ok {
-		panic("inner product proof failed")
+		t.Fatal("inner product proof failed")
 	}
 	//
 	v_challenge := verifier_transcript.ChallengeScalar("state")
 	if !v_challenge.Equal(&p_challenge) {
-		panic("prover and verifier state are not the same. The proof should not have passed!")
+		t.Fatal("prover and verifier state are not the same. The proof should not have passed!")
 	}
 
 	// Check that the serialised proof matches the other implementations
@@ -113,7 +113,7 @@ func TestIPAConsistencySimpleProof(t *testing.T) {
 
 	bytes := buf.Bytes()
 	if expected != hex.EncodeToString(bytes) {
-		panic("expected serialised proof is different from the other implementations")
+		t.Fatal("expected serialised proof is different from the other implementations")
 	}
 }
 
@@ -142,7 +142,7 @@ func TestBasicInnerProduct(t *testing.T) {
 		expected.Add(&expected, &tmp)
 	}
 	if !got.Equal(&expected) {
-		panic("the inner product should just be the sum of a since b is just 1")
+		t.Fatal("the inner product should just be the sum of a since b is just 1")
 	}
 }
 
@@ -161,7 +161,7 @@ func TestBasicCommit(t *testing.T) {
 		var tmp fr.Element
 		_, err := tmp.SetRandom()
 		if err != nil {
-			panic("could not generate randomness")
+			t.Fatal("could not generate randomness")
 		}
 		a = append(a, tmp)
 	}
@@ -176,7 +176,7 @@ func TestBasicCommit(t *testing.T) {
 	expected.ScalarMul(&gen, &total)
 
 	if !got.Equal(&expected) {
-		panic("commit function; incorrect results")
+		t.Fatal("commit function; incorrect results")
 	}
 }
 
@@ -187,7 +187,7 @@ func TestCRSGeneration(t *testing.T) {
 	points := GenerateRandomPoints(256)
 	for _, point := range points {
 		if !point.IsOnCurve() {
-			panic("generated a point that was not on the curve")
+			t.Fatal("generated a point that was not on the curve")
 		}
 		// Check point is in the correct subgroup by doing
 		// serialise deserialise roundtrip
@@ -195,17 +195,17 @@ func TestCRSGeneration(t *testing.T) {
 		bytes := point.Bytes()
 		err := point.SetBytes(bytes[:])
 		if err != nil {
-			panic("point is not in the banderwagon subgroup")
+			t.Fatal("point is not in the banderwagon subgroup")
 		}
 		if point.Equal(&generator) {
-			panic("one of the generated points was the generator. The inner product point is being used as the generator.")
+			t.Fatal("one of the generated points was the generator. The inner product point is being used as the generator.")
 		}
 	}
 
 	// Check that the points are all unique
 	points = removeDuplicatePoints(points)
 	if len(points) != 256 {
-		panic("points contained duplicates")
+		t.Fatal("points contained duplicates")
 	}
 
 	// Now check against the test vectors here: https://hackmd.io/1RcGSMQgT4uREaq1CCx_cg#Methodology
@@ -214,13 +214,13 @@ func TestCRSGeneration(t *testing.T) {
 	got := hex.EncodeToString(bytes[:])
 	expected := "01587ad1336675eb912550ec2a28eb8923b824b490dd2ba82e48f14590a298a0"
 	if got != expected {
-		panic("the first point is not correct")
+		t.Fatal("the first point is not correct")
 	}
 	bytes = points[255].Bytes()
 	got = hex.EncodeToString(bytes[:])
 	expected = "3de2be346b539395b0c0de56a5ccca54a317f1b5c80107b0802af9a62276a4d8"
 	if got != expected {
-		panic("the 256th (last) point is not correct")
+		t.Fatal("the 256th (last) point is not correct")
 	}
 
 	digest := sha256.New()
@@ -232,11 +232,11 @@ func TestCRSGeneration(t *testing.T) {
 	got = hex.EncodeToString(hash[:])
 	expected = "1fcaea10bf24f750200e06fa473c76ff0468007291fa548e2d99f09ba9256fdb"
 	if got != expected {
-		panic("unexpected point encountered")
+		t.Fatal("unexpected point encountered")
 	}
 }
 
-func test_serialize_deserialize_proof(proof IPAProof) {
+func test_serialize_deserialize_proof(t *testing.T, proof IPAProof) {
 	buf := new(bytes.Buffer)
 	proof.Write(buf)
 
@@ -244,7 +244,7 @@ func test_serialize_deserialize_proof(proof IPAProof) {
 	got_proof.Read(buf)
 
 	if !got_proof.Equal(proof) {
-		panic("proof serialization does not match deserialization for IPA")
+		t.Fatal("proof serialization does not match deserialization for IPA")
 	}
 }
 
