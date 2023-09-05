@@ -187,7 +187,7 @@ func TestBasicCommit(t *testing.T) {
 		}
 		a = append(a, tmp)
 	}
-	got, err := commit(generators, a)
+	got, err := MultiScalar(generators, a)
 	if err != nil {
 		t.Fatalf("could not compute inner product: %s", err)
 	}
