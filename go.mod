@@ -3,7 +3,7 @@ module github.com/crate-crypto/go-ipa
 go 1.18
 
 require (
-	github.com/consensys/gnark-crypto v0.11.2
+	github.com/consensys/gnark-crypto v0.11.3-0.20230906172141-49815a21349a
 	github.com/leanovate/gopter v0.2.9
 	golang.org/x/sync v0.1.0
 	golang.org/x/sys v0.9.0
