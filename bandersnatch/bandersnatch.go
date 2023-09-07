@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/consensys/gnark-crypto/ecc/bls12-381/bandersnatch"
 	gnarkbandersnatch "github.com/consensys/gnark-crypto/ecc/bls12-381/bandersnatch"
 	gnarkfr "github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fp"
@@ -118,7 +117,17 @@ type PointExtendedNormalized struct {
 	X, Y, T gnarkfr.Element
 }
 
-func ExtendedAddNormalized(p, p1 *PointExtended, p2 *PointExtendedNormalized) *bandersnatch.PointExtended {
+// Neg computes p = -p1
+func (p *PointExtendedNormalized) Neg(p1 *PointExtendedNormalized) *PointExtendedNormalized {
+	p.X.Neg(&p1.X)
+	p.Y = p1.Y
+	p.T.Neg(&p1.T)
+	return p
+}
+
+// ExtendedAddNormalized computes p = p1 + p2.
+// https://hyperelliptic.org/EFD/g1p/auto-twisted-extended.html#addition-madd-2008-hwcd-2
+func ExtendedAddNormalized(p, p1 *PointExtended, p2 *PointExtendedNormalized) *gnarkbandersnatch.PointExtended {
 	var A, B, C, D, E, F, G, H, tmp gnarkfr.Element
 	A.Mul(&p1.X, &p2.X)
 	B.Mul(&p1.Y, &p2.Y)
@@ -144,12 +153,5 @@ func ExtendedAddNormalized(p, p1 *PointExtended, p2 *PointExtendedNormalized) *b
 	p.T.Mul(&E, &H)
 	p.Z.Mul(&F, &G)
 
-	return p
-}
-
-func (p *PointExtendedNormalized) Neg(p1 *PointExtendedNormalized) *PointExtendedNormalized {
-	p.X.Neg(&p1.X)
-	p.Y = p1.Y
-	p.T.Neg(&p1.T)
 	return p
 }
