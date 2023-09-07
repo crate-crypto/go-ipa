@@ -126,7 +126,7 @@ func (p *PointExtendedNormalized) Neg(p1 *PointExtendedNormalized) *PointExtende
 }
 
 // ExtendedAddNormalized computes p = p1 + p2.
-// https://hyperelliptic.org/EFD/g1p/auto-twisted-extended.html#addition-madd-2008-hwcd-2
+// https://hyperelliptic.org/EFD/g1p/auto-twisted-extended.html#addition-madd-2008-hwcd
 func ExtendedAddNormalized(p, p1 *PointExtended, p2 *PointExtendedNormalized) *gnarkbandersnatch.PointExtended {
 	var A, B, C, D, E, F, G, H, tmp gnarkfr.Element
 	A.Mul(&p1.X, &p2.X)
