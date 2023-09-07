@@ -97,16 +97,16 @@ func computeY(x *fp.Element, choose_largest bool) *fp.Element {
 	}
 }
 
+// PointExtendedFromProj converts a point in projective coordinates to extended coordinates.
 func PointExtendedFromProj(p *PointProj) PointExtended {
-	var paffine PointAffine
-	paffine.FromProj(p)
-
+	var pzinv fp.Element
+	pzinv.Inverse(&p.Z)
 	var z fp.Element
-	z.Mul(&paffine.X, &paffine.Y)
+	z.Mul(&p.X, &p.Y).Mul(&z, &pzinv)
 	return PointExtended{
-		X: paffine.X,
-		Y: paffine.Y,
-		Z: fp.One(),
+		X: p.X,
+		Y: p.Y,
+		Z: p.Z,
 		T: z,
 	}
 }
