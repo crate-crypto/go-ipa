@@ -108,7 +108,7 @@ func NewPrecompPoint(point Element, windowSize int) (PrecompPoint, error) {
 				windows[i][j] = curr
 				curr.Add(&curr, &base)
 			}
-			res.windows[i] = batchNormalizeExtendedPoint(windows[i])
+			res.windows[i] = batchToExtendedPointNormalized(windows[i])
 			return nil
 		})
 		point.ScalarMul(&point, &specialWindow)
@@ -196,7 +196,7 @@ func batchProjToAffine(points []bandersnatch.PointProj) []bandersnatch.PointAffi
 	return result
 }
 
-func batchNormalizeExtendedPoint(points []bandersnatch.PointExtended) []bandersnatch.PointExtendedNormalized {
+func batchToExtendedPointNormalized(points []bandersnatch.PointExtended) []bandersnatch.PointExtendedNormalized {
 	result := make([]bandersnatch.PointExtendedNormalized, len(points))
 	zeroes := make([]bool, len(points))
 	accumulator := fp.One()
