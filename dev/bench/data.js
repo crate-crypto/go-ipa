@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1694092024705,
+  "lastUpdate": 1694093450882,
   "repoUrl": "https://github.com/crate-crypto/go-ipa",
   "entries": {
     "Go Benchmark": [
@@ -3550,6 +3550,450 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkPrecompInitialize - allocs/op",
             "value": 7616982,
+            "unit": "allocs/op",
+            "extra": "1 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jsign.uy@gmail.com",
+            "name": "Ignacio Hagopian",
+            "username": "jsign"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "607ff1f35a06f8472d630a1b9e16197c811be77f",
+          "message": "Merge pull request #58 from crate-crypto/jsign-update-gnark\n\nmod: update gnark-crypto",
+          "timestamp": "2023-09-07T10:25:56-03:00",
+          "tree_id": "f22ae9ab8d8e8fd0b5d3e1861eb36e7a64736ba9",
+          "url": "https://github.com/crate-crypto/go-ipa/commit/607ff1f35a06f8472d630a1b9e16197c811be77f"
+        },
+        "date": 1694093449887,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkMultiExpG1/32_points",
+            "value": 878704,
+            "unit": "ns/op",
+            "extra": "1408 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkMultiExpG1/64_points",
+            "value": 1215758,
+            "unit": "ns/op",
+            "extra": "1003 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkMultiExpG1/128_points",
+            "value": 1913693,
+            "unit": "ns/op",
+            "extra": "620 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkMultiExpG1/256_points",
+            "value": 3286602,
+            "unit": "ns/op",
+            "extra": "381 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkMultiExpG1/512_points",
+            "value": 5322006,
+            "unit": "ns/op",
+            "extra": "226 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkMultiExpG1/1024_points",
+            "value": 9397049,
+            "unit": "ns/op",
+            "extra": "134 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkMultiExpG1/2048_points",
+            "value": 16328959,
+            "unit": "ns/op",
+            "extra": "73 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkMultiExpG1/4096_points",
+            "value": 29427704,
+            "unit": "ns/op",
+            "extra": "40 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkMultiExpG1/8192_points",
+            "value": 53478784,
+            "unit": "ns/op",
+            "extra": "22 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkMultiExpG1/16384_points",
+            "value": 95749903,
+            "unit": "ns/op",
+            "extra": "12 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkMultiExpG1/32768_points",
+            "value": 177977421,
+            "unit": "ns/op",
+            "extra": "6 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkMultiExpG1/65536_points",
+            "value": 323110188,
+            "unit": "ns/op",
+            "extra": "4 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkMultiExpG1/131072_points",
+            "value": 632847284,
+            "unit": "ns/op",
+            "extra": "2 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkMultiExpG1/262144_points",
+            "value": 1227228156,
+            "unit": "ns/op",
+            "extra": "1 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkMultiExpG1/524288_points",
+            "value": 2358018268,
+            "unit": "ns/op",
+            "extra": "1 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkMultiExpG1/1048576_points",
+            "value": 4580220188,
+            "unit": "ns/op",
+            "extra": "1 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkMultiExpG1/2097152_points",
+            "value": 9015566170,
+            "unit": "ns/op",
+            "extra": "1 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkMultiExpG1/4194304_points",
+            "value": 17249183378,
+            "unit": "ns/op",
+            "extra": "1 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkMultiExpG1/8388608_points",
+            "value": 32047511395,
+            "unit": "ns/op",
+            "extra": "1 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkMultiExpG1/16777216_points",
+            "value": 62018158351,
+            "unit": "ns/op",
+            "extra": "1 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkMultiExpG1Reference",
+            "value": 4670325459,
+            "unit": "ns/op",
+            "extra": "1 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkManyMultiExpG1Reference",
+            "value": 13767005679,
+            "unit": "ns/op",
+            "extra": "1 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkElementSetBytes",
+            "value": 75.37,
+            "unit": "ns/op",
+            "extra": "15970180 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkElementMulByConstants/mulBy3",
+            "value": 8.029,
+            "unit": "ns/op",
+            "extra": "147552580 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkElementMulByConstants/mulBy5",
+            "value": 10.81,
+            "unit": "ns/op",
+            "extra": "100000000 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkElementMulByConstants/mulBy13",
+            "value": 17.87,
+            "unit": "ns/op",
+            "extra": "65835146 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkElementInverse",
+            "value": 3141,
+            "unit": "ns/op",
+            "extra": "356290 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkElementButterfly",
+            "value": 8.152,
+            "unit": "ns/op",
+            "extra": "147380800 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkElementExp",
+            "value": 11742,
+            "unit": "ns/op",
+            "extra": "106272 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkElementDouble",
+            "value": 4.93,
+            "unit": "ns/op",
+            "extra": "245657649 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkElementAdd",
+            "value": 5.554,
+            "unit": "ns/op",
+            "extra": "208766614 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkElementSub",
+            "value": 5.444,
+            "unit": "ns/op",
+            "extra": "228657804 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkElementNeg",
+            "value": 4.097,
+            "unit": "ns/op",
+            "extra": "284355196 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkElementDiv",
+            "value": 3152,
+            "unit": "ns/op",
+            "extra": "396898 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkElementFromMont",
+            "value": 20.66,
+            "unit": "ns/op",
+            "extra": "57060510 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkElementToMont",
+            "value": 28.04,
+            "unit": "ns/op",
+            "extra": "42525916 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkElementSquare",
+            "value": 27.64,
+            "unit": "ns/op",
+            "extra": "38484870 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkElementSqrt",
+            "value": 11813,
+            "unit": "ns/op",
+            "extra": "102450 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkElementMul",
+            "value": 27.79,
+            "unit": "ns/op",
+            "extra": "44374027 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkElementCmp",
+            "value": 47.13,
+            "unit": "ns/op",
+            "extra": "23772898 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=1/precomp - ns/op",
+            "value": 6181,
+            "unit": "ns/op",
+            "extra": "193357 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=1/precomp - B/op",
+            "value": 0,
+            "unit": "B/op",
+            "extra": "193357 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=1/precomp - allocs/op",
+            "value": 0,
+            "unit": "allocs/op",
+            "extra": "193357 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=2/precomp - ns/op",
+            "value": 12188,
+            "unit": "ns/op",
+            "extra": "90219 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=2/precomp - B/op",
+            "value": 0,
+            "unit": "B/op",
+            "extra": "90219 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=2/precomp - allocs/op",
+            "value": 0,
+            "unit": "allocs/op",
+            "extra": "90219 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=4/precomp - ns/op",
+            "value": 24035,
+            "unit": "ns/op",
+            "extra": "51216 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=4/precomp - B/op",
+            "value": 0,
+            "unit": "B/op",
+            "extra": "51216 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=4/precomp - allocs/op",
+            "value": 0,
+            "unit": "allocs/op",
+            "extra": "51216 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=8/precomp - ns/op",
+            "value": 67477,
+            "unit": "ns/op",
+            "extra": "18074 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=8/precomp - B/op",
+            "value": 0,
+            "unit": "B/op",
+            "extra": "18074 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=8/precomp - allocs/op",
+            "value": 0,
+            "unit": "allocs/op",
+            "extra": "18074 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=16/precomp - ns/op",
+            "value": 179309,
+            "unit": "ns/op",
+            "extra": "7040 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=16/precomp - B/op",
+            "value": 0,
+            "unit": "B/op",
+            "extra": "7040 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=16/precomp - allocs/op",
+            "value": 0,
+            "unit": "allocs/op",
+            "extra": "7040 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=32/precomp - ns/op",
+            "value": 395121,
+            "unit": "ns/op",
+            "extra": "3168 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=32/precomp - B/op",
+            "value": 0,
+            "unit": "B/op",
+            "extra": "3168 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=32/precomp - allocs/op",
+            "value": 0,
+            "unit": "allocs/op",
+            "extra": "3168 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=64/precomp - ns/op",
+            "value": 829612,
+            "unit": "ns/op",
+            "extra": "1458 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=64/precomp - B/op",
+            "value": 0,
+            "unit": "B/op",
+            "extra": "1458 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=64/precomp - allocs/op",
+            "value": 0,
+            "unit": "allocs/op",
+            "extra": "1458 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=128/precomp - ns/op",
+            "value": 1785444,
+            "unit": "ns/op",
+            "extra": "698 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=128/precomp - B/op",
+            "value": 0,
+            "unit": "B/op",
+            "extra": "698 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=128/precomp - allocs/op",
+            "value": 0,
+            "unit": "allocs/op",
+            "extra": "698 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=256/precomp - ns/op",
+            "value": 3725139,
+            "unit": "ns/op",
+            "extra": "280 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=256/precomp - B/op",
+            "value": 0,
+            "unit": "B/op",
+            "extra": "280 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompMSM/msm_length=256/precomp - allocs/op",
+            "value": 0,
+            "unit": "allocs/op",
+            "extra": "280 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompInitialize - ns/op",
+            "value": 9586273069,
+            "unit": "ns/op",
+            "extra": "1 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompInitialize - B/op",
+            "value": 827052672,
+            "unit": "B/op",
+            "extra": "1 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkPrecompInitialize - allocs/op",
+            "value": 123224,
             "unit": "allocs/op",
             "extra": "1 times\n2 procs"
           }
