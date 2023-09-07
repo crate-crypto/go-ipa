@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/consensys/gnark-crypto/ecc/bls12-381/bandersnatch"
 	gnarkbandersnatch "github.com/consensys/gnark-crypto/ecc/bls12-381/bandersnatch"
+	gnarkfr "github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fp"
 )
 
@@ -12,12 +14,15 @@ var CurveParams = gnarkbandersnatch.GetEdwardsCurve()
 
 type PointAffine = gnarkbandersnatch.PointAffine
 type PointProj = gnarkbandersnatch.PointProj
+type PointExtended = gnarkbandersnatch.PointExtended
 
 var Identity = PointProj{
 	X: fp.Zero(),
 	Y: fp.One(),
 	Z: fp.One(),
 }
+
+var IdentityExt = PointExtendedFromProj(&Identity)
 
 // Reads an uncompressed affine point
 // Point is not guaranteed to be in the prime subgroup
@@ -91,4 +96,60 @@ func computeY(x *fp.Element, choose_largest bool) *fp.Element {
 	} else {
 		return sqrtY.Neg(sqrtY)
 	}
+}
+
+func PointExtendedFromProj(p *PointProj) PointExtended {
+	var paffine PointAffine
+	paffine.FromProj(p)
+
+	var z fp.Element
+	z.Mul(&paffine.X, &paffine.Y)
+	return PointExtended{
+		X: paffine.X,
+		Y: paffine.Y,
+		Z: fp.One(),
+		T: z,
+	}
+}
+
+// PointExtendedNormalized is an extended point which is normalized.
+// i.e: Z=1. We store it this way to save 32 bytes per point in memory.
+type PointExtendedNormalized struct {
+	X, Y, T gnarkfr.Element
+}
+
+func ExtendedAddNormalized(p, p1 *PointExtended, p2 *PointExtendedNormalized) *bandersnatch.PointExtended {
+	var A, B, C, D, E, F, G, H, tmp gnarkfr.Element
+	A.Mul(&p1.X, &p2.X)
+	B.Mul(&p1.Y, &p2.Y)
+	C.Mul(&p1.T, &p2.T).Mul(&C, &CurveParams.D)
+	D.Set(&p1.Z)
+	tmp.Add(&p1.X, &p1.Y)
+	E.Add(&p2.X, &p2.Y).
+		Mul(&E, &tmp).
+		Sub(&E, &A).
+		Sub(&E, &B)
+	F.Sub(&D, &C)
+	G.Add(&D, &C)
+	H.Set(&A)
+
+	// mulBy5(&H)
+	H.Neg(&H)
+	gnarkfr.MulBy5(&H)
+
+	H.Sub(&B, &H)
+
+	p.X.Mul(&E, &F)
+	p.Y.Mul(&G, &H)
+	p.T.Mul(&E, &H)
+	p.Z.Mul(&F, &G)
+
+	return p
+}
+
+func (p *PointExtendedNormalized) Neg(p1 *PointExtendedNormalized) *PointExtendedNormalized {
+	p.X.Neg(&p1.X)
+	p.Y = p1.Y
+	p.T.Neg(&p1.T)
+	return p
 }
