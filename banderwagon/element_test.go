@@ -314,17 +314,23 @@ func TestBatchNormalize(t *testing.T) {
 	})
 }
 
-func FuzzDeserializationUncompressed(f *testing.F) {
+func FuzzDeserializationCompressed(f *testing.F) {
 	f.Fuzz(func(t *testing.T, serializedpoint []byte) {
 		var point Element
-		err := point.SetBytesUncompressed(serializedpoint, false)
+		err := point.SetBytes(serializedpoint)
 		if err != nil {
 			return
 		}
-		reserialized := point.BytesUncompressed()
+		reserialized := point.Bytes()
 		if !bytes.Equal(serializedpoint, reserialized[:]) {
 			t.Fatalf("reserialized point does not match original point")
 		}
 	})
+}
 
+func FuzzDeserializationUncompressed(f *testing.F) {
+	f.Fuzz(func(t *testing.T, serializedpoint []byte) {
+		var point Element
+		_ = point.SetBytes(serializedpoint)
+	})
 }
