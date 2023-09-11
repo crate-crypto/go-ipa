@@ -170,6 +170,10 @@ func BatchToBytesUncompressed(elements ...*Element) [][UncompressedSize]byte {
 }
 
 func (p *Element) setBytes(buf []byte, trusted bool) error {
+	if len(buf) != CompressedSize {
+		return errors.New("invalid compressed point size")
+	}
+
 	// set the buffer which is x * SignY as X
 	var x fp.Element
 	x.SetBytes(buf)
