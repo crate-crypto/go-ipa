@@ -2,6 +2,7 @@ package banderwagon
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch"
@@ -176,7 +177,9 @@ func (p *Element) setBytes(buf []byte, trusted bool) error {
 
 	// set the buffer which is x * SignY as X
 	var x fp.Element
-	x.SetBytes(buf)
+	if err := x.SetBytesCanonical(buf); err != nil {
+		return fmt.Errorf("invalid compressed point: %s", err)
+	}
 
 	point := bandersnatch.GetPointFromX(&x, true)
 	if point == nil {
