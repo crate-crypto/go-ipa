@@ -2,6 +2,7 @@ package banderwagon
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch"
@@ -170,9 +171,15 @@ func BatchToBytesUncompressed(elements ...*Element) [][UncompressedSize]byte {
 }
 
 func (p *Element) setBytes(buf []byte, trusted bool) error {
+	if len(buf) != CompressedSize {
+		return errors.New("invalid compressed point size")
+	}
+
 	// set the buffer which is x * SignY as X
 	var x fp.Element
-	x.SetBytes(buf)
+	if err := x.SetBytesCanonical(buf); err != nil {
+		return fmt.Errorf("invalid compressed point: %s", err)
+	}
 
 	point := bandersnatch.GetPointFromX(&x, true)
 	if point == nil {
@@ -214,6 +221,10 @@ func (p *Element) SetBytesUnsafe(buf []byte) error {
 // This method does all the proper checks assuming the bytes come from an
 // untrusted source.
 func (p *Element) SetBytesUncompressed(buf []byte, trusted bool) error {
+	if len(buf) != UncompressedSize {
+		return errors.New("invalid uncompressed point size")
+	}
+
 	var x fp.Element
 	x.SetBytes(buf[:coordinateSize])
 
