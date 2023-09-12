@@ -43,7 +43,9 @@ var (
 
 func init() {
 	sqrtPrecomp_PrimitiveDyadicRoots = func() (ret [BaseField2Adicity + 1]feType_SquareRoot) {
-		ret[0].SetString("10238227357739495823651030575849232062558860180284477541189508159991286009131")
+		if _, err := ret[0].SetString("10238227357739495823651030575849232062558860180284477541189508159991286009131"); err != nil {
+			panic(err)
+		}
 		for i := 1; i <= BaseField2Adicity; i++ { // Note <= here
 			ret[i].Square(&ret[i-1])
 		}

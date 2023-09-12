@@ -34,7 +34,9 @@ func TestPrecompCorrectness(t *testing.T) {
 				// Generate random scalars.
 				scalars := make([]fr.Element, len(pointsWagon))
 				for i := 0; i < len(scalars); i++ {
-					scalars[i].SetRandom()
+					if _, err := scalars[i].SetRandom(); err != nil {
+						t.Fatalf("error generating random scalar: %v", err)
+					}
 				}
 
 				// Calculate the MSM with our precomputed tables.
@@ -69,7 +71,9 @@ func BenchmarkPrecompMSM(b *testing.B) {
 			// Generate random scalars.
 			scalars := make([]fr.Element, 256)
 			for i := 0; i < k; i++ {
-				scalars[i].SetRandom()
+				if _, err := scalars[i].SetRandom(); err != nil {
+					b.Fatalf("error generating random scalar: %v", err)
+				}
 			}
 
 			b.Run("precomp", func(b *testing.B) {

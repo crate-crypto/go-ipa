@@ -165,7 +165,9 @@ func TestSerde(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	bandersnatch.WriteUncompressedPoint(&buf, &point_aff)
+	if _, err := bandersnatch.WriteUncompressedPoint(&buf, &point_aff); err != nil {
+		t.Fatalf("could not write uncompressed point: %s", err)
+	}
 	got, err := bandersnatch.ReadUncompressedPoint(&buf)
 	if err != nil {
 		t.Fatal("could not read uncompressed point")
@@ -214,7 +216,9 @@ func TestMultiMapToBaseField(t *testing.T) {
 
 	var ARes, BRes fr.Element
 	scalars := []*fr.Element{&ARes, &BRes}
-	BatchMapToScalarField(scalars, []*Element{&A, &B})
+	if err := BatchMapToScalarField(scalars, []*Element{&A, &B}); err != nil {
+		t.Fatalf("could not batch map to scalar field: %s", err)
+	}
 
 	got_a := scalars[0]
 	got_b := scalars[1]
