@@ -238,7 +238,8 @@ func FuzzMultiProofDeserialize(f *testing.F) {
 		if err := proof.Write(buf); err != nil {
 			t.Fatalf("failed to write proof: %s", err)
 		}
-		if !bytes.Equal(buf.Bytes(), proofBytes) {
+		a := buf.Bytes()
+		if !bytes.Equal(a, proofBytes) {
 			t.Fatalf("proof serialization does not match deserialization for Multiproof")
 		}
 	})

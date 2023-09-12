@@ -68,7 +68,7 @@ func (t *Transcript) ChallengeScalar(label string) fr.Element {
 	bytes := t.state.Sum(nil)
 
 	var tmp fr.Element
-	tmp.SetBytesLE(bytes)
+	tmp.SetBytesLE(bytes, false)
 
 	// Clear the state
 	t.state.Reset()
