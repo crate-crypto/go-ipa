@@ -260,7 +260,7 @@ func (p Element) MapToScalarField(res *fr.Element) {
 	basefield := p.mapToBaseField()
 	baseFieldBytes := fp.BytesLE(basefield)
 
-	res.SetBytesLE(baseFieldBytes[:], false)
+	res.SetBytesLE(baseFieldBytes[:])
 }
 
 // BatchMapToScalarField maps a slice of group elements to the scalar field.
@@ -284,7 +284,7 @@ func BatchMapToScalarField(result []*fr.Element, elements []*Element) error {
 
 		mappedElement.Mul(&elements[i].inner.X, &yInvs[i])
 		byts := fp.BytesLE(mappedElement)
-		result[i].SetBytesLE(byts[:], false)
+		result[i].SetBytesLE(byts[:])
 	}
 
 	return nil

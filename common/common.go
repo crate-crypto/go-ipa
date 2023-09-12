@@ -47,7 +47,7 @@ func ReadScalar(r io.Reader) (*fr.Element, error) {
 		return nil, fmt.Errorf("reading scalar: %w", err)
 	}
 	var scalar = &fr.Element{}
-	if _, err := scalar.SetBytesLE(x, true); err != nil {
+	if _, err := scalar.SetBytesLECanonical(x); err != nil {
 		return nil, fmt.Errorf("deserializing scalar: %s", err)
 	}
 

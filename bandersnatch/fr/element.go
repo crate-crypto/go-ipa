@@ -719,7 +719,7 @@ func (z *Element) SetBytes(e []byte) *Element {
 
 // SetBytes interprets e as the bytes of a little-endian unsigned integer,
 // sets z to that value (in Montgomery form), and returns z.
-func (z *Element) SetBytesLE(e []byte, mustBeCanonical bool) (*Element, error) {
+func (z *Element) SetBytesLE(e []byte) *Element {
 	for i, j := 0, len(e)-1; i < j; i, j = i+1, j-1 {
 		e[i], e[j] = e[j], e[i]
 	}
@@ -727,7 +727,25 @@ func (z *Element) SetBytesLE(e []byte, mustBeCanonical bool) (*Element, error) {
 	vv := bigIntPool.Get().(*big.Int)
 	vv.SetBytes(e)
 
-	if mustBeCanonical && vv.Cmp(&_modulus) != -1 {
+	// set big int
+	z.SetBigInt(vv)
+
+	// put temporary object back in pool
+	bigIntPool.Put(vv)
+
+	return z
+
+}
+
+func (z *Element) SetBytesLECanonical(e []byte) (*Element, error) {
+	for i, j := 0, len(e)-1; i < j; i, j = i+1, j-1 {
+		e[i], e[j] = e[j], e[i]
+	}
+	// get a big int from our pool
+	vv := bigIntPool.Get().(*big.Int)
+	vv.SetBytes(e)
+
+	if vv.Cmp(&_modulus) != -1 {
 		return  nil, fmt.Errorf("not canonical")
 	}
 
