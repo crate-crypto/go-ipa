@@ -258,6 +258,11 @@ func (mp *MultiProof) Read(r io.Reader) error {
 	if err := mp.IPA.Read(r); err != nil {
 		return fmt.Errorf("failed to read IPA proof: %w", err)
 	}
+	// Check that the next read is EOF.
+	var buf [1]byte
+	if _, err := r.Read(buf[:]); err != io.EOF {
+		return errors.New("expected EOF")
+	}
 
 	return nil
 }
