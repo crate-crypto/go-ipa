@@ -137,3 +137,102 @@ func test_serialize_deserialize_proof(t *testing.T, proof MultiProof) {
 	}
 
 }
+
+func FuzzMultiProofCreateVerify(f *testing.F) {
+	f.Fuzz(func(t *testing.T, p0_z uint8, p0_0, p0_1, p0_2, p0_3, p0_4, p0_5, p0_6, p0_7, p0_8, p0_9, p0_10 uint64) {
+		if p0_z > 10 {
+			return
+		}
+
+		poly_1 := test_helper.TestPoly256(p0_0, p0_1, p0_2, p0_3, p0_4, p0_5, p0_6, p0_7, p0_8, p0_9, p0_10)
+		prover_transcript := common.NewTranscript("multiproof")
+		prover_comm_1 := ipaConf.Commit(poly_1)
+
+		Cs := []*banderwagon.Element{&prover_comm_1}
+		fs := [][]fr.Element{poly_1}
+		zs := []uint8{p0_z}
+		proof, err := CreateMultiProof(prover_transcript, ipaConf, Cs, fs, zs)
+		if err != nil {
+			return
+		}
+		if err != nil {
+			t.Fatalf("failed to create multiproof: %s", err)
+		}
+
+		test_serialize_deserialize_proof(t, *proof)
+
+		// Verifier view
+		verifier_transcript := common.NewTranscript("multiproof")
+
+		ys := []*fr.Element{&poly_1[p0_z]}
+		ok, err := CheckMultiProof(verifier_transcript, ipaConf, proof, Cs, ys, zs)
+		if err != nil && ok {
+			t.Fatalf("failing to verify multiproof can't return OK: %s", err)
+		}
+		if err != nil {
+			return
+		}
+		if !ok {
+			t.Fatalf("failed to verify multiproof")
+		}
+	})
+}
+
+func FuzzMultiProofCreateVerifyOpaqueBytes(f *testing.F) {
+	f.Fuzz(func(t *testing.T, z uint8, evalPointsBytes []byte) {
+		if len(evalPointsBytes) != common.VectorLength*32 {
+			return
+		}
+		evalPoints := make([]fr.Element, len(evalPointsBytes)/32)
+		for i := 0; i < len(evalPointsBytes); i += 32 {
+			evalPoint := evalPointsBytes[i : i+32]
+			if err := evalPoints[i/64].SetBytes(evalPoint); err != nil {
+				return
+			}
+		}
+
+		poly_1 := evalPoints
+		prover_transcript := common.NewTranscript("multiproof")
+		prover_comm_1 := ipaConf.Commit(poly_1)
+
+		Cs := []*banderwagon.Element{&prover_comm_1}
+		fs := [][]fr.Element{poly_1}
+		zs := []uint8{z}
+		proof, err := CreateMultiProof(prover_transcript, ipaConf, Cs, fs, zs)
+		if err != nil {
+			return
+		}
+
+		test_serialize_deserialize_proof(t, *proof)
+
+		// Verifier view
+		verifier_transcript := common.NewTranscript("multiproof")
+
+		ys := []*fr.Element{&poly_1[z]}
+		ok, err := CheckMultiProof(verifier_transcript, ipaConf, proof, Cs, ys, zs)
+		if err != nil && ok {
+			t.Fatalf("failing to verify multiproof can't return OK: %s", err)
+		}
+		if err != nil {
+			return
+		}
+		if !ok {
+			t.Fatalf("failed to verify multiproof")
+		}
+	})
+}
+
+func FuzzMultiProofDeserialize(f *testing.F) {
+	f.Fuzz(func(t *testing.T, proofBytes []byte) {
+		var proof MultiProof
+		err := proof.Read(bytes.NewReader(proofBytes))
+		if err != nil {
+			return
+		}
+		var buf = new(bytes.Buffer)
+		proof.Write(buf)
+		if !bytes.Equal(buf.Bytes(), proofBytes) {
+			t.Fatalf("proof serialization does not match deserialization for Multiproof")
+		}
+	})
+}
