@@ -23,6 +23,7 @@ package fr
 // /!\ WARNING /!\
 
 import (
+	"fmt"
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
@@ -733,6 +734,28 @@ func (z *Element) SetBytesLE(e []byte) *Element {
 	bigIntPool.Put(vv)
 
 	return z
+
+}
+
+func (z *Element) SetBytesLECanonical(e []byte) (*Element, error) {
+	for i, j := 0, len(e)-1; i < j; i, j = i+1, j-1 {
+		e[i], e[j] = e[j], e[i]
+	}
+	// get a big int from our pool
+	vv := bigIntPool.Get().(*big.Int)
+	vv.SetBytes(e)
+
+	if vv.Cmp(&_modulus) != -1 {
+		return  nil, fmt.Errorf("not canonical")
+	}
+
+	// set big int
+	z.SetBigInt(vv)
+
+	// put temporary object back in pool
+	bigIntPool.Put(vv)
+
+	return z, nil
 }
 
 // SetBigInt sets z to v (regular form) and returns z in Montgomery form

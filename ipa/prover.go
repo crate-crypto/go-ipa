@@ -127,14 +127,21 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 }
 
 // Write serializes the IPA proof to the given writer.
-func (ip *IPAProof) Write(w io.Writer) {
+func (ip *IPAProof) Write(w io.Writer) error {
 	for _, el := range ip.L {
-		binary.Write(w, binary.BigEndian, el.Bytes())
+		if err := binary.Write(w, binary.BigEndian, el.Bytes()); err != nil {
+			return fmt.Errorf("failed to write L: %w", err)
+		}
 	}
 	for _, ar := range ip.R {
-		binary.Write(w, binary.BigEndian, ar.Bytes())
+		if err := binary.Write(w, binary.BigEndian, ar.Bytes()); err != nil {
+			return fmt.Errorf("failed to write R: %w", err)
+		}
 	}
-	binary.Write(w, binary.BigEndian, ip.A_scalar.BytesLE())
+	if err := binary.Write(w, binary.BigEndian, ip.A_scalar.BytesLE()); err != nil {
+		return fmt.Errorf("failed to write A_scalar: %w", err)
+	}
+	return nil
 }
 
 // Read deserializes the IPA proof from the given reader.

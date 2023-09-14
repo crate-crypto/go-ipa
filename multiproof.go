@@ -24,6 +24,12 @@ type MultiProof struct {
 func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs []*banderwagon.Element, fs [][]fr.Element, zs []uint8) (*MultiProof, error) {
 	transcript.DomainSep("multiproof")
 
+	for _, f := range fs {
+		if len(f) != common.VectorLength {
+			return nil, fmt.Errorf("polynomial length = %d, while expected length = %d", len(f), common.VectorLength)
+		}
+	}
+
 	if len(Cs) != len(fs) {
 		return nil, fmt.Errorf("number of commitments = %d, while number of functions = %d", len(Cs), len(fs))
 	}
@@ -232,9 +238,14 @@ func domainToFr(in uint8) fr.Element {
 }
 
 // Write serializes a multi-proof to a writer.
-func (mp *MultiProof) Write(w io.Writer) {
-	binary.Write(w, binary.BigEndian, mp.D.Bytes())
-	mp.IPA.Write(w)
+func (mp *MultiProof) Write(w io.Writer) error {
+	if err := binary.Write(w, binary.BigEndian, mp.D.Bytes()); err != nil {
+		return fmt.Errorf("failed to write D: %w", err)
+	}
+	if err := mp.IPA.Write(w); err != nil {
+		return fmt.Errorf("failed to write IPA proof: %w", err)
+	}
+	return nil
 }
 
 // Read deserializes a multi-proof from a reader.
@@ -244,7 +255,14 @@ func (mp *MultiProof) Read(r io.Reader) error {
 		return fmt.Errorf("failed to read D: %w", err)
 	}
 	mp.D = *D
-	mp.IPA.Read(r)
+	if err := mp.IPA.Read(r); err != nil {
+		return fmt.Errorf("failed to read IPA proof: %w", err)
+	}
+	// Check that the next read is EOF.
+	var buf [1]byte
+	if _, err := r.Read(buf[:]); err != io.EOF {
+		return errors.New("expected EOF")
+	}
 
 	return nil
 }
