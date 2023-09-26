@@ -78,7 +78,7 @@ func (msm *MSMPrecomp) MSM(scalars []fr.Element) Element {
 // PrecompPoint is a precomputed table for a single point.
 type PrecompPoint struct {
 	windowSize int
-	windows    [][]bandersnatch.PointExtendedNormalized
+	windows    [][]bandersnatch.PointExtendedMSM
 }
 
 // NewPrecompPoint creates a new PrecompPoint for the given point and window size.
@@ -92,7 +92,7 @@ func NewPrecompPoint(point Element, windowSize int) (PrecompPoint, error) {
 
 	res := PrecompPoint{
 		windowSize: windowSize,
-		windows:    make([][]bandersnatch.PointExtendedNormalized, 256/windowSize),
+		windows:    make([][]bandersnatch.PointExtendedMSM, 256/windowSize),
 	}
 
 	windows := make([][]bandersnatch.PointExtended, 256/windowSize)
@@ -126,7 +126,7 @@ func (pp *PrecompPoint) ScalarMul(scalar fr.Element, res *bandersnatch.PointExte
 
 	scalar.FromMont()
 	var carry uint64
-	var pNeg bandersnatch.PointExtendedNormalized
+	var pNeg bandersnatch.PointExtendedMSM
 	for l := 0; l < fr.Limbs; l++ {
 		for w := 0; w < numWindowsInLimb; w++ {
 			windowValue := (scalar[l]>>(pp.windowSize*w))&((1<<pp.windowSize)-1) + carry
@@ -139,11 +139,11 @@ func (pp *PrecompPoint) ScalarMul(scalar fr.Element, res *bandersnatch.PointExte
 				windowValue = (1 << pp.windowSize) - windowValue
 				if windowValue != 0 {
 					pNeg.Neg(&pp.windows[l*numWindowsInLimb+w][windowValue-1])
-					bandersnatch.ExtendedAddNormalized(res, res, &pNeg)
+					bandersnatch.ExtendedMSMAdd(res, res, &pNeg)
 				}
 				carry = 1
 			} else {
-				bandersnatch.ExtendedAddNormalized(res, res, &pp.windows[l*numWindowsInLimb+w][windowValue-1])
+				bandersnatch.ExtendedMSMAdd(res, res, &pp.windows[l*numWindowsInLimb+w][windowValue-1])
 			}
 		}
 	}
@@ -196,8 +196,8 @@ func batchProjToAffine(points []bandersnatch.PointProj) []bandersnatch.PointAffi
 	return result
 }
 
-func batchToExtendedPointNormalized(points []bandersnatch.PointExtended) []bandersnatch.PointExtendedNormalized {
-	result := make([]bandersnatch.PointExtendedNormalized, len(points))
+func batchToExtendedPointNormalized(points []bandersnatch.PointExtended) []bandersnatch.PointExtendedMSM {
+	result := make([]bandersnatch.PointExtendedMSM, len(points))
 	zeroes := make([]bool, len(points))
 	accumulator := fp.One()
 
@@ -232,10 +232,11 @@ func batchToExtendedPointNormalized(points []bandersnatch.PointExtended) []bande
 				continue
 			}
 
-			a := result[i].X
-			result[i].X.Mul(&points[i].X, &a)
-			result[i].Y.Mul(&points[i].Y, &a)
-			result[i].T.Mul(&result[i].X, &result[i].Y)
+			z_inv := result[i].X
+			var x, y fp.Element
+			x.Mul(&points[i].X, &z_inv)
+			y.Mul(&points[i].Y, &z_inv)
+			result[i] = bandersnatch.NewPointExtendedMSM(x, y)
 		}
 	})
 

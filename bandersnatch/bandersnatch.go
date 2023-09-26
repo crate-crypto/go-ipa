@@ -101,37 +101,47 @@ func computeY(x *fp.Element, choose_largest bool) *fp.Element {
 func PointExtendedFromProj(p *PointProj) PointExtended {
 	var pzinv fp.Element
 	pzinv.Inverse(&p.Z)
-	var z fp.Element
-	z.Mul(&p.X, &p.Y).Mul(&z, &pzinv)
+	var t fp.Element
+	t.Mul(&p.X, &p.Y).Mul(&t, &pzinv)
 	return PointExtended{
 		X: p.X,
 		Y: p.Y,
+		T: t,
 		Z: p.Z,
-		T: z,
 	}
 }
 
-// PointExtendedNormalized is an extended point which is normalized.
+// PointExtendedMSM is a normalized extended point with T=d*X*Y.
 // i.e: Z=1. We store it this way to save 32 bytes per point in memory.
-type PointExtendedNormalized struct {
+type PointExtendedMSM struct {
 	X, Y, T gnarkfr.Element
 }
 
+func NewPointExtendedMSM(x gnarkfr.Element, y gnarkfr.Element) PointExtendedMSM {
+	var t gnarkfr.Element
+	t.Mul(&x, &y).Mul(&t, &CurveParams.D)
+	return PointExtendedMSM{
+		X: x,
+		Y: y,
+		T: t,
+	}
+}
+
 // Neg computes p = -p1
-func (p *PointExtendedNormalized) Neg(p1 *PointExtendedNormalized) *PointExtendedNormalized {
+func (p *PointExtendedMSM) Neg(p1 *PointExtendedMSM) *PointExtendedMSM {
 	p.X.Neg(&p1.X)
 	p.Y = p1.Y
 	p.T.Neg(&p1.T)
 	return p
 }
 
-// ExtendedAddNormalized computes p = p1 + p2.
+// ExtendedMSMAdd computes p = p1 + p2.
 // https://hyperelliptic.org/EFD/g1p/auto-twisted-extended.html#addition-madd-2008-hwcd
-func ExtendedAddNormalized(p, p1 *PointExtended, p2 *PointExtendedNormalized) *gnarkbandersnatch.PointExtended {
+func ExtendedMSMAdd(p, p1 *PointExtended, p2 *PointExtendedMSM) *gnarkbandersnatch.PointExtended {
 	var A, B, C, D, E, F, G, H, tmp gnarkfr.Element
 	A.Mul(&p1.X, &p2.X)
 	B.Mul(&p1.Y, &p2.Y)
-	C.Mul(&p1.T, &p2.T).Mul(&C, &CurveParams.D)
+	C.Mul(&p1.T, &p2.T)
 	D.Set(&p1.Z)
 	tmp.Add(&p1.X, &p1.Y)
 	E.Add(&p2.X, &p2.Y).
