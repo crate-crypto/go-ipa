@@ -13,6 +13,17 @@ import (
 	"github.com/crate-crypto/go-ipa/ipa"
 )
 
+var (
+	labelC         = []byte("C")
+	labelZ         = []byte("z")
+	labelY         = []byte("y")
+	labelD         = []byte("D")
+	labelE         = []byte("E")
+	labelT         = []byte("t")
+	labelR         = []byte("r")
+	labelDomainSep = []byte("multiproof")
+)
+
 // MultiProof is a multi-proof for several polynomials in evaluation form.
 type MultiProof struct {
 	IPA ipa.IPAProof
@@ -23,7 +34,7 @@ type MultiProof struct {
 // The list of triplets (C, Fs, Z) represents each polynomial commitment, evaluations in the domain, and evaluation
 // point respectively.
 func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs []*banderwagon.Element, fs [][]fr.Element, zs []uint8) (*MultiProof, error) {
-	transcript.DomainSep("multiproof")
+	transcript.DomainSep(labelDomainSep)
 
 	for _, f := range fs {
 		if len(f) != common.VectorLength {
@@ -46,18 +57,18 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 	banderwagon.BatchNormalize(Cs)
 
 	for i := 0; i < num_queries; i++ {
-		transcript.AppendPoint(Cs[i], "C")
+		transcript.AppendPoint(Cs[i], labelC)
 		var z = domainToFr(zs[i])
-		transcript.AppendScalar(&z, "z")
+		transcript.AppendScalar(&z, labelZ)
 
 		// get the `y` value
 
 		f := fs[i]
 		y := f[zs[i]]
-		transcript.AppendScalar(&y, "y")
+		transcript.AppendScalar(&y, labelY)
 	}
 
-	r := transcript.ChallengeScalar("r")
+	r := transcript.ChallengeScalar(labelR)
 	powersOfR := common.PowersOf(r, num_queries)
 
 	// Compute g(x)
@@ -80,8 +91,8 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 
 	D := ipaConf.Commit(g_x)
 
-	transcript.AppendPoint(&D, "D")
-	t := transcript.ChallengeScalar("t")
+	transcript.AppendPoint(&D, labelD)
+	t := transcript.ChallengeScalar(labelT)
 
 	// Calculate the denominator inverses only for referenced evaluation points.
 	den_inv := make([]fr.Element, 0, common.VectorLength)
@@ -117,7 +128,7 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 	}
 
 	E := ipaConf.Commit(h_x)
-	transcript.AppendPoint(&E, "E")
+	transcript.AppendPoint(&E, labelE)
 
 	var EminusD banderwagon.Element
 
@@ -138,7 +149,7 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 // The list of triplets (C, Y, Z) represents each polynomial commitment, evaluation
 // result, and evaluation point in the domain.
 func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proof *MultiProof, Cs []*banderwagon.Element, ys []*fr.Element, zs []uint8) (bool, error) {
-	transcript.DomainSep("multiproof")
+	transcript.DomainSep(labelDomainSep)
 
 	if len(Cs) != len(ys) {
 		return false, fmt.Errorf("number of commitments = %d, while number of output points = %d", len(Cs), len(ys))
@@ -153,16 +164,17 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 	}
 
 	for i := 0; i < num_queries; i++ {
-		transcript.AppendPoint(Cs[i], "C")
+		transcript.AppendPoint(Cs[i], labelC)
 		var z = domainToFr(zs[i])
-		transcript.AppendScalar(&z, "z")
-		transcript.AppendScalar(ys[i], "y")
+		transcript.AppendScalar(&z, labelZ)
+		transcript.AppendScalar(ys[i], labelY)
 	}
-	r := transcript.ChallengeScalar("r")
+
+	r := transcript.ChallengeScalar(labelR)
 	powers_of_r := common.PowersOf(r, num_queries)
 
-	transcript.AppendPoint(&proof.D, "D")
-	t := transcript.ChallengeScalar("t")
+	transcript.AppendPoint(&proof.D, labelD)
+	t := transcript.ChallengeScalar(labelT)
 
 	// Compute the polynomials in lagrange form grouped by evaluation point, and
 	// the needed helper scalars.
@@ -205,11 +217,12 @@ func CheckMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, proo
 
 		msm_scalars[i].Mul(&powers_of_r[i], &helper_scalar_den[zs[i]])
 	}
+
 	E, err := ipa.MultiScalar(Csnp, msm_scalars)
 	if err != nil {
 		return false, fmt.Errorf("could not compute E: %w", err)
 	}
-	transcript.AppendPoint(&E, "E")
+	transcript.AppendPoint(&E, labelE)
 
 	var E_minus_D banderwagon.Element
 	E_minus_D.Sub(&E, &proof.D)

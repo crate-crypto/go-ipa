@@ -100,7 +100,7 @@ func TestIPAConsistencySimpleProof(t *testing.T) {
 	test_helper.ScalarEqualHex(t, output_point, "4a353e70b03c89f161de002e8713beec0d740a5e20722fd5bd68b30540a33208")
 
 	// Lets check the state of the transcript, by squeezing out a challenge
-	p_challenge := prover_transcript.ChallengeScalar("state")
+	p_challenge := prover_transcript.ChallengeScalar([]byte("state"))
 	test_helper.ScalarEqualHex(t, p_challenge, "0a81881cbfd7d7197a54ebd67ed6a68b5867f3c783706675b34ece43e85e7306")
 
 	// Note, that we can be confident that any implementation which passes the above conditions
@@ -119,7 +119,7 @@ func TestIPAConsistencySimpleProof(t *testing.T) {
 		t.Fatal("inner product proof failed")
 	}
 	//
-	v_challenge := verifier_transcript.ChallengeScalar("state")
+	v_challenge := verifier_transcript.ChallengeScalar([]byte("state"))
 	if !v_challenge.Equal(&p_challenge) {
 		t.Fatal("prover and verifier state are not the same. The proof should not have passed!")
 	}

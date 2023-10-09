@@ -103,7 +103,7 @@ func TestMultiProofConsistency(t *testing.T) {
 	}
 
 	// Lets check the state of the transcript, by squeezing out a challenge
-	p_challenge := prover_transcript.ChallengeScalar("state")
+	p_challenge := prover_transcript.ChallengeScalar([]byte("state"))
 	test_helper.ScalarEqualHex(t, p_challenge, "eee8a80357ff74b766eba39db90797d022e8d6dee426ded71234241be504d519")
 
 	// Verifier view
@@ -250,7 +250,7 @@ func FuzzMultiProofDeserialize(f *testing.F) {
 }
 
 func BenchmarkProofGeneration(b *testing.B) {
-	numOpenings := []int{100, 10_000, 16_000, 50_000, 100_000, 200_000}
+	numOpenings := []int{2_000, 16_000, 32_000, 64_000, 128_000}
 	openings := genRandomPolynomialOpenings(numOpenings[len(numOpenings)-1])
 
 	for _, n := range numOpenings {
@@ -278,7 +278,7 @@ func BenchmarkProofGeneration(b *testing.B) {
 }
 
 func BenchmarkProofVerification(b *testing.B) {
-	numOpenings := []int{100, 1_000, 10_000, 16_000, 50_000, 100_000, 200_000}
+	numOpenings := []int{2_000, 16_000, 32_000, 64_000, 128_000}
 	openings := genRandomPolynomialOpenings(numOpenings[len(numOpenings)-1])
 
 	for _, n := range numOpenings {

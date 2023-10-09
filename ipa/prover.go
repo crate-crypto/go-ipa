@@ -17,6 +17,17 @@ func init() {
 	maxEvalPointInsideDomain.SetUint64(common.VectorLength - 1)
 }
 
+var (
+	labelDomainSep   = []byte("ipa")
+	labelC           = []byte("C")
+	labelInputPoint  = []byte("input point")
+	labelOutputPoint = []byte("output point")
+	labelW           = []byte("w")
+	labelL           = []byte("L")
+	labelR           = []byte("R")
+	labelX           = []byte("x")
+)
+
 // IPAProof is an inner product argument proof.
 type IPAProof struct {
 	L        []banderwagon.Element
@@ -28,7 +39,7 @@ type IPAProof struct {
 // `a` are the evaluation of the polynomial in the domain, and `evalPoint` represents the
 // evaluation point. The evaluation of the polynomial at such point is computed automatically.
 func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment banderwagon.Element, a []fr.Element, evalPoint fr.Element) (IPAProof, error) {
-	transcript.DomainSep("ipa")
+	transcript.DomainSep(labelDomainSep)
 
 	b := computeBVector(ic, evalPoint)
 
@@ -37,10 +48,10 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 		return IPAProof{}, fmt.Errorf("could not compute inner product: %w", err)
 	}
 
-	transcript.AppendPoint(&commitment, "C")
-	transcript.AppendScalar(&evalPoint, "input point")
-	transcript.AppendScalar(&inner_prod, "output point")
-	w := transcript.ChallengeScalar("w")
+	transcript.AppendPoint(&commitment, labelC)
+	transcript.AppendScalar(&evalPoint, labelInputPoint)
+	transcript.AppendScalar(&inner_prod, labelOutputPoint)
+	w := transcript.ChallengeScalar(labelW)
 
 	var q banderwagon.Element
 	q.ScalarMul(&ic.Q, &w)
@@ -99,9 +110,9 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 		L[i] = C_L
 		R[i] = C_R
 
-		transcript.AppendPoint(&C_L, "L")
-		transcript.AppendPoint(&C_R, "R")
-		x := transcript.ChallengeScalar("x")
+		transcript.AppendPoint(&C_L, labelL)
+		transcript.AppendPoint(&C_R, labelR)
+		x := transcript.ChallengeScalar(labelX)
 
 		var xInv fr.Element
 		xInv.Inverse(&x)
