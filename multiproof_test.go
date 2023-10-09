@@ -250,7 +250,7 @@ func FuzzMultiProofDeserialize(f *testing.F) {
 }
 
 func BenchmarkProofGeneration(b *testing.B) {
-	numOpenings := []int{16_000}
+	numOpenings := []int{100, 10_000, 16_000, 50_000}
 
 	// Generate
 	openings := genRandomPolynomialOpenings(numOpenings[len(numOpenings)-1])

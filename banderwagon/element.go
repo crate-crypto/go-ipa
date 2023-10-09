@@ -8,6 +8,7 @@ import (
 	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fp"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
+	"github.com/crate-crypto/go-ipa/common/parallel"
 )
 
 const (
@@ -72,36 +73,54 @@ func (p Element) BytesUncompressed() [UncompressedSize]byte {
 func BatchNormalize(elements []*Element) {
 	// The elements slice might contain duplicate pointers,
 	// dedupe them to avoid double work.
-	dedupedElements := make([]*Element, 0, len(elements))
+	mapDedupedElements := make(map[*Element]struct{}, len(elements))
 	for _, e := range elements {
-		found := false
-		for i := range dedupedElements {
-			if dedupedElements[i] == e {
-				found = true
-				break
-			}
-		}
-		if found {
-			continue
-		}
+		mapDedupedElements[e] = struct{}{}
+	}
+	dedupedElements := make([]*Element, 0, len(mapDedupedElements))
+	for e := range mapDedupedElements {
 		dedupedElements = append(dedupedElements, e)
 	}
 
-	// Collect all z co-ordinates
-	zs := make([]fp.Element, len(dedupedElements))
+	result := make([]bandersnatch.PointAffine, len(elements))
+	zeroes := make([]bool, len(elements))
+	accumulator := fp.One()
+
+	// batch invert all points[].Z coordinates with Montgomery batch inversion trick
+	// (stores points[].Z^-1 in result[i].X to avoid allocating a slice of fr.Elements)
 	for i := 0; i < len(dedupedElements); i++ {
-		zs[i] = dedupedElements[i].inner.Z
+		if dedupedElements[i].inner.Z.IsZero() {
+			zeroes[i] = true
+			continue
+		}
+		result[i].X = accumulator
+		accumulator.Mul(&accumulator, &dedupedElements[i].inner.Z)
 	}
 
-	// Invert z co-ordinates
-	zInvs := fp.BatchInvert(zs)
+	var accInverse fp.Element
+	accInverse.Inverse(&accumulator)
 
-	// Multiply x and y by zInv
-	for i, e := range dedupedElements {
-		e.inner.X.Mul(&e.inner.X, &zInvs[i])
-		e.inner.Y.Mul(&e.inner.Y, &zInvs[i])
-		e.inner.Z.SetOne()
+	for i := len(dedupedElements) - 1; i >= 0; i-- {
+		if zeroes[i] {
+			// do nothing, (X=0, Y=0) is infinity point in affine
+			continue
+		}
+		result[i].X.Mul(&result[i].X, &accInverse)
+		accInverse.Mul(&accInverse, &dedupedElements[i].inner.Z)
 	}
+
+	// batch convert to affine.
+	parallel.Execute(len(dedupedElements), func(start, end int) {
+		for i := start; i < end; i++ {
+			if zeroes[i] {
+				// do nothing, (X=0, Y=0) is infinity point in affine
+				continue
+			}
+			a := result[i].X
+			result[i].X.Mul(&dedupedElements[i].inner.X, &a)
+			result[i].Y.Mul(&dedupedElements[i].inner.Y, &a)
+		}
+	})
 }
 
 // ElementsToBytes serialises a slice of group elements in compressed form.
