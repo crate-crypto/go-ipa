@@ -250,9 +250,7 @@ func FuzzMultiProofDeserialize(f *testing.F) {
 }
 
 func BenchmarkProofGeneration(b *testing.B) {
-	numOpenings := []int{16_000}
-
-	// Generate
+	numOpenings := []int{100, 10_000, 16_000, 50_000, 100_000, 200_000}
 	openings := genRandomPolynomialOpenings(numOpenings[len(numOpenings)-1])
 
 	for _, n := range numOpenings {
@@ -268,17 +266,48 @@ func BenchmarkProofGeneration(b *testing.B) {
 			}
 
 			for i := 0; i < b.N; i++ {
-				tr := common.NewTranscript("ipa")
+				tr := common.NewTranscript("multiproof")
 
-				_, err := CreateMultiProof(tr, ipaConf, Cs, fs, zs)
-				if err != nil {
+				if _, err := CreateMultiProof(tr, ipaConf, Cs, fs, zs); err != nil {
 					b.Fatalf("failed to create multiproof: %s", err)
 				}
 			}
 		})
 
 	}
+}
 
+func BenchmarkProofVerification(b *testing.B) {
+	numOpenings := []int{100, 1_000, 10_000, 16_000, 50_000, 100_000, 200_000}
+	openings := genRandomPolynomialOpenings(numOpenings[len(numOpenings)-1])
+
+	for _, n := range numOpenings {
+		b.Run(fmt.Sprintf("numopenings=%d", n), func(b *testing.B) {
+			Cs := make([]*banderwagon.Element, n)
+			fs := make([][]fr.Element, n)
+			zs := make([]uint8, n)
+			ys := make([]*fr.Element, n)
+			for i := 0; i < n; i++ {
+				Cs[i] = &openings[i].commitment
+				fs[i] = openings[i].evaluations[:]
+				zs[i] = openings[i].evalPoint
+				ys[i] = &fs[i][zs[i]]
+			}
+			transcriptProving := common.NewTranscript("multiproof")
+			proof, err := CreateMultiProof(transcriptProving, ipaConf, Cs, fs, zs)
+			if err != nil {
+				b.Fatalf("failed to create multiproof: %s", err)
+			}
+
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				tr := common.NewTranscript("multiproof")
+				if ok, err := CheckMultiProof(tr, ipaConf, proof, Cs, ys, zs); !ok || err != nil {
+					b.Fatalf("failed to verify multiproof")
+				}
+			}
+		})
+	}
 }
 
 func genRandomPolynomialOpenings(n int) []polyOpening {
