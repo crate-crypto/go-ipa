@@ -41,16 +41,21 @@ type Element struct {
 
 // Bytes returns the compressed serialized version of the element.
 func (p Element) Bytes() [CompressedSize]byte {
-	// Convert underlying point to affine representation.
-	var affine bandersnatch.PointAffine
-	affine.FromProj(&p.inner)
-
 	// Serialisation takes the x co-ordinate and multiplies it by the sign of y.
-	x := affine.X
-	if !affine.Y.LexicographicallyLargest() {
-		x.Neg(&x)
+	affineX := p.inner.X
+	affineY := p.inner.Y
+	if !p.inner.Z.IsOne() {
+		// Convert underlying point to affine representation.
+		var affine bandersnatch.PointAffine
+		affine.FromProj(&p.inner)
+		affineX = affine.X
+		affineY = affine.Y
 	}
-	return x.Bytes()
+
+	if !affineY.LexicographicallyLargest() {
+		affineX.Neg(&affineX)
+	}
+	return affineX.Bytes()
 }
 
 // BytesUncompressed returns the uncompressed serialized version of the element.
@@ -82,7 +87,7 @@ func BatchNormalize(elements []*Element) {
 		dedupedElements = append(dedupedElements, e)
 	}
 
-	result := make([]bandersnatch.PointAffine, len(elements))
+	invs := make([]fp.Element, len(elements))
 	zeroes := make([]bool, len(elements))
 	accumulator := fp.One()
 
@@ -93,7 +98,7 @@ func BatchNormalize(elements []*Element) {
 			zeroes[i] = true
 			continue
 		}
-		result[i].X = accumulator
+		invs[i] = accumulator
 		accumulator.Mul(&accumulator, &dedupedElements[i].inner.Z)
 	}
 
@@ -105,7 +110,7 @@ func BatchNormalize(elements []*Element) {
 			// do nothing, (X=0, Y=0) is infinity point in affine
 			continue
 		}
-		result[i].X.Mul(&result[i].X, &accInverse)
+		invs[i].Mul(&invs[i], &accInverse)
 		accInverse.Mul(&accInverse, &dedupedElements[i].inner.Z)
 	}
 
@@ -116,9 +121,9 @@ func BatchNormalize(elements []*Element) {
 				// do nothing, (X=0, Y=0) is infinity point in affine
 				continue
 			}
-			a := result[i].X
-			result[i].X.Mul(&dedupedElements[i].inner.X, &a)
-			result[i].Y.Mul(&dedupedElements[i].inner.Y, &a)
+			dedupedElements[i].inner.X.Mul(&dedupedElements[i].inner.X, &invs[i])
+			dedupedElements[i].inner.Y.Mul(&dedupedElements[i].inner.Y, &invs[i])
+			dedupedElements[i].inner.Z = fp.One()
 		}
 	})
 }
@@ -391,6 +396,10 @@ func (p *Element) IsOnCurve() bool {
 
 // IsIdentity returns true if p is the identity element.
 func (p *Element) Normalise() {
+	if p.inner.Z.IsZero() {
+		return
+	}
+
 	var point_aff bandersnatch.PointAffine
 	point_aff.FromProj(&p.inner)
 

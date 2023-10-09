@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"runtime"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
 	"github.com/crate-crypto/go-ipa/banderwagon"
@@ -43,6 +44,7 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 	}
 
 	banderwagon.BatchNormalize(Cs)
+
 	for i := 0; i < num_queries; i++ {
 		transcript.AppendPoint(Cs[i], "C")
 		var z = domainToFr(zs[i])
@@ -54,27 +56,16 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 		y := f[zs[i]]
 		transcript.AppendScalar(&y, "y")
 	}
+
 	r := transcript.ChallengeScalar("r")
-	powers_of_r := common.PowersOf(r, num_queries)
+	powersOfR := common.PowersOf(r, num_queries)
 
 	// Compute g(x)
 	// We first compute the polynomials in lagrange form grouped by evaluation point, and
 	// then we compute g(X). This limit the numbers of DivideOnDomain() calls up to
 	// the domain size.
-	groupedFs := make([][]fr.Element, common.VectorLength)
-	for i := 0; i < num_queries; i++ {
-		z := zs[i]
-		if len(groupedFs[z]) == 0 {
-			groupedFs[z] = make([]fr.Element, common.VectorLength)
-		}
+	groupedFs := groupPolynomialsByEvaluationPoint(fs, powersOfR, zs)
 
-		r := powers_of_r[i]
-		for j := 0; j < common.VectorLength; j++ {
-			var scaledEvaluation fr.Element
-			scaledEvaluation.Mul(&r, &fs[i][j])
-			groupedFs[z][j].Add(&groupedFs[z][j], &scaledEvaluation)
-		}
-	}
 	g_x := make([]fr.Element, common.VectorLength)
 	for index, f := range groupedFs {
 		// If there is no polynomial for this evaluation point, we skip it.
@@ -273,4 +264,56 @@ func (mp MultiProof) Equal(other MultiProof) bool {
 		return false
 	}
 	return mp.D.Equal(&other.D)
+}
+
+func groupPolynomialsByEvaluationPoint(fs [][]fr.Element, powersOfR []fr.Element, zs []uint8) [common.VectorLength][]fr.Element {
+	workersAggregations := make(chan [common.VectorLength][]fr.Element)
+
+	numWorkers := runtime.NumCPU()
+	batchSize := (len(fs) + numWorkers - 1) / numWorkers
+	for i := 0; i < numWorkers; i++ {
+		go func(start, end int) {
+			if end > len(fs) {
+				end = len(fs)
+			}
+			var groupedFs [common.VectorLength][]fr.Element
+			for i := start; i < end; i++ {
+				z := zs[i]
+				if len(groupedFs[z]) == 0 {
+					groupedFs[z] = make([]fr.Element, common.VectorLength)
+				}
+
+				for j := 0; j < common.VectorLength; j++ {
+					var scaledEvaluation fr.Element
+					scaledEvaluation.Mul(&powersOfR[i], &fs[i][j])
+					groupedFs[z][j].Add(&groupedFs[z][j], &scaledEvaluation)
+				}
+			}
+			workersAggregations <- groupedFs
+		}(i*batchSize, (i+1)*batchSize)
+	}
+
+	// Each worker has computed its own aggregation. Now we aggregate the results.
+	// This is bounded to reducing a `numWorkers` sized array of `common.VectorLength` sized arrays.
+	var groupedFs [common.VectorLength][]fr.Element
+	for i := 0; i < numWorkers; i++ {
+		workerAggregation := <-workersAggregations
+		for z := range workerAggregation {
+			if len(workerAggregation[z]) == 0 {
+				continue
+			}
+			// If this is the first time we see this evaluation point, we initialize it
+			// reusing the worker result.
+			if groupedFs[z] == nil {
+				groupedFs[z] = workerAggregation[z]
+				continue
+			}
+			// If not, we aggregate the worker result with the previous result for this evaluation.
+			for j := 0; j < common.VectorLength; j++ {
+				groupedFs[z][j].Add(&groupedFs[z][j], &workerAggregation[z][j])
+			}
+		}
+	}
+
+	return groupedFs
 }
