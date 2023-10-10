@@ -251,7 +251,7 @@ func FuzzMultiProofDeserialize(f *testing.F) {
 
 func BenchmarkProofGeneration(b *testing.B) {
 	numOpenings := []int{2_000, 16_000, 32_000, 64_000, 128_000}
-	openings := genRandomPolynomialOpenings(numOpenings[len(numOpenings)-1])
+	openings := genRandomPolynomialOpenings(b, numOpenings[len(numOpenings)-1])
 
 	for _, n := range numOpenings {
 		b.Run(fmt.Sprintf("numopenings=%d", n), func(b *testing.B) {
@@ -279,7 +279,7 @@ func BenchmarkProofGeneration(b *testing.B) {
 
 func BenchmarkProofVerification(b *testing.B) {
 	numOpenings := []int{2_000, 16_000, 32_000, 64_000, 128_000}
-	openings := genRandomPolynomialOpenings(numOpenings[len(numOpenings)-1])
+	openings := genRandomPolynomialOpenings(b, numOpenings[len(numOpenings)-1])
 
 	for _, n := range numOpenings {
 		b.Run(fmt.Sprintf("numopenings=%d", n), func(b *testing.B) {
@@ -310,7 +310,7 @@ func BenchmarkProofVerification(b *testing.B) {
 	}
 }
 
-func genRandomPolynomialOpenings(n int) []polyOpening {
+func genRandomPolynomialOpenings(t testing.TB, n int) []polyOpening {
 	openings := make([]polyOpening, n)
 
 	batches := runtime.NumCPU()
@@ -325,7 +325,7 @@ func genRandomPolynomialOpenings(n int) []polyOpening {
 				if i*batchSize+j >= n {
 					break
 				}
-				openings[i*batchSize+j] = genRandomPolynomialOpening()
+				openings[i*batchSize+j] = genRandomPolynomialOpening(t)
 			}
 		}(i)
 	}
@@ -340,10 +340,12 @@ type polyOpening struct {
 	evalPoint   uint8
 }
 
-func genRandomPolynomialOpening() polyOpening {
+func genRandomPolynomialOpening(t testing.TB) polyOpening {
 	var polynomialFr [256]fr.Element
 	for i := range polynomialFr {
-		polynomialFr[i].SetRandom()
+		if _, err := polynomialFr[i].SetRandom(); err != nil {
+			t.Fatalf("failed to set random element: %s", err)
+		}
 	}
 	c := ipaConf.Commit(polynomialFr[:])
 
