@@ -22,7 +22,7 @@ func NewTranscript(label string) *Transcript {
 
 	transcript := &Transcript{
 		state: digest,
-		buff:  bytes.NewBuffer(make([]byte, 1<<20)),
+		buff:  bytes.NewBuffer(make([]byte, 0, 1024)),
 	}
 
 	return transcript
