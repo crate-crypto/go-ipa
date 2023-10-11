@@ -263,6 +263,39 @@ func TestCRSGeneration(t *testing.T) {
 	}
 }
 
+func TestInsideDomainEvaluation(t *testing.T) {
+	t.Parallel()
+
+	// Define some arbitrary polynomial in evaluation form.
+	poly := test_helper.TestPoly256(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)
+	polyComm := ipaConf.Commit(poly)
+
+	// For all the possible evaluation points *in the domain*, double check that
+	// proof generation and verification works correctly.
+	for domainEvalPoint := 0; domainEvalPoint < domainSize; domainEvalPoint++ {
+		var frEvalPoint fr.Element
+		frEvalPoint.SetUint64(uint64(domainEvalPoint))
+
+		// Prover.
+		transcript := common.NewTranscript("ipa")
+		proof, err := CreateIPAProof(transcript, ipaConf, polyComm, poly, frEvalPoint)
+		if err != nil {
+			t.Fatalf("could not create proof: %s", err)
+		}
+
+		// Verifier.
+		transcript = common.NewTranscript("ipa")
+		// We check the proof against what we *know* to be correct regarding `poly` definition in evaluation form.
+		ok, err := CheckIPAProof(transcript, ipaConf, polyComm, proof, frEvalPoint, poly[domainEvalPoint])
+		if err != nil {
+			t.Fatalf("could not check proof: %s", err)
+		}
+		if !ok {
+			t.Fatal("inner product proof failed")
+		}
+	}
+}
+
 func test_serialize_deserialize_proof(t *testing.T, proof IPAProof) {
 	buf := new(bytes.Buffer)
 	if err := proof.Write(buf); err != nil {
