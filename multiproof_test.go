@@ -268,7 +268,15 @@ func BenchmarkProofGeneration(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				tr := common.NewTranscript("multiproof")
 
-				if _, err := CreateMultiProof(tr, ipaConf, Cs, fs, zs); err != nil {
+				b.StopTimer()
+				Cs2 := make([]*banderwagon.Element, n)
+				for i := 0; i < n; i++ {
+					cs2 := *Cs[i]
+					Cs2[i] = &cs2
+				}
+				b.StartTimer()
+
+				if _, err := CreateMultiProof(tr, ipaConf, Cs2, fs, zs); err != nil {
 					b.Fatalf("failed to create multiproof: %s", err)
 				}
 			}
