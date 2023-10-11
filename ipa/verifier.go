@@ -21,7 +21,7 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 		return false, fmt.Errorf("the number of points for L and R should be equal to the number of rounds")
 	}
 
-	b := ic.PrecomputedWeights.ComputeBarycentricCoefficients(evalPoint)
+	b := computeBVector(ic, evalPoint)
 
 	transcript.AppendPoint(&commitment, "C")
 	transcript.AppendScalar(&evalPoint, "input point")
