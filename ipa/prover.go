@@ -4,11 +4,18 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math/big"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
 	"github.com/crate-crypto/go-ipa/banderwagon"
 	"github.com/crate-crypto/go-ipa/common"
 )
+
+var maxEvalPointInsideDomain fr.Element
+
+func init() {
+	maxEvalPointInsideDomain.SetUint64(common.VectorLength - 1)
+}
 
 // IPAProof is an inner product argument proof.
 type IPAProof struct {
@@ -23,7 +30,8 @@ type IPAProof struct {
 func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment banderwagon.Element, a []fr.Element, evalPoint fr.Element) (IPAProof, error) {
 	transcript.DomainSep("ipa")
 
-	b := ic.PrecomputedWeights.ComputeBarycentricCoefficients(evalPoint)
+	b := computeBVector(ic, evalPoint)
+
 	inner_prod, err := InnerProd(a, b)
 	if err != nil {
 		return IPAProof{}, fmt.Errorf("could not compute inner product: %w", err)
@@ -205,4 +213,20 @@ func (ip IPAProof) Equal(other IPAProof) bool {
 		}
 	}
 	return ip.A_scalar.Equal(&other.A_scalar)
+}
+
+func computeBVector(ic *IPAConfig, evalPoint fr.Element) []fr.Element {
+	if evalPoint.Cmp(&maxEvalPointInsideDomain) > 0 {
+		return ic.PrecomputedWeights.ComputeBarycentricCoefficients(evalPoint)
+	}
+	// We build b = [0, 0, 0, ... , 1, .., 0] where the 1 element is at the index of the evaluation point.
+	// This is correct since innerProductArgument(a, b) will return the evaluation of the polynomial at the
+	// evaluation point in the domain.
+	b := make([]fr.Element, common.VectorLength)
+	var evalPointBI big.Int
+	evalPoint.ToBigIntRegular(&evalPointBI)
+	// Uint64() is safe because we checked that evalPoint is inside the domain (i.e <256).
+	b[evalPointBI.Uint64()] = fr.One()
+
+	return b
 }
