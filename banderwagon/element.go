@@ -385,7 +385,7 @@ func (p *Element) IsOnCurve() bool {
 	return point_aff.IsOnCurve()
 }
 
-// Normalize returns normalizes a point to affine form.
+// Normalize returns a point in affine form.
 // If the point is at infinity, returns an error.
 func (p *Element) Normalise() error {
 	if p.inner.Z.IsZero() {
