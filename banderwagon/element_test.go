@@ -246,11 +246,18 @@ func TestBatchNormalize(t *testing.T) {
 
 		// Get expected result by normalizing them independently (i.e: usual FromProj(..) method under the hood).
 		var expectedA, expectedB, expectedC Element
-		expectedA.Set(&A).Normalise()
-		expectedB.Set(&B).Normalise()
-		expectedC.Set(&C).Normalise()
-
-		BatchNormalize([]*Element{&A, &B, &C})
+		if err := expectedA.Set(&A).Normalise(); err != nil {
+			t.Fatalf("could not normalize point A: %s", err)
+		}
+		if err := expectedB.Set(&B).Normalise(); err != nil {
+			t.Fatalf("could not normalize point A: %s", err)
+		}
+		if err := expectedC.Set(&C).Normalise(); err != nil {
+			t.Fatalf("could not normalize point A: %s", err)
+		}
+		if err := BatchNormalize([]*Element{&A, &B, &C}); err != nil {
+			t.Fatalf("could not batch normalize: %s", err)
+		}
 
 		if !A.Equal(&expectedA) {
 			t.Fatal("expected point `A` is incorrect ")
@@ -273,10 +280,16 @@ func TestBatchNormalize(t *testing.T) {
 		B.Double(&A)
 
 		var expectedA, expectedB Element
-		expectedA.Set(&A).Normalise()
-		expectedB.Set(&B).Normalise()
+		if err := expectedA.Set(&A).Normalise(); err != nil {
+			t.Fatalf("could not normalize point A: %s", err)
+		}
+		if err := expectedB.Set(&B).Normalise(); err != nil {
+			t.Fatalf("could not normalize point A: %s", err)
+		}
 
-		BatchNormalize([]*Element{&A, &A, &B, &A})
+		if err := BatchNormalize([]*Element{&A, &A, &B, &A}); err != nil {
+			t.Fatalf("could not batch normalize: %s", err)
+		}
 
 		if !A.Equal(&expectedA) {
 			t.Fatal("expected point `A` is incorrect ")
@@ -301,19 +314,15 @@ func TestBatchNormalize(t *testing.T) {
 		}
 
 		var expectedA, expectedB Element
-		expectedA.Set(&A).Normalise()
-		expectedB.Set(&B).Normalise()
-
-		BatchNormalize([]*Element{&A, &B})
-
-		if !A.Equal(&expectedA) {
-			t.Fatal("expected point `A` is incorrect ")
+		if err := expectedA.Set(&A).Normalise(); err != nil {
+			t.Fatalf("could not normalize point A: %s", err)
+		}
+		if err := expectedB.Set(&B).Normalise(); err == nil {
+			t.Fatal("points at infinity can't be normalized")
 		}
 
-		if !B.inner.X.Equal(&expectedB.inner.X) ||
-			!B.inner.Y.Equal(&expectedB.inner.Y) ||
-			!B.inner.Z.Equal(&expectedB.inner.Z) {
-			t.Fatal("expected point `B` is incorrect ")
+		if err := BatchNormalize([]*Element{&A, &B}); err == nil {
+			t.Fatal("points at infinity can't be normalized")
 		}
 	})
 }

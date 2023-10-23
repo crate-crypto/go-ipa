@@ -13,6 +13,24 @@ import (
 	"github.com/crate-crypto/go-ipa/ipa"
 )
 
+// The following are unexported labels to be used in Fiat-Shamir during the
+// multiproof protocol.
+//
+// The following is a short description on how they're used in the protocol:
+//  1. Append the domain separator. (labelDomainSep)
+//  2. For each opening, we append to the transcript:
+//     a. The polynomial commitment (labelC).
+//     b. The evaluation point (labelZ).
+//     c. The evaluation result (labelY).
+//  3. Pull a scalar-field element from the transcript to be used for
+//     the random linear combination of openings. (labelR)
+//  4. Append point D which is sum(r^i * (f_i(x)-y_i)/(x-z_i)). (labelD)
+//  5. Pull a random scalar-field to be used as a random evaluation point. (labelT)
+//  5. Append point E which is sum(r^i * f_i(x)/(t-z_i)). (labelE)
+//  7. Create the IPA proof for (E-D) at point `t`. See the `ipa` package for the FS description.
+//
+// Note: this package must not mutate these label values, nor pass them to
+// parts of the code that would mutate them.
 var (
 	labelC         = []byte("C")
 	labelZ         = []byte("z")
@@ -54,7 +72,9 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 		return nil, errors.New("cannot create a multiproof with 0 queries")
 	}
 
-	banderwagon.BatchNormalize(Cs)
+	if err := banderwagon.BatchNormalize(Cs); err != nil {
+		return nil, fmt.Errorf("could not batch normalize commitments: %w", err)
+	}
 
 	for i := 0; i < num_queries; i++ {
 		transcript.AppendPoint(Cs[i], labelC)

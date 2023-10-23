@@ -17,6 +17,23 @@ func init() {
 	maxEvalPointInsideDomain.SetUint64(common.VectorLength - 1)
 }
 
+// The following are unexported labels to be used in Fiat-Shamir during the
+// inner-product argument protocol.
+//
+// The following is a short description on how they're used in the protocol:
+// 1. Append the domain separator. (labelDomainSep)
+// 2. Append the commitment to the polynomial. (labelC)
+// 3. Append the input point. (labelInputPoint)
+// 4. Append the output point. (labelOutputPoint)
+// 5. Pull the re-scaling factor `w` to scale Q. (labelW).
+// 6. For each round of the IPA protocol:
+//    a. Append the resulting point C_L. (labelL)
+//    b. Append the resulting point C_R. (labelR)
+//    c. Pull the random scalar-field element `x`. (labelX)
+//
+// Note: this package must not mutate these label values, nor pass them to
+// parts of the code that would mutate them.
+
 var (
 	labelDomainSep   = []byte("ipa")
 	labelC           = []byte("C")

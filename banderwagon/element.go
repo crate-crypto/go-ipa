@@ -75,7 +75,7 @@ func (p Element) BytesUncompressed() [UncompressedSize]byte {
 }
 
 // BatchNormalize normalizes a slice of group elements.
-func BatchNormalize(elements []*Element) {
+func BatchNormalize(elements []*Element) error {
 	// The elements slice might contain duplicate pointers,
 	// dedupe them to avoid double work.
 	mapDedupedElements := make(map[*Element]struct{}, len(elements))
@@ -88,15 +88,13 @@ func BatchNormalize(elements []*Element) {
 	}
 
 	invs := make([]fp.Element, len(elements))
-	zeroes := make([]bool, len(elements))
 	accumulator := fp.One()
 
 	// batch invert all points[].Z coordinates with Montgomery batch inversion trick
 	// (stores points[].Z^-1 in result[i].X to avoid allocating a slice of fr.Elements)
 	for i := 0; i < len(dedupedElements); i++ {
 		if dedupedElements[i].inner.Z.IsZero() {
-			zeroes[i] = true
-			continue
+			return errors.New("can not normalize point at infinity")
 		}
 		invs[i] = accumulator
 		accumulator.Mul(&accumulator, &dedupedElements[i].inner.Z)
@@ -106,10 +104,6 @@ func BatchNormalize(elements []*Element) {
 	accInverse.Inverse(&accumulator)
 
 	for i := len(dedupedElements) - 1; i >= 0; i-- {
-		if zeroes[i] {
-			// do nothing, (X=0, Y=0) is infinity point in affine
-			continue
-		}
 		invs[i].Mul(&invs[i], &accInverse)
 		accInverse.Mul(&accInverse, &dedupedElements[i].inner.Z)
 	}
@@ -117,15 +111,12 @@ func BatchNormalize(elements []*Element) {
 	// batch convert to affine.
 	parallel.Execute(len(dedupedElements), func(start, end int) {
 		for i := start; i < end; i++ {
-			if zeroes[i] {
-				// do nothing, (X=0, Y=0) is infinity point in affine
-				continue
-			}
 			dedupedElements[i].inner.X.Mul(&dedupedElements[i].inner.X, &invs[i])
 			dedupedElements[i].inner.Y.Mul(&dedupedElements[i].inner.Y, &invs[i])
 			dedupedElements[i].inner.Z = fp.One()
 		}
 	})
+	return nil
 }
 
 // ElementsToBytes serialises a slice of group elements in compressed form.
@@ -394,7 +385,8 @@ func (p *Element) IsOnCurve() bool {
 	return point_aff.IsOnCurve()
 }
 
-// IsIdentity returns true if p is the identity element.
+// Normalize returns normalizes a point to affine form.
+// If the point is at infinity, returns an error.
 func (p *Element) Normalise() error {
 	if p.inner.Z.IsZero() {
 		return errors.New("can not normalize point at infinity")
