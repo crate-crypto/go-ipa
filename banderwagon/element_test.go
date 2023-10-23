@@ -246,13 +246,13 @@ func TestBatchNormalize(t *testing.T) {
 
 		// Get expected result by normalizing them independently (i.e: usual FromProj(..) method under the hood).
 		var expectedA, expectedB, expectedC Element
-		if err := expectedA.Set(&A).Normalise(); err != nil {
+		if err := expectedA.Set(&A).Normalize(); err != nil {
 			t.Fatalf("could not normalize point A: %s", err)
 		}
-		if err := expectedB.Set(&B).Normalise(); err != nil {
+		if err := expectedB.Set(&B).Normalize(); err != nil {
 			t.Fatalf("could not normalize point A: %s", err)
 		}
-		if err := expectedC.Set(&C).Normalise(); err != nil {
+		if err := expectedC.Set(&C).Normalize(); err != nil {
 			t.Fatalf("could not normalize point A: %s", err)
 		}
 		if err := BatchNormalize([]*Element{&A, &B, &C}); err != nil {
@@ -280,10 +280,10 @@ func TestBatchNormalize(t *testing.T) {
 		B.Double(&A)
 
 		var expectedA, expectedB Element
-		if err := expectedA.Set(&A).Normalise(); err != nil {
+		if err := expectedA.Set(&A).Normalize(); err != nil {
 			t.Fatalf("could not normalize point A: %s", err)
 		}
-		if err := expectedB.Set(&B).Normalise(); err != nil {
+		if err := expectedB.Set(&B).Normalize(); err != nil {
 			t.Fatalf("could not normalize point A: %s", err)
 		}
 
@@ -314,10 +314,10 @@ func TestBatchNormalize(t *testing.T) {
 		}
 
 		var expectedA, expectedB Element
-		if err := expectedA.Set(&A).Normalise(); err != nil {
+		if err := expectedA.Set(&A).Normalize(); err != nil {
 			t.Fatalf("could not normalize point A: %s", err)
 		}
-		if err := expectedB.Set(&B).Normalise(); err == nil {
+		if err := expectedB.Set(&B).Normalize(); err == nil {
 			t.Fatal("points at infinity can't be normalized")
 		}
 
