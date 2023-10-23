@@ -8,6 +8,7 @@ import (
 	"github.com/crate-crypto/go-ipa/bandersnatch"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fp"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
+	"github.com/crate-crypto/go-ipa/common/parallel"
 )
 
 const (
@@ -40,16 +41,21 @@ type Element struct {
 
 // Bytes returns the compressed serialized version of the element.
 func (p Element) Bytes() [CompressedSize]byte {
-	// Convert underlying point to affine representation.
-	var affine bandersnatch.PointAffine
-	affine.FromProj(&p.inner)
-
 	// Serialisation takes the x co-ordinate and multiplies it by the sign of y.
-	x := affine.X
-	if !affine.Y.LexicographicallyLargest() {
-		x.Neg(&x)
+	affineX := p.inner.X
+	affineY := p.inner.Y
+	if !p.inner.Z.IsOne() {
+		// Convert underlying point to affine representation.
+		var affine bandersnatch.PointAffine
+		affine.FromProj(&p.inner)
+		affineX = affine.X
+		affineY = affine.Y
 	}
-	return x.Bytes()
+
+	if !affineY.LexicographicallyLargest() {
+		affineX.Neg(&affineX)
+	}
+	return affineX.Bytes()
 }
 
 // BytesUncompressed returns the uncompressed serialized version of the element.
@@ -69,39 +75,48 @@ func (p Element) BytesUncompressed() [UncompressedSize]byte {
 }
 
 // BatchNormalize normalizes a slice of group elements.
-func BatchNormalize(elements []*Element) {
+func BatchNormalize(elements []*Element) error {
 	// The elements slice might contain duplicate pointers,
 	// dedupe them to avoid double work.
-	dedupedElements := make([]*Element, 0, len(elements))
+	mapDedupedElements := make(map[*Element]struct{}, len(elements))
 	for _, e := range elements {
-		found := false
-		for i := range dedupedElements {
-			if dedupedElements[i] == e {
-				found = true
-				break
-			}
-		}
-		if found {
-			continue
-		}
+		mapDedupedElements[e] = struct{}{}
+	}
+	dedupedElements := make([]*Element, 0, len(mapDedupedElements))
+	for e := range mapDedupedElements {
 		dedupedElements = append(dedupedElements, e)
 	}
 
-	// Collect all z co-ordinates
-	zs := make([]fp.Element, len(dedupedElements))
+	invs := make([]fp.Element, len(elements))
+	accumulator := fp.One()
+
+	// batch invert all points[].Z coordinates with Montgomery batch inversion trick
+	// (stores points[].Z^-1 in result[i].X to avoid allocating a slice of fr.Elements)
 	for i := 0; i < len(dedupedElements); i++ {
-		zs[i] = dedupedElements[i].inner.Z
+		if dedupedElements[i].inner.Z.IsZero() {
+			return errors.New("can not normalize point at infinity")
+		}
+		invs[i] = accumulator
+		accumulator.Mul(&accumulator, &dedupedElements[i].inner.Z)
 	}
 
-	// Invert z co-ordinates
-	zInvs := fp.BatchInvert(zs)
+	var accInverse fp.Element
+	accInverse.Inverse(&accumulator)
 
-	// Multiply x and y by zInv
-	for i, e := range dedupedElements {
-		e.inner.X.Mul(&e.inner.X, &zInvs[i])
-		e.inner.Y.Mul(&e.inner.Y, &zInvs[i])
-		e.inner.Z.SetOne()
+	for i := len(dedupedElements) - 1; i >= 0; i-- {
+		invs[i].Mul(&invs[i], &accInverse)
+		accInverse.Mul(&accInverse, &dedupedElements[i].inner.Z)
 	}
+
+	// batch convert to affine.
+	parallel.Execute(len(dedupedElements), func(start, end int) {
+		for i := start; i < end; i++ {
+			dedupedElements[i].inner.X.Mul(&dedupedElements[i].inner.X, &invs[i])
+			dedupedElements[i].inner.Y.Mul(&dedupedElements[i].inner.Y, &invs[i])
+			dedupedElements[i].inner.Z = fp.One()
+		}
+	})
+	return nil
 }
 
 // ElementsToBytes serialises a slice of group elements in compressed form.
@@ -370,14 +385,21 @@ func (p *Element) IsOnCurve() bool {
 	return point_aff.IsOnCurve()
 }
 
-// IsIdentity returns true if p is the identity element.
-func (p *Element) Normalise() {
+// Normalize returns a point in affine form.
+// If the point is at infinity, returns an error.
+func (p *Element) Normalize() error {
+	if p.inner.Z.IsZero() {
+		return errors.New("can not normalize point at infinity")
+	}
+
 	var point_aff bandersnatch.PointAffine
 	point_aff.FromProj(&p.inner)
 
 	p.inner.X.Set(&point_aff.X)
 	p.inner.Y.Set(&point_aff.Y)
 	p.inner.Z.SetOne()
+
+	return nil
 }
 
 // Set sets p to p1.

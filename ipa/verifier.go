@@ -12,7 +12,7 @@ import (
 // It verifies that `proof` is a valid proof for the polynomial at the evaluation
 // point `evalPoint` with result `result`
 func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment banderwagon.Element, proof IPAProof, evalPoint fr.Element, result fr.Element) (bool, error) {
-	transcript.DomainSep("ipa")
+	transcript.DomainSep(labelDomainSep)
 
 	if len(proof.L) != len(proof.R) {
 		return false, fmt.Errorf("vectors L and R should be the same size")
@@ -23,11 +23,11 @@ func CheckIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment band
 
 	b := computeBVector(ic, evalPoint)
 
-	transcript.AppendPoint(&commitment, "C")
-	transcript.AppendScalar(&evalPoint, "input point")
-	transcript.AppendScalar(&result, "output point")
+	transcript.AppendPoint(&commitment, labelC)
+	transcript.AppendScalar(&evalPoint, labelInputPoint)
+	transcript.AppendScalar(&result, labelOutputPoint)
 
-	w := transcript.ChallengeScalar("w")
+	w := transcript.ChallengeScalar(labelW)
 
 	// Rescaling of q.
 	var q banderwagon.Element
@@ -96,9 +96,9 @@ func generateChallenges(transcript *common.Transcript, proof *IPAProof) []fr.Ele
 
 	challenges := make([]fr.Element, len(proof.L))
 	for i := 0; i < len(proof.L); i++ {
-		transcript.AppendPoint(&proof.L[i], "L")
-		transcript.AppendPoint(&proof.R[i], "R")
-		challenges[i] = transcript.ChallengeScalar("x")
+		transcript.AppendPoint(&proof.L[i], labelL)
+		transcript.AppendPoint(&proof.R[i], labelR)
+		challenges[i] = transcript.ChallengeScalar(labelX)
 	}
 	return challenges
 }

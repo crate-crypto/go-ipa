@@ -3,7 +3,11 @@ package multiproof
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
+	"math/rand"
 	"os"
+	"runtime"
+	"sync"
 	"testing"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
@@ -99,7 +103,7 @@ func TestMultiProofConsistency(t *testing.T) {
 	}
 
 	// Lets check the state of the transcript, by squeezing out a challenge
-	p_challenge := prover_transcript.ChallengeScalar("state")
+	p_challenge := prover_transcript.ChallengeScalar([]byte("state"))
 	test_helper.ScalarEqualHex(t, p_challenge, "eee8a80357ff74b766eba39db90797d022e8d6dee426ded71234241be504d519")
 
 	// Verifier view
@@ -243,4 +247,119 @@ func FuzzMultiProofDeserialize(f *testing.F) {
 			t.Fatalf("proof serialization does not match deserialization for Multiproof")
 		}
 	})
+}
+
+func BenchmarkProofGeneration(b *testing.B) {
+	numOpenings := []int{2_000, 16_000, 32_000, 64_000, 128_000}
+	openings := genRandomPolynomialOpenings(b, numOpenings[len(numOpenings)-1])
+
+	for _, n := range numOpenings {
+		b.Run(fmt.Sprintf("numopenings=%d", n), func(b *testing.B) {
+			Cs := make([]*banderwagon.Element, n)
+			fs := make([][]fr.Element, n)
+			zs := make([]uint8, n)
+
+			for i := 0; i < n; i++ {
+				Cs[i] = &openings[i].commitment
+				fs[i] = openings[i].evaluations[:]
+				zs[i] = openings[i].evalPoint
+			}
+
+			for i := 0; i < b.N; i++ {
+				tr := common.NewTranscript("multiproof")
+
+				b.StopTimer()
+				Cs2 := make([]*banderwagon.Element, n)
+				for i := 0; i < n; i++ {
+					cs2 := *Cs[i]
+					Cs2[i] = &cs2
+				}
+				b.StartTimer()
+
+				if _, err := CreateMultiProof(tr, ipaConf, Cs2, fs, zs); err != nil {
+					b.Fatalf("failed to create multiproof: %s", err)
+				}
+			}
+		})
+
+	}
+}
+
+func BenchmarkProofVerification(b *testing.B) {
+	numOpenings := []int{2_000, 16_000, 32_000, 64_000, 128_000}
+	openings := genRandomPolynomialOpenings(b, numOpenings[len(numOpenings)-1])
+
+	for _, n := range numOpenings {
+		b.Run(fmt.Sprintf("numopenings=%d", n), func(b *testing.B) {
+			Cs := make([]*banderwagon.Element, n)
+			fs := make([][]fr.Element, n)
+			zs := make([]uint8, n)
+			ys := make([]*fr.Element, n)
+			for i := 0; i < n; i++ {
+				Cs[i] = &openings[i].commitment
+				fs[i] = openings[i].evaluations[:]
+				zs[i] = openings[i].evalPoint
+				ys[i] = &fs[i][zs[i]]
+			}
+			transcriptProving := common.NewTranscript("multiproof")
+			proof, err := CreateMultiProof(transcriptProving, ipaConf, Cs, fs, zs)
+			if err != nil {
+				b.Fatalf("failed to create multiproof: %s", err)
+			}
+
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				tr := common.NewTranscript("multiproof")
+				if ok, err := CheckMultiProof(tr, ipaConf, proof, Cs, ys, zs); !ok || err != nil {
+					b.Fatalf("failed to verify multiproof")
+				}
+			}
+		})
+	}
+}
+
+func genRandomPolynomialOpenings(t testing.TB, n int) []polyOpening {
+	openings := make([]polyOpening, n)
+
+	batches := runtime.NumCPU()
+	batchSize := (n + batches - 1) / batches
+
+	var wg sync.WaitGroup
+	wg.Add(batches)
+	for i := 0; i < batches; i++ {
+		go func(i int) {
+			defer wg.Done()
+			for j := 0; j < batchSize; j++ {
+				if i*batchSize+j >= n {
+					break
+				}
+				openings[i*batchSize+j] = genRandomPolynomialOpening(t)
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	return openings
+}
+
+type polyOpening struct {
+	commitment  banderwagon.Element
+	evaluations [256]fr.Element
+	evalPoint   uint8
+}
+
+func genRandomPolynomialOpening(t testing.TB) polyOpening {
+	var polynomialFr [256]fr.Element
+	for i := range polynomialFr {
+		if _, err := polynomialFr[i].SetRandom(); err != nil {
+			t.Fatalf("failed to set random element: %s", err)
+		}
+	}
+	c := ipaConf.Commit(polynomialFr[:])
+
+	return polyOpening{
+		commitment:  c,
+		evaluations: polynomialFr,
+		evalPoint:   uint8(rand.Uint32()),
+	}
 }
