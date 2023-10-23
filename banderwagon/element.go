@@ -395,9 +395,9 @@ func (p *Element) IsOnCurve() bool {
 }
 
 // IsIdentity returns true if p is the identity element.
-func (p *Element) Normalise() {
+func (p *Element) Normalise() error {
 	if p.inner.Z.IsZero() {
-		return
+		return errors.New("can not normalize point at infinity")
 	}
 
 	var point_aff bandersnatch.PointAffine
@@ -406,6 +406,8 @@ func (p *Element) Normalise() {
 	p.inner.X.Set(&point_aff.X)
 	p.inner.Y.Set(&point_aff.Y)
 	p.inner.Z.SetOne()
+
+	return nil
 }
 
 // Set sets p to p1.
