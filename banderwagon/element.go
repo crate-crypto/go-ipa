@@ -245,14 +245,14 @@ func (p *Element) SetBytesUncompressed(buf []byte, trusted bool) error {
 	x.SetBytes(buf[:coordinateSize])
 
 	var y fp.Element
-	// subgroup check
+	// point in curve & subgroup check
 	if !trusted {
 		point := bandersnatch.GetPointFromX(&x, true)
 		if point == nil {
 			return fmt.Errorf("point not in the curve")
 		}
-		calcualtedYBytes := point.Y.Bytes()
-		if !bytes.Equal(calcualtedYBytes[:], buf[coordinateSize:]) {
+		calculatedYBytes := point.Y.Bytes()
+		if !bytes.Equal(calculatedYBytes[:], buf[coordinateSize:]) {
 			return fmt.Errorf("provided Y coordinate doesn't correspond to X")
 		}
 		y = point.Y
