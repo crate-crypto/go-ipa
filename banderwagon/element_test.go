@@ -327,6 +327,48 @@ func TestBatchNormalize(t *testing.T) {
 	})
 }
 
+func TestSetUncompressedFail(t *testing.T) {
+	t.Parallel()
+	one := fp.One()
+
+	t.Run("X not in curve", func(t *testing.T) {
+		startX := one
+		// Find in startX a point that isn't in the curve
+		for {
+			point := bandersnatch.GetPointFromX(&startX, true)
+			if point == nil {
+				break
+			}
+			startX.Add(&startX, &one)
+			continue
+		}
+		var serializedPoint [UncompressedSize]byte
+		xBytes := startX.Bytes()
+		yBytes := Generator.inner.Y.Bytes() // Use some valid-ish Y, but this shouldn't matter much.
+		copy(serializedPoint[:], xBytes[:])
+		copy(serializedPoint[CompressedSize:], yBytes[:])
+
+		var point2 Element
+		if err := point2.SetBytesUncompressed(serializedPoint[:], false); err == nil {
+			t.Fatalf("the point must be rejected")
+		}
+	})
+
+	t.Run("wrong Y", func(t *testing.T) {
+		gen := Generator
+		// Despite X would lead to a point in the curve,
+		// we modify Y+1 to check the provided (serialized) Y
+		// coordinate isn't trusted blindly.
+		gen.inner.Y.Add(&gen.inner.Y, &one)
+
+		pointBytes := gen.BytesUncompressed()
+		var point2 Element
+		if err := point2.SetBytesUncompressed(pointBytes[:], false); err == nil {
+			t.Fatalf("the point must be rejected")
+		}
+	})
+}
+
 func FuzzDeserializationCompressed(f *testing.F) {
 	f.Fuzz(func(t *testing.T, serializedpoint []byte) {
 		var point Element
