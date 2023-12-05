@@ -201,6 +201,19 @@ func TestBatchElementsToBytes(t *testing.T) {
 	}
 }
 
+func TestMapToBaseFieldGenerator(t *testing.T) {
+
+	expected_encoding := "d1e7de2aaea9603d5bc6c208d319596376556ecd8336671ba7670c2139772d14"
+
+	var expected_map_to_field fr.Element
+	Generator.MapToScalarField(&expected_map_to_field)
+
+	expected_bytes := expected_map_to_field.BytesLE()
+	expected_bytes_str := hex.EncodeToString(expected_bytes[:])
+	if expected_bytes_str != expected_encoding {
+		t.Fatal("expected encoding of generator is incorrect")
+	}
+}
 func TestMultiMapToBaseField(t *testing.T) {
 	t.Parallel()
 
