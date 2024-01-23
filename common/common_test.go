@@ -12,8 +12,9 @@ func TestJavaRegressionOneEndian(t *testing.T) {
 	hexStr := "f6e31f7a565a390b48fdd24569ac10d43562d19de37ea951c7f9f250a339d059"
 	byteArray := hexStrToBytes(hexStr)
 	_scalar, err := common.ReadScalar(bytes.NewReader(byteArray))
-	if err != nil {
-		t.Fatalf(err.Error())
+
+	if err == nil {
+		t.Fatalf("expected an error because the scalar is too large")
 	}
 	_ = _scalar
 }
@@ -22,8 +23,8 @@ func TestJavaRegressionOtherEndian(t *testing.T) {
 	byteArray := hexStrToBytes(hexStr)
 	reverse(byteArray)
 	_scalar, err := common.ReadScalar(bytes.NewReader(byteArray))
-	if err != nil {
-		t.Fatalf(err.Error())
+	if err == nil {
+		t.Fatalf("expected an error because the scalar is too large, even though we changed the endian")
 	}
 	_ = _scalar
 }
