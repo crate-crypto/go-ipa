@@ -37,7 +37,6 @@ func reverse(data []byte) {
 
 func hexStrToBytes(numStr string) []byte {
 
-	// Use Hex package
 	byteArray, err := hex.DecodeString(numStr)
 	if err != nil {
 		panic(err)
