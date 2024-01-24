@@ -73,7 +73,11 @@ func TestNewGenesisLvl1Commit(t *testing.T) {
 			t.Fatalf("decoding scalar bytes: %s", err)
 		}
 		reverse(scalarBytes) // Reverse bytes so we use LE
-		scalars[i].SetBytesLECanonical(scalarBytes)
+		scalars_i, err := common.ReadScalar(bytes.NewReader(scalarBytes))
+		if err != nil {
+			t.Fatalf("reading scalar: %s", err)
+		}
+		scalars[i] = *scalars_i
 	}
 	comm := ipaConf.Commit(scalars)
 	commBytes := comm.Bytes()
