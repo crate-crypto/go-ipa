@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"testing"
 
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
+	"github.com/crate-crypto/go-ipa/banderwagon"
 	"github.com/crate-crypto/go-ipa/common"
 	"github.com/crate-crypto/go-ipa/ipa"
 )
@@ -100,4 +102,90 @@ func hexStrToBytes(numStr string) []byte {
 		panic(err)
 	}
 	return byteArray
+}
+
+func GetTreeKeyWithEvaluatedAddress(evaluated *banderwagon.Element, index [32]byte, subIndex byte) []byte {
+	var poly [5]fr.Element
+
+	poly[0].SetZero()
+	poly[1].SetZero()
+	poly[2].SetZero()
+
+	FromLEBytes(&poly[3], index[:16])
+	FromLEBytes(&poly[4], index[16:])
+
+	ipaConf, _ := ipa.NewIPASettings()
+	ret := ipaConf.Commit(poly[:])
+
+	// add the pre-evaluated address
+	ret.Add(&ret, evaluated)
+
+	return pointToHash(&ret, subIndex)
+}
+
+func GetTreeKey(address []byte, trieIndexBytes [32]byte, subIndex byte) []byte {
+	var index0Point banderwagon.Element
+	index0Point.SetBytes([]byte{34, 25, 109, 242, 193, 5, 144, 224, 76, 52, 189, 92, 197, 126, 9, 145, 27, 152, 199, 130, 165, 3, 210, 27, 193, 131, 142, 28, 110, 26, 16, 191})
+
+	if len(address) < 32 {
+		var aligned [32]byte
+		address = append(aligned[:32-len(address)], address...)
+	}
+	// poly = [2+256*64, address_le_low, address_le_high, tree_index_le_low, tree_index_le_high]
+	var poly [5]fr.Element
+
+	// 32-byte address, interpreted as two little endian
+	// 16-byte numbers.
+	FromLEBytes(&poly[1], address[:16])
+	FromLEBytes(&poly[2], address[16:])
+
+	// treeIndex must be interpreted as a 32-byte aligned little-endian integer.
+	// e.g: if treeIndex is 0xAABBCC, we need the byte representation to be 0xCCBBAA00...00.
+	// poly[3] = LE({CC,BB,AA,00...0}) (16 bytes), poly[4]=LE({00,00,...}) (16 bytes).
+	//
+	// To avoid unnecessary endianness conversions for go-ipa, we do some trick:
+	// - poly[3]'s byte representation is the same as the *top* 16 bytes (trieIndexBytes[16:]) of
+	//   32-byte aligned big-endian representation (BE({00,...,AA,BB,CC})).
+	// - poly[4]'s byte representation is the same as the *low* 16 bytes (trieIndexBytes[:16]) of
+	//   the 32-byte aligned big-endian representation (BE({00,00,...}).
+	FromBytes(&poly[3], trieIndexBytes[16:])
+	FromBytes(&poly[4], trieIndexBytes[:16])
+
+	ipaConf, _ := ipa.NewIPASettings()
+	ret := ipaConf.Commit(poly[:])
+
+	// add a constant point corresponding to poly[0]=[2+256*64].
+	ret.Add(&ret, &index0Point)
+
+	return pointToHash(&ret, subIndex)
+}
+
+func FromLEBytes(fr *banderwagon.Fr, data []byte) error {
+	if len(data) > 32 {
+		return errors.New("data is too long")
+	}
+	var aligned [32]byte
+	copy(aligned[:], data)
+	fr.SetBytesLE(aligned[:])
+	return nil
+}
+
+func FromBytes(fr *banderwagon.Fr, data []byte) {
+	var aligned [32]byte
+	copy(aligned[32-len(data):], data)
+	fr.SetBytes(aligned[:])
+}
+
+func pointToHash(evaluated *banderwagon.Element, suffix byte) []byte {
+	// The output of Byte() is big endian for banderwagon. This
+	// introduces an imbalance in the tree, because hashes are
+	// elements of a 253-bit field. This means more than half the
+	// tree would be empty. To avoid this problem, use a little
+	// endian commitment and chop the MSB.
+	bytes := evaluated.Bytes()
+	for i := 0; i < 16; i++ {
+		bytes[31-i], bytes[i] = bytes[i], bytes[31-i]
+	}
+	bytes[31] = suffix
+	return bytes[:]
 }
