@@ -49,7 +49,7 @@ func TestPrecompCorrectness(t *testing.T) {
 				}
 
 				// Test that both results are equal.
-				if !precompResult.inner.Equal(&gnarkResult) {
+				if !precompResult.Inner.Equal(&gnarkResult) {
 					t.Fatalf("msm result does not match gnark result (%s)", scalars[0].String())
 				}
 			}
@@ -129,7 +129,7 @@ func generateRandomPoints(numPoints uint64) ([]Element, []bandersnatch.PointAffi
 		}
 		pointsWagon = append(pointsWagon, point_found)
 		var pointAffine bandersnatch.PointAffine
-		pointAffine.FromProj(&point_found.inner)
+		pointAffine.FromProj(&point_found.Inner)
 		pointsAffine = append(pointsAffine, pointAffine)
 
 	}

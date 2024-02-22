@@ -68,7 +68,7 @@ func TestTwoTorsionEqual(t *testing.T) {
 	// Points that differ by a two torsion point
 	// are equal, where the two torsion point is not the point at infinity
 	two_torsion := Element{
-		inner: bandersnatch.PointProj{
+		Inner: bandersnatch.PointProj{
 			X: fp.Zero(),
 			Y: fp.MinusOne(),
 			Z: fp.One(),
@@ -161,7 +161,7 @@ func TestSerde(t *testing.T) {
 	var point_aff bandersnatch.PointAffine
 
 	point.Add(&Generator, &Generator)
-	point_aff.FromProj(&point.inner)
+	point_aff.FromProj(&point.Inner)
 
 	var buf bytes.Buffer
 
@@ -306,7 +306,7 @@ func TestBatchNormalize(t *testing.T) {
 
 		A.Add(&Generator, &Generator)
 		B = Element{
-			inner: bandersnatch.PointProj{
+			Inner: bandersnatch.PointProj{
 				X: fp.Zero(),
 				Y: fp.One(),
 				Z: fp.Zero(),
@@ -344,7 +344,7 @@ func TestSetUncompressedFail(t *testing.T) {
 		}
 		var serializedPoint [UncompressedSize]byte
 		xBytes := startX.Bytes()
-		yBytes := Generator.inner.Y.Bytes() // Use some valid-ish Y, but this shouldn't matter much.
+		yBytes := Generator.Inner.Y.Bytes() // Use some valid-ish Y, but this shouldn't matter much.
 		copy(serializedPoint[:], xBytes[:])
 		copy(serializedPoint[CompressedSize:], yBytes[:])
 
@@ -359,7 +359,7 @@ func TestSetUncompressedFail(t *testing.T) {
 		// Despite X would lead to a point in the curve,
 		// we modify Y+1 to check the provided (serialized) Y
 		// coordinate isn't trusted blindly.
-		gen.inner.Y.Add(&gen.inner.Y, &one)
+		gen.Inner.Y.Add(&gen.Inner.Y, &one)
 
 		pointBytes := gen.BytesUncompressed()
 		var point2 Element

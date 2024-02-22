@@ -15,12 +15,12 @@ type MultiExpConfig struct {
 func (p *Element) MultiExp(points []Element, scalars []fr.Element, config MultiExpConfig) (*Element, error) {
 	var projPoints = make([]bandersnatch.PointProj, len(points))
 	for i := range points {
-		projPoints[i] = points[i].inner
+		projPoints[i] = points[i].Inner
 	}
 	affinePoints := batchProjToAffine(projPoints)
 
 	// NOTE: This is fine as long MultiExp does not use Equal functionality
-	_, err := bandersnatch.MultiExp(&p.inner, affinePoints, scalars, bandersnatch.MultiExpConfig{
+	_, err := bandersnatch.MultiExp(&p.Inner, affinePoints, scalars, bandersnatch.MultiExpConfig{
 		NbTasks:     config.NbTasks,
 		ScalarsMont: config.ScalarsMont,
 	})
