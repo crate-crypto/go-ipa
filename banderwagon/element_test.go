@@ -327,6 +327,33 @@ func TestBatchNormalize(t *testing.T) {
 	})
 }
 
+func TestBytesUncompressSerializeDeserialize(t *testing.T) {
+	t.Parallel()
+
+	var point Element
+	point.Add(&Generator, &Generator)
+	point.Double(&Generator)
+
+	bytesUncompressed := point.BytesUncompressedTrusted()
+
+	var point2 Element
+
+	// Trying to deserialize the from an untrusted source would mean that the Y coordinate would be checked from
+	// the EC formula. This would reject the point since BytesUncompressedTrusted() doesn't consider the Y coordinate sign.
+	if err := point2.SetBytesUncompressed(bytesUncompressed[:], false); err == nil {
+		t.Fatalf("the point must be rejected since the serialized bytes didn't consider the Y coordinate sign")
+	}
+
+	// Deserializing with the trusted flag, must succeed since it's simply deserializing the x and y coordinate directly
+	// without subgroup or lexicographic checks.
+	if err := point2.SetBytesUncompressed(bytesUncompressed[:], true); err != nil {
+		t.Fatalf("could not deserialize point: %s", err)
+	}
+	if !point.Equal(&point2) {
+		t.Fatalf("deserialized point does not match original point")
+	}
+}
+
 func TestSetUncompressedFail(t *testing.T) {
 	t.Parallel()
 	one := fp.One()
@@ -361,7 +388,7 @@ func TestSetUncompressedFail(t *testing.T) {
 		// coordinate isn't trusted blindly.
 		gen.inner.Y.Add(&gen.inner.Y, &one)
 
-		pointBytes := gen.BytesUncompressed()
+		pointBytes := gen.BytesUncompressedTrusted()
 		var point2 Element
 		if err := point2.SetBytesUncompressed(pointBytes[:], false); err == nil {
 			t.Fatalf("the point must be rejected")
