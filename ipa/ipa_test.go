@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"testing"
 
@@ -322,4 +323,83 @@ func removeDuplicatePoints(intSlice []banderwagon.Element) []banderwagon.Element
 		}
 	}
 	return list
+}
+
+func BenchmarkMSMComparison(b *testing.B) {
+	// msmBase := GenerateRandomPoints(256)
+	// msmEngine, err := banderwagon.NewMSM(msmBase)
+	msmEngine, err := NewIPASettings()
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.Run("MSM in the basis[0:5]", func(b *testing.B) {
+		scalarList := make([][]fr.Element, 10_000)
+		for i := range scalarList {
+			scalarList[i] = make([]fr.Element, 5)
+			for j := 0; j < len(scalarList[i]); j++ {
+				if _, err := scalarList[i][j].SetRandom(); err != nil {
+					b.Fatalf("error generating random scalar: %v", err)
+				}
+			}
+		}
+
+		msmLengths := []int{1, 2, 4}
+		for _, msmLengths := range msmLengths {
+			b.Run(fmt.Sprintf("msmLength=%d", msmLengths), func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					// _, _ = msmEngine.MSM(scalarList[i%len(scalarList)][:msmLengths])
+					_ = msmEngine.Commit(scalarList[i%len(scalarList)][:msmLengths])
+				}
+			})
+		}
+	})
+
+	b.Run("MSM in the basis[5:256]", func(b *testing.B) {
+		// Only create vectors with non-zero scalars NOT in the first 5 positions.
+		scalarList := make([][]fr.Element, 10_000)
+		for i := range scalarList {
+			scalarList[i] = make([]fr.Element, 256)
+			for j := range scalarList[i] {
+				scalarList[i][j].SetZero()
+			}
+			for j := 5; j < len(scalarList[i]); j++ {
+				if _, err := scalarList[i][j].SetRandom(); err != nil {
+					b.Fatalf("error generating random scalar: %v", err)
+				}
+			}
+		}
+		msmLengths := []int{1, 2, 4, 8, 16, 32, 64, 128}
+		for _, msmLengths := range msmLengths {
+			b.Run(fmt.Sprintf("msmLength=%d", msmLengths), func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					// _, _ = msmEngine.MSM(scalarList[i%len(scalarList)][:5+msmLengths])
+					_ = msmEngine.Commit(scalarList[i%len(scalarList)][:5+msmLengths])
+				}
+			})
+		}
+	})
+
+	b.Run("MSM length all basis (256)", func(b *testing.B) {
+		// Only create vectors with non-zero scalars NOT in the first 5 positions.
+		scalarList := make([][]fr.Element, 10_000)
+		for i := range scalarList {
+			scalarList[i] = make([]fr.Element, 256)
+			for j := range scalarList[i] {
+				if _, err := scalarList[i][j].SetRandom(); err != nil {
+					b.Fatalf("error generating random scalar: %v", err)
+				}
+			}
+		}
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			// _, _ = msmEngine.MSM(scalarList[i%len(scalarList)])
+			_ = msmEngine.Commit(scalarList[i%len(scalarList)])
+		}
+	})
 }

@@ -2,13 +2,15 @@ package banderwagon
 
 import "fmt"
 
-// https://hackmd.io/@jsign/vkt-another-iteration-of-vkt-msms
+// The following MSM algorithm is based on an anlaysis that
+// be found in the following doc: https://hackmd.io/@jsign/vkt-another-iteration-of-vkt-msms
 type MSM struct {
 	table1_8    MSMPrecomp
 	table9_32   PrecompMSM2
 	table33_256 PrecompMSM2
 }
 
+// NewMSM creates a new MSM instance with the given basis.
 func NewMSM(basis []Element) (MSM, error) {
 	if len(basis) != supportedMSMLength {
 		return MSM{}, fmt.Errorf("the basis have length %d", supportedMSMLength)
@@ -24,6 +26,7 @@ func NewMSM(basis []Element) (MSM, error) {
 	}, nil
 }
 
+// MSM calculates the multi-scalar multiplication of the given scalars.
 func (msm *MSM) MSM(scalars []Fr) (Element, error) {
 	var nonZeroScalars int
 	for i := range scalars {
