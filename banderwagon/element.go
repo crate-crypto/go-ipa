@@ -16,6 +16,8 @@ const (
 	coordinateSize   = fp.Limbs * 8
 	CompressedSize   = coordinateSize
 	UncompressedSize = 2 * coordinateSize
+
+	FrBits = fr.Bits
 )
 
 // Fr is the scalar field underlying the group.
