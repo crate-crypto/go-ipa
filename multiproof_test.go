@@ -34,7 +34,10 @@ func TestMultiProofCreateVerify(t *testing.T) {
 	// Prover view
 	poly_1 := test_helper.TestPoly256(1, 1, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)
 	prover_transcript := common.NewTranscript("multiproof")
-	prover_comm_1 := ipaConf.Commit(poly_1)
+	prover_comm_1, err := ipaConf.Commit(poly_1)
+	if err != nil {
+		t.Fatalf("failed to commit polynomial: %s", err)
+	}
 
 	one := fr.One()
 
@@ -85,8 +88,15 @@ func TestMultiProofConsistency(t *testing.T) {
 		32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1,
 	)
 	prover_transcript := common.NewTranscript("test")
-	comm_a := ipaConf.Commit(poly_a)
-	comm_b := ipaConf.Commit(poly_b)
+	comm_a, err := ipaConf.Commit(poly_a)
+	if err != nil {
+		t.Fatalf("failed to commit polynomial: %s", err)
+	}
+
+	comm_b, err := ipaConf.Commit(poly_b)
+	if err != nil {
+		t.Fatalf("failed to commit polynomial: %s", err)
+	}
 
 	one := fr.One()
 	var thirty_two = fr.Element{}
@@ -155,7 +165,10 @@ func FuzzMultiProofCreateVerify(f *testing.F) {
 
 		poly_1 := test_helper.TestPoly256(p0_0, p0_1, p0_2, p0_3, p0_4, p0_5, p0_6, p0_7, p0_8, p0_9, p0_10)
 		prover_transcript := common.NewTranscript("multiproof")
-		prover_comm_1 := ipaConf.Commit(poly_1)
+		prover_comm_1, err := ipaConf.Commit(poly_1)
+		if err != nil {
+			t.Fatalf("failed to commit polynomial: %s", err)
+		}
 
 		Cs := []*banderwagon.Element{&prover_comm_1}
 		fs := [][]fr.Element{poly_1}
@@ -202,7 +215,10 @@ func FuzzMultiProofCreateVerifyOpaqueBytes(f *testing.F) {
 
 		poly_1 := evalPoints
 		prover_transcript := common.NewTranscript("multiproof")
-		prover_comm_1 := ipaConf.Commit(poly_1)
+		prover_comm_1, err := ipaConf.Commit(poly_1)
+		if err != nil {
+			t.Fatalf("failed to commit polynomial: %s", err)
+		}
 
 		Cs := []*banderwagon.Element{&prover_comm_1}
 		fs := [][]fr.Element{poly_1}
@@ -355,7 +371,10 @@ func genRandomPolynomialOpening(t testing.TB) polyOpening {
 			t.Fatalf("failed to set random element: %s", err)
 		}
 	}
-	c := ipaConf.Commit(polynomialFr[:])
+	c, err := ipaConf.Commit(polynomialFr[:])
+	if err != nil {
+		t.Fatalf("failed to commit polynomial: %s", err)
+	}
 
 	return polyOpening{
 		commitment:  c,

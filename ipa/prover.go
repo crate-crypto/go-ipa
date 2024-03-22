@@ -75,7 +75,7 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 
 	num_rounds := ic.numRounds
 
-	current_basis := ic.SRS
+	current_basis := ic.basis
 
 	L := make([]banderwagon.Element, num_rounds)
 	R := make([]banderwagon.Element, num_rounds)
@@ -106,20 +106,20 @@ func CreateIPAProof(transcript *common.Transcript, ic *IPAConfig, commitment ban
 			return IPAProof{}, fmt.Errorf("could not compute a_L*b_R inner product: %w", err)
 		}
 
-		C_L_1, err := commit(G_L, a_R)
+		C_L_1, err := commitWithBasis(G_L, a_R)
 		if err != nil {
 			return IPAProof{}, fmt.Errorf("could not do G_L*a_R MSM: %w", err)
 		}
-		C_L, err := commit([]banderwagon.Element{C_L_1, q}, []fr.Element{fr.One(), z_L})
+		C_L, err := commitWithBasis([]banderwagon.Element{C_L_1, q}, []fr.Element{fr.One(), z_L})
 		if err != nil {
 			return IPAProof{}, fmt.Errorf("could not do C_L_1+z_L*q MSM: %w", err)
 		}
 
-		C_R_1, err := commit(G_R, a_L)
+		C_R_1, err := commitWithBasis(G_R, a_L)
 		if err != nil {
 			return IPAProof{}, fmt.Errorf("could not do G_R*a_L MSM: %w", err)
 		}
-		C_R, err := commit([]banderwagon.Element{C_R_1, q}, []fr.Element{fr.One(), z_R})
+		C_R, err := commitWithBasis([]banderwagon.Element{C_R_1, q}, []fr.Element{fr.One(), z_R})
 		if err != nil {
 			return IPAProof{}, fmt.Errorf("could not do C_R_1+z_R*q MSM: %w", err)
 		}

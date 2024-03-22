@@ -13,9 +13,13 @@ import (
 func TestMSMCorrectness(t *testing.T) {
 	t.Parallel()
 
-	basis, pointsAffine := generateRandomPoints(256)
+	basis := GenerateVKTBasis(256)
+	basisAffine := make([]bandersnatch.PointAffine, len(basis))
+	for i := 0; i < len(basis); i++ {
+		basisAffine[i].FromProj(&basis[i].inner)
+	}
 
-	msm, err := NewMSM(basis)
+	msm, err := NewMSMCalculator(basis)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,7 +30,7 @@ func TestMSMCorrectness(t *testing.T) {
 			for round := 0; round < runtime.NumCPU(); round++ {
 				t.Run(fmt.Sprintf("cpu %d", round), func(t *testing.T) {
 					t.Parallel()
-					testCorrectness(t, &msm, pointsAffine, nonZeroScalarCount, 5)
+					testCorrectness(t, &msm, basisAffine, nonZeroScalarCount, 5)
 				})
 			}
 		}
@@ -39,7 +43,7 @@ func TestMSMCorrectness(t *testing.T) {
 			for round := 0; round < runtime.NumCPU(); round++ {
 				t.Run(fmt.Sprintf("cpu %d", round), func(t *testing.T) {
 					t.Parallel()
-					testCorrectness(t, &msm, pointsAffine, nonZeroScalarCount, 32)
+					testCorrectness(t, &msm, basisAffine, nonZeroScalarCount, 32)
 				})
 			}
 		}
@@ -53,7 +57,7 @@ func TestMSMCorrectness(t *testing.T) {
 				for round := 0; round < runtime.NumCPU(); round++ {
 					t.Run(fmt.Sprintf("cpu %d", round), func(t *testing.T) {
 						t.Parallel()
-						testCorrectness(t, &msm, pointsAffine, nonZeroScalarCount, 256)
+						testCorrectness(t, &msm, basisAffine, nonZeroScalarCount, 256)
 					})
 				}
 			})
@@ -104,11 +108,11 @@ func testCorrectness(t *testing.T, msm *MSM, basisAffine []bandersnatch.PointAff
 }
 
 func BenchmarkMSMInitialize(b *testing.B) {
-	basis, _ := generateRandomPoints(256)
+	basis := GenerateVKTBasis(256)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = NewMSM(basis)
+		_, _ = NewMSMCalculator(basis)
 	}
 }

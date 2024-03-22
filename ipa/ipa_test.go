@@ -34,7 +34,10 @@ func TestIPAProofCreateVerify(t *testing.T) {
 
 	// Prover view
 	poly := test_helper.TestPoly256(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)
-	prover_comm := ipaConf.Commit(poly)
+	prover_comm, err := ipaConf.Commit(poly)
+	if err != nil {
+		t.Fatalf("could not commit: %s", err)
+	}
 
 	prover_transcript := common.NewTranscript("ipa")
 
@@ -84,7 +87,11 @@ func TestIPAConsistencySimpleProof(t *testing.T) {
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
 	)
 
-	prover_comm := ipaConf.Commit(poly)
+	prover_comm, err := ipaConf.Commit(poly)
+	if err != nil {
+		t.Fatalf("could not commit: %s", err)
+	}
+
 	test_helper.PointEqualHex(t, prover_comm, "1b9dff8f5ebbac250d291dfe90e36283a227c64b113c37f1bfb9e7a743cdb128")
 
 	prover_transcript := common.NewTranscript("test")
@@ -190,7 +197,7 @@ func TestBasicCommit(t *testing.T) {
 		}
 		a = append(a, tmp)
 	}
-	got, err := commit(generators, a)
+	got, err := commitWithBasis(generators, a)
 	if err != nil {
 		t.Fatalf("could not compute inner product: %s", err)
 	}
@@ -212,7 +219,7 @@ func TestCRSGeneration(t *testing.T) {
 	t.Parallel()
 
 	generator := banderwagon.Generator
-	points := GenerateRandomPoints(256)
+	points := banderwagon.GenerateVKTBasis(256)
 	for _, point := range points {
 		if !point.IsOnCurve() {
 			t.Fatal("generated a point that was not on the curve")
@@ -269,7 +276,10 @@ func TestInsideDomainEvaluation(t *testing.T) {
 
 	// Define some arbitrary polynomial in evaluation form.
 	poly := test_helper.TestPoly256(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)
-	polyComm := ipaConf.Commit(poly)
+	polyComm, err := ipaConf.Commit(poly)
+	if err != nil {
+		t.Fatalf("could not commit: %s", err)
+	}
 
 	// For all the possible evaluation points *in the domain*, double check that
 	// proof generation and verification works correctly.
@@ -325,10 +335,8 @@ func removeDuplicatePoints(intSlice []banderwagon.Element) []banderwagon.Element
 	return list
 }
 
-func BenchmarkMSMComparison(b *testing.B) {
-	// msmBase := GenerateRandomPoints(256)
-	// msmEngine, err := banderwagon.NewMSM(msmBase)
-	msmEngine, err := NewIPASettings()
+func BenchmarkCommit(b *testing.B) {
+	config, err := NewIPASettings()
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -350,8 +358,7 @@ func BenchmarkMSMComparison(b *testing.B) {
 				b.ReportAllocs()
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
-					// _, _ = msmEngine.MSM(scalarList[i%len(scalarList)][:msmLengths])
-					_ = msmEngine.Commit(scalarList[i%len(scalarList)][:msmLengths])
+					_, _ = config.Commit(scalarList[i%len(scalarList)][:msmLengths])
 				}
 			})
 		}
@@ -377,8 +384,7 @@ func BenchmarkMSMComparison(b *testing.B) {
 				b.ReportAllocs()
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
-					// _, _ = msmEngine.MSM(scalarList[i%len(scalarList)][:5+msmLengths])
-					_ = msmEngine.Commit(scalarList[i%len(scalarList)][:5+msmLengths])
+					_, _ = config.Commit(scalarList[i%len(scalarList)][:5+msmLengths])
 				}
 			})
 		}
@@ -398,8 +404,7 @@ func BenchmarkMSMComparison(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			// _, _ = msmEngine.MSM(scalarList[i%len(scalarList)])
-			_ = msmEngine.Commit(scalarList[i%len(scalarList)])
+			_, _ = config.Commit(scalarList[i%len(scalarList)])
 		}
 	})
 }

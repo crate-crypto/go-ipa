@@ -109,7 +109,10 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 		}
 	}
 
-	D := ipaConf.Commit(g_x)
+	D, err := ipaConf.Commit(g_x)
+	if err != nil {
+		return nil, fmt.Errorf("could not commit to g(x): %s", err)
+	}
 
 	transcript.AppendPoint(&D, labelD)
 	t := transcript.ChallengeScalar(labelT)
@@ -147,7 +150,10 @@ func CreateMultiProof(transcript *common.Transcript, ipaConf *ipa.IPAConfig, Cs 
 		h_minus_g[i].Sub(&h_x[i], &g_x[i])
 	}
 
-	E := ipaConf.Commit(h_x)
+	E, err := ipaConf.Commit(h_x)
+	if err != nil {
+		return nil, fmt.Errorf("could not commit to h(x): %s", err)
+	}
 	transcript.AppendPoint(&E, labelE)
 
 	var EminusD banderwagon.Element
